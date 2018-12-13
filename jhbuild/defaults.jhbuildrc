@@ -108,8 +108,8 @@ autogen_packages=['libyaml','GaIn','libxc','chess','bigdft','libABINIT','futile'
 if basic_configuration() is not None:
     for pkg in autogen_packages:
         module_autogenargs[pkg]= basic_configuration()
+    del(pkg)
 
-del(pkg)
 del(autogen_packages)
 
 #branches['PyYAML']='minloader'

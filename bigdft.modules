@@ -18,7 +18,6 @@
   <repository type="git" name="simgrid-dev" href="https://scm.gforge.inria.fr/anonscm/git/"/>
   <repository type="tarball" name="ntpoly" href="https://github.com/william-dawson/NTPoly/archive/"/>
   <repository type="git" name="pyyaml" href="https://github.com/dcaliste/"/>
-  <repository type="git" name="ipython" href="https://github.com/ipython/"/>
   <repository type="git" name="esl" href="https://gitlab.e-cam2020.eu/esl/"/>
 
   <repository type="git" name="v_sim-dev" href="https://gitlab.com/l_sim/"/>
@@ -42,7 +41,7 @@
     </branch>
   </autotools>
 
-  <autotools id="v_sim-dev" autogen-sh="autoreconf" skip-autogen="true">
+  <autotools id="v_sim-dev" autogen-sh="autogen.sh+configure" skip-autogen="true">
     <!-- <branch repo="local-optional" module="v_sim-dev.tar.bz2" -->
     <branch repo="v_sim-dev" module="v_sim"
             version="3.99" checkoutdir="v_sim-dev">
@@ -77,6 +76,7 @@
   <autotools id="pspio" autogen-sh="autogen.sh+configure" autogenargs="--enable-fortran">
     <branch repo="esl" module="pspio" version="0.2.0"/>
   </autotools>
+
   <distutils id="PyYAML">
     <!--<branch repo="libyaml" module="PyYAML-3.10.tar.gz" version="3.10"/>-->
     <!--<branch repo="local" module="PyYAML-3.11.tar.gz" version="3.11" checkoutdir="PyYAML"/>-->
@@ -94,8 +94,9 @@
     </branch>
     <dependencies>
       <dep package="futile"/>
-      <dep package="libxc"/>
-      <dep package="psolver"/> <!-- this is for the libxc macro -->
+      <if condition-unset="no_upstream">
+         <dep package="libxc"/>
+      </if>
     </dependencies>
   </autotools>
 
@@ -107,7 +108,9 @@
   <autotools id="futile" autogen-sh="autoreconf">
     <branch repo="local" module="futile-1.8.tar.gz" version="1.8.0" checkoutdir="futile"/>
     <dependencies>
-      <dep package="libyaml"/>
+      <if condition-unset="no_upstream">
+         <dep package="libyaml"/>
+      </if>
       <if condition-set="testing">
         <dep package="PyYAML"/>
       </if>
@@ -133,6 +136,9 @@
     <branch repo="local" module="atlab-1.0.tar.gz" version="1.0.0" checkoutdir="atlab"/>
     <dependencies>
       <dep package="futile"/>
+      <if condition-set="babel">
+        <dep package="openbabel"/>
+      </if>
     </dependencies>
   </autotools>
 
@@ -154,15 +160,14 @@
       <dep package="futile"/>
       <dep package="atlab"/>
       <dep package="chess"/>
-      <dep package="libxc"/>
+      <if condition-unset="no_upstream">
+         <dep package="libxc"/>
+         <dep package="GaIn"/>
+      </if>
       <dep package="psolver"/>
       <dep package="libABINIT"/>
-      <dep package="GaIn"/>
       <if condition-set="testing">
         <dep package="PyBigDFT"/>
-      </if>
-      <if condition-set="babel">
-        <dep package="openbabel"/>
       </if>
       <if condition-set="vsim">
         <dep package="v_sim-dev"/>
@@ -224,32 +229,12 @@
             checkoutdir="simgrid-dev"/>
   </cmake>
 
-  <cmake id="ipython" skip-autogen="true">
-    <branch repo="ipython"  module="ipython/ipython"
-            checkoutdir="ipython"/>
-  </cmake>
-
-  <distutils id="ipython">
-    <branch repo="local" module="ipython-5.1.0.tar.gz" version="5.1.0" checkoutdir="ipython"/>
-    <dependencies>
-      <dep package="PyYAML"/>
-    </dependencies>
-  </distutils>
-
   <distutils id="PyBigDFT">
     <branch repo="local" module="PyBigDFT-0.1.tar.gz" version="0.1" checkoutdir="PyBigDFT"/>
     <dependencies>
       <dep package="PyYAML"/>
     </dependencies>
   </distutils>
-
-  <!-- <autotools id="cmake-dev">
-    <branch repo="cmake-rep" module="cmake-3.3.2.tar.gz"
-            version="3.3.2"/>
-    <dependencies>
-      <dep package="cmake-dev"/>
-    </dependencies>
-  </autotools> -->
 
   <makesys id="parmetis" skip-autogen="true">
     <branch repo="metis" module="parmetis-4.0.2.tar.gz"
@@ -258,6 +243,17 @@
       <dep package="cmake-dev"/>
     </dependencies> -->
   </makesys>
+
+  <metamodule id="upstream-suite">
+    <dependencies>
+      <dep package="openbabel"/>
+      <dep package="libxc"/>
+      <dep package="GaIn"/>
+      <dep package="PyYAML"/>
+      <dep package="v_sim-dev"/>
+    </dependencies>
+  </metamodule>
+
 
   <metamodule id="bigdft-suite">
     <dependencies>
