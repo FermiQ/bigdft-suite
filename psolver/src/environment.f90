@@ -349,11 +349,11 @@ contains
   end function surf_term
 
   !rigid cavity terms
-  subroutine rigid_cavity_arrays(cavity,mesh,v,nat,rxyz,radii,eps,deps,dleps,corr,kk)
-    use box
+  subroutine rigid_cavity_arrays(cavity,dom,v,nat,rxyz,radii,eps,deps,dleps,corr,kk)
+    use at_domain
     implicit none
     type(cavity_data), intent(in) :: cavity
-    type(cell), intent(in) :: mesh
+    type(domain), intent(in) :: dom
     integer, intent(in) :: nat !< number of centres defining the cavity
     real(gp), dimension(nat), intent(in) :: radii !< radii of each of the atoms
     !>array of the position in the reference frame of rxyz
@@ -378,7 +378,7 @@ contains
     ff(:,:)=0.0_dp
     loop_at: do iat=1,nat
        rad=radii(iat)
-       d=distance(mesh,v,rxyz(1,iat))
+       d=distance(dom,v,rxyz(1,iat))
        if (d.eq.0.d0) then
         d=1.0d-30
         eh=epsl(d,rad,cavity%delta)
@@ -400,7 +400,7 @@ contains
        else
           dlogh=d1e/eh
           dcorrha=dcorrha+d2e/eh-(d1e**2)/eh**2+2.0_gp*d1e/eh/d
-          vr(:)=closest_r(mesh,v,center=rxyz(:,iat))/d
+          vr(:)=closest_r(dom,v,center=rxyz(:,iat))/d
           dha=dha+dlogh*vr
           !if (present(kk)) then
            f0=-(dlogh**2)+d2e/eh
@@ -416,7 +416,7 @@ contains
     end do loop_at
     eps=(cavity%epsilon0-vacuum_eps)*ep+vacuum_eps
     dleps=(eps-vacuum_eps)/eps*dha
-    d2ha=square_gu(mesh,dha)
+    d2ha=square_gu(dom,dha)
     sqd2ha=sqrt(d2ha)
     deps=(eps-vacuum_eps)*sqd2ha
     !corr=0.5_gp*(eps-vacuum_eps)/eps*(0.5_gp*d2ha*(1+eps)/eps+dcorrha)
@@ -450,6 +450,7 @@ contains
   subroutine rigid_cavity_forces(only_electrostatic,cavity,mesh,v,&
        nat,rxyz,radii,epsr,npot2,fxyz,deps,kk)
     use box
+    use at_domain, only: distance,closest_r
     implicit none
     type(cavity_data), intent(in) :: cavity
     type(cell), intent(in) :: mesh
@@ -472,7 +473,7 @@ contains
     eps0m1=cavity%epsilon0-vacuum_eps
     hh=mesh%volume_element
     do iat=1,nat
-       d=distance(mesh,v,rxyz(1,iat))
+       d=distance(mesh%dom,v,rxyz(1,iat))
        rad=radii(iat)
        if (d.eq.0.d0) then
         d=1.0d-30
@@ -485,7 +486,7 @@ contains
        dlogh=dlogh/ep
        epsrm1=epsr-vacuum_eps
        if (abs(epsrm1) < thr) cycle
-       vr(:)=closest_r(mesh,v,center=rxyz(:,iat))
+       vr(:)=closest_r(mesh%dom,v,center=rxyz(:,iat))
        depsdRi(:)=-epsrm1*dlogh/d*vr(:)
        tt=oneoeightpi*npot2*hh
        !here the forces can be calculated

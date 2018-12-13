@@ -297,10 +297,8 @@ class Fragment():
     # def __str__(self):
     #    import yaml
     #    return yaml.dump({'positions': self.atoms,'Properties': {'name': self.id}})
-
-    def set_id(self, id):
-        self.id = id
-
+    def set_id(self,id):
+        self.id=id
     def set_purity_indicator(self, pi):
         self.purity_indicator = pi
 
@@ -331,12 +329,20 @@ class Fragment():
         "Transform the fragment information into a dictionary ready to be put as external potential"
         lat = []
         for at in self.atoms:
+<<<<<<< TREE
+            dat=at.copy()
+            dat['r']=list(at[GetSymbol(at)])
+            dat['sym']=self.element(at)
+            #assume that the provided charge is always the net charge
+            if 'nzion' in dat: dat.pop('nzion') #for the modification of the conventions
+=======
             dat = at.copy()
             dat['r'] = list(at[GetSymbol(at)])
             dat['sym'] = self.element(at)
             # assume that the provided charge is always the net charge
             if 'nzion' in dat:
                 dat.pop('nzion')  # for the modification of the conventions
+>>>>>>> MERGE-SOURCE
             for k in MULTIPOLE_ANALYSIS_KEYS:
                 if k in at:
                     dat[k] = list(at[k])  # .tolist()

@@ -828,7 +828,7 @@ contains
     !use module_base
     use communications, only: transpose_v, untranspose_v
     use locreg_operations
-    use box, only: cell_geocode
+    use at_domain, only: domain_geocode
     !Arguments
     implicit none
     integer, intent(in) :: p,i
@@ -845,7 +845,7 @@ contains
 !!$    call allocate_work_arrays('P',.true.,1,ha%Lzd%Glr%d,w)
     call allocate_work_arrays(ha%Lzd%Glr%mesh,.true.,1,ha%Lzd%Glr%d,w)
 
-    if (cell_geocode(ha%Lzd%Glr%mesh) /= 'P') &
+    if (domain_geocode(ha%Lzd%Glr%mesh%dom) /= 'P') &
        call f_err_throw("Only Periodic BC should work here",err_name='BIGDFT_RUNTIME_ERROR')
 !!$
 !!$    hh(1)=.5_wp/ha%hx**2

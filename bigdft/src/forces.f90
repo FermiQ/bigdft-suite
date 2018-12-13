@@ -535,6 +535,7 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
   use gaussians
   use bounds, only: ext_buffers
   use box
+  use at_domain, only: square_gd
   implicit none
   !Arguments
   type(atoms_data), intent(in) :: at
@@ -699,7 +700,7 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
         !gaussian part
         xp=gaussian_radial_value(g,rxyz(1,atit%iat),dpbox%bitp)/g%factors(1)
         dpbox%bitp%tmp=dpbox%bitp%rxyz_nbox-rxyz(:,atit%iat) ! instead ofclosest_r(dpbox%bitp%mesh,dpbox%bitp%rxyz,rxyz(1,atit%iat))
-        r2=square_gd(dpbox%bitp%mesh,dpbox%bitp%tmp)
+        r2=square_gd(dpbox%bitp%mesh%dom,dpbox%bitp%tmp)
         arg=r2*rlocinvsq
         tt=0.d0
         if (nloc /= 0) then
@@ -3799,7 +3800,7 @@ subroutine symmetrise_forces(fxyz, astruct)
   use yaml_output
   use abi_interfaces_numeric, only: abi_mati3inv
   use module_base, only: f_err_throw
-  use box, only: bc_periodic_dims,geocode_to_bc
+  use at_domain, only: bc_periodic_dims,geocode_to_bc
 
   implicit none
 

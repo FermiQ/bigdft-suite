@@ -30,7 +30,8 @@
 !!    Wire boundary condition is missing
 subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
   use FDder
-  use box
+  !use box
+  use at_domain, only: domain_geocode
   implicit none
   !> kernel of the coulomb operator, it also contains metadata about the parallelisation scheme
   !! and the data distributions in the grid.
@@ -149,7 +150,7 @@ subroutine Electrostatic_Solver(kernel,rhov,energies,pot_ion,rho_ion,ehartree)
 
   if (wrtmsg) then
      call yaml_mapping_open('Poisson Solver')
-     select case(cell_geocode(kernel%mesh))
+     select case(domain_geocode(kernel%mesh%dom))
      case('F')
         call yaml_map('BC','Free')
      case('P')

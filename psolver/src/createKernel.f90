@@ -175,7 +175,8 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
   use dictionaries, only: f_err_throw
   use yaml_strings, only: operator(+)
   use numerics
-  use box
+  !use box
+  use at_domain, only: domain_geocode
   implicit none
   !Arguments
   type(coulomb_operator), intent(inout) :: kernel
@@ -233,7 +234,7 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
   if (kernel%igpu == 1) kernelnproc=1
   kernel%stay_on_gpu=0
 
-  geocode=cell_geocode(kernel%mesh)
+  geocode=domain_geocode(kernel%mesh%dom)
 
   select case(geocode)
      !if (kernel%geocode == 'P') then
@@ -309,7 +310,7 @@ subroutine pkernel_set(kernel,eps,dlogeps,oneoeps,oneosqrteps,corr,verbose) !opt
      !Build the Kernel
      call S_FFT_dimensions(kernel%mesh%ndims(1),kernel%mesh%ndims(2),kernel%mesh%ndims(3),&
           m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,kernel%mpi_env%nproc,&
-          kernel%igpu,.false.,non_ortho=.not. kernel%mesh%orthorhombic)
+          kernel%igpu,.false.,non_ortho=.not. kernel%mesh%dom%orthorhombic)
 
 
      if (kernel%igpu > 0) then

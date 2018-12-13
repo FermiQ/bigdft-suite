@@ -511,6 +511,7 @@ subroutine test_functions_new(mesh,nspden,a_gauss,&
   use numerics
   use dynamic_memory
   use f_functions
+  use at_domain, only: domain_periodic_dims,domain_geocode
   implicit none
   type(cell), intent(in) :: mesh !<definition of the cell
   integer, intent(in) :: nspden
@@ -526,7 +527,7 @@ subroutine test_functions_new(mesh,nspden,a_gauss,&
   type(f_function), dimension(3) :: funcs
 
   pot_ion=0.d0
-  pers=cell_periodic_dims(mesh)
+  pers=domain_periodic_dims(mesh%dom)
   do i=1,3
      if (pers(i)) then
         funcs(i)=f_function_new(f_exp_cosine,&
@@ -538,17 +539,17 @@ subroutine test_functions_new(mesh,nspden,a_gauss,&
   end do
 
   !select the specifications for the loop
-  select case (cell_geocode(mesh))
+  select case (domain_geocode(mesh%dom))
   case('P')
      !parameters for the test functions
      factor =1.0_dp
      !laplacian potential = -4pi density
-     call fill_functions_arrays(cell_geocode(mesh) /= 'F',mesh,funcs,factor,&
+     call fill_functions_arrays(domain_geocode(mesh%dom) /= 'F',mesh,funcs,factor,&
           density,potential)
   case('S')
      factor =oneofourpi
      !laplacian potential = -4pi density
-     call fill_functions_arrays(cell_geocode(mesh) /= 'F',mesh,funcs,factor,&
+     call fill_functions_arrays(domain_geocode(mesh%dom) /= 'F',mesh,funcs,factor,&
           density,potential)
   case('F')
      a2 = a_gauss**2
@@ -561,7 +562,7 @@ subroutine test_functions_new(mesh,nspden,a_gauss,&
      call radial_3d_function_mp(mesh,0.5_dp*a2,density)
 
      !laplacian potential = -4pi density
-     call fill_functions_arrays(cell_geocode(mesh) /= 'F',mesh,funcs,factor,&
+     call fill_functions_arrays(domain_geocode(mesh%dom) /= 'F',mesh,funcs,factor,&
        density,potential)
   case('W')
      call fill_functions_arrays_wires(mesh,density,potential)
@@ -594,6 +595,7 @@ subroutine test_functions_new2(mesh,acell,a_gauss,mu0,density,potential)
   use f_functions
   use numerics, only: pi,fourpi
   use f_blas, only: f_axpy
+  use at_domain, only: domain_geocode
   implicit none
   real(dp), intent(in) :: acell,a_gauss,mu0
   type(cell), intent(in) :: mesh
@@ -608,7 +610,7 @@ subroutine test_functions_new2(mesh,acell,a_gauss,mu0,density,potential)
   !non-orthorhombic lattice compatibility, it will replace the test_functioncs_new routine
 
   separable=.false.
-  select case(trim(cell_geocode(mesh)))
+  select case(trim(domain_geocode(mesh%dom)))
   case('P')
      !parameters for the test functions
      do i=1,3

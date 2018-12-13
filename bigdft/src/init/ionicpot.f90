@@ -36,6 +36,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   use sparsematrix_init, only: distribute_on_tasks
   use gaussians
   use box
+  use at_domain, only: domain_periodic_dims
   implicit none
   !Arguments
   type(denspot_distribution), intent(inout) :: dpbox
@@ -347,7 +348,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
 !!$     perx=(at%astruct%geocode /= 'F')
 !!$     pery=(at%astruct%geocode == 'P')
 !!$     perz=(at%astruct%geocode /= 'F')
-     peri=cell_periodic_dims(dpbox%mesh)
+     peri=domain_periodic_dims(dpbox%mesh%dom)
      perx=peri(1)
      pery=peri(2)
      perz=peri(3)
@@ -544,7 +545,8 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
               !r = distance(dpbox%bitp%mesh,dpbox%bitp%rxyz,rxyz(1,atit%iat))
               xp=gaussian_radial_value(g,rxyz(1,atit%iat),dpbox%bitp)/g%sigma**2
               !error fucntion per volume element for the integration
-              dpbox%bitp%tmp=closest_r(dpbox%bitp%mesh,dpbox%bitp%rxyz,rxyz(1,atit%iat))
+              !dpbox%bitp%tmp=closest_r(dpbox%bitp%mesh,dpbox%bitp%rxyz,rxyz(1,atit%iat))
+              dpbox%bitp%tmp=box_iter_closest_r(dpbox%bitp,rxyz(1,atit%iat))
               Vel=pot_ion(dpbox%bitp%ind)*dpbox%bitp%mesh%volume_element
               fxerf=fxerf+xp*Vel*dpbox%bitp%tmp(1) !warning, this should be absolute x
               fyerf=fyerf+xp*Vel*dpbox%bitp%tmp(2)
@@ -791,6 +793,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   use bounds, only: ext_buffers
   use box
   use gaussians
+  use at_domain, only: domain_periodic_dims,domain_geocode,square_gd
   implicit none
 
   !Arguments
@@ -872,7 +875,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   end if
 
   !conditions for periodicity in the three directions
-  peri=cell_periodic_dims(dpbox%mesh)
+  peri=domain_periodic_dims(dpbox%mesh%dom)
   perx=peri(1)!(dpbox%geocode /= 'F')
   pery=peri(2)!(dpbox%geocode == 'P')
   perz=peri(3)!(dpbox%geocode /= 'F')
@@ -982,7 +985,8 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
               !Create the additional part, should be done also for HGH in fact.
               if (at%npspcode(atit%ityp) == PSPCODE_PAW .or. &
                    & at%npspcode(atit%ityp) == PSPCODE_PSPIO) then
-                 rr1(1)=distance(dpbox%bitp%mesh,dpbox%bitp%rxyz,rxyz(1,atit%iat))
+                 !rr1(1)=distance(dpbox%bitp%mesh,dpbox%bitp%rxyz,rxyz(1,atit%iat))
+                 rr1(1)=box_iter_distance(dpbox%bitp,rxyz(1,atit%iat))
                  ! Analytical part, to be removed, obtained by Poisson solver.
                  if (rr1(1) < 1e-6_dp) then
                     tt = -at%nelpsp(atit%ityp) / sqrt(2._dp * pi) / at%psppar(0,0,atit%ityp) * 2._dp
@@ -1007,7 +1011,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
                  end if
                  
                  pot_add(dpbox%bitp%ind) = pot_add(dpbox%bitp%ind) + raux1(1) - tt
-                 if (cell_geocode(dpbox%mesh) == 'P') psoff = psoff + raux1(1) - tt
+                 if (domain_geocode(dpbox%mesh%dom) == 'P') psoff = psoff + raux1(1) - tt
               end if
            end do
            call box_iter_expand_nbox(dpbox%bitp)
@@ -1344,12 +1348,12 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
   !use rhopotential to calculate the potential from a constant electric field along y direction
   if (any(elecfield(1:3) /= 0.0_gp)) then
      !constant electric field allowed only for surface and free BC
-     if (cell_geocode(dpbox%mesh) == 'P') then
+     if (domain_geocode(dpbox%mesh%dom) == 'P') then
         !if (iproc == 0)
         call f_err_throw('The constant electric field is not allowed for Fully Periodic BC.', &
              err_name='BIGDFT_RUNTIME_ERROR')
         !constant electric field allowed for surface BC only normal to the surface
-     elseif (cell_geocode(dpbox%mesh) == 'S' .and. (elecfield(1) /= 0.0_gp .or. elecfield(3) /= 0.0_gp) ) then
+     elseif (domain_geocode(dpbox%mesh%dom) == 'S' .and. (elecfield(1) /= 0.0_gp .or. elecfield(3) /= 0.0_gp) ) then
         !if (iproc == 0)
         call f_err_throw('Only normal constant electric field (Ex=Ez=0) is allowed for Surface BC.', &
              err_name='BIGDFT_RUNTIME_ERROR')
@@ -1442,7 +1446,7 @@ subroutine createIonicPotential(iproc,verb,at,rxyz,&
      end if
      bitp=dpbox%bitp !shallow copy to avoid intent(out) in dpbox
      do while(box_next_point(bitp))
-        r2=square_gd(dpbox%mesh,bitp%rxyz-rxyz(:,atit%iat))
+        r2=square_gd(dpbox%mesh%dom,bitp%rxyz-rxyz(:,atit%iat))
         pot_ion(bitp%ind)=pot_ion(bitp%ind)+aval*r2
      end do
   end do
@@ -1472,6 +1476,7 @@ subroutine external_potential(iproc,verb,at,rxyz,&
   use public_enums, only: PSPCODE_PAW
   use bounds, only: ext_buffers
   use box
+  use at_domain, only: domain_periodic_dims,domain_geocode
   implicit none
 
   !Arguments
@@ -1542,7 +1547,7 @@ subroutine external_potential(iproc,verb,at,rxyz,&
   call f_zero(n1i*n2i*dpbox%n3pi,pot_ion(1))
 
   !conditions for periodicity in the three directions
-  peri=cell_periodic_dims(dpbox%mesh)
+  peri=domain_periodic_dims(dpbox%mesh%dom)
   perx=peri(1)!(dpbox%geocode /= 'F')
   pery=peri(2)!(dpbox%geocode == 'P')
   perz=peri(3)!(dpbox%geocode /= 'F')
@@ -1959,14 +1964,14 @@ subroutine external_potential(iproc,verb,at,rxyz,&
   !use rhopotential to calculate the potential from a constant electric field along y direction
   if (any(elecfield(1:3) /= 0.0_gp)) then
      !constant electric field allowed only for surface and free BC
-     if (cell_geocode(dpbox%mesh) == 'P') then
+     if (domain_geocode(dpbox%mesh%dom) == 'P') then
         call f_err_throw('The constant electric field is not allowed for Fully Periodic BC.', &
              err_name='BIGDFT_RUNTIME_ERROR')
         !constant electric field allowed for surface BC only normal to the surface
-     else if (cell_geocode(dpbox%mesh) == 'S' .and. (elecfield(1) /= 0.0_gp .or. elecfield(3) /= 0.0_gp) ) then
+     else if (domain_geocode(dpbox%mesh%dom) == 'S' .and. (elecfield(1) /= 0.0_gp .or. elecfield(3) /= 0.0_gp) ) then
         call f_err_throw('Only zero xz electric field (Ex=Ez=0) is allowed for Surface BC.', &
              err_name='BIGDFT_RUNTIME_ERROR')
-     else if (cell_geocode(dpbox%mesh) == 'W' .and. elecfield(3) /= 0.0_gp) then
+     else if (domain_geocode(dpbox%mesh%dom) == 'W' .and. elecfield(3) /= 0.0_gp) then
         call f_err_throw("Only zero z electric field (Ez=0) is allowed for Wires BC", &
              err_name='BIGDFT_RUNTIME_ERROR')
      end if
@@ -2232,7 +2237,7 @@ subroutine CounterIonPotential(iproc,in,shift,dpbox,pkernel,npot_ion,pot_ion)
 !!$  use multipole, only: gaussian_density
   use bounds, only: ext_buffers
   use pseudopotentials, only: psp_dict_fill_all
-  use box, only: cell_periodic_dims
+  use at_domain, only: domain_periodic_dims
   use gaussians
   implicit none
   !Arguments
@@ -2321,7 +2326,7 @@ subroutine CounterIonPotential(iproc,in,shift,dpbox,pkernel,npot_ion,pot_ion)
 
 
   if (.not. use_iterator) then
-     peri=cell_periodic_dims(dpbox%mesh)
+     peri=domain_periodic_dims(dpbox%mesh%dom)
      !conditions for periodicity in the three directions
      perx=peri(1)!(dpbox%geocode /= 'F')
      pery=peri(2)!(dpbox%geocode == 'P')

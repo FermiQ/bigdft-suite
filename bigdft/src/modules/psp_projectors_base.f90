@@ -865,7 +865,7 @@ contains
 
     do while(ylm_coefficients_next_m(ylm))
        call f_zero(projector_real)
-       if (all(lr%mesh%bc == 0)) then
+       if (all(lr%mesh%dom%bc == 0)) then
           boxit = lr%bit
        else
           nbox = box_nbox_from_cutoff(lr%mesh, rxyz, radius + &

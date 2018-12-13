@@ -27,7 +27,7 @@ program frequencies
    use dictionaries, only: f_err_throw
    use abi_interfaces_numeric, only: abi_sort_dp
    use module_Atoms, only: move_this_coordinate
-   use box, only: bc_periodic_dims,geocode_to_bc
+   use at_domain, only: bc_periodic_dims,geocode_to_bc
    implicit none
 
    !Parameters

@@ -30,7 +30,8 @@ module multipole
     subroutine interaction_multipoles_ions(iproc, mesh, ep, at, eion, fion)
       use module_atoms
       use yaml_output, only: yaml_map
-      use box, only: cell,closest_r,rxyz_ortho,square_gd
+      use box, only: cell
+      use at_domain, only: rxyz_ortho,square_gd
       implicit none
 
       ! Calling arguments
@@ -60,8 +61,8 @@ module multipole
          ityp=atit%ityp!at%astruct%iatype(iat)
          do impl=1,ep%nmpl
             rc=atit%rxyz-ep%mpl(impl)%rxyz
-            dr = rxyz_ortho(mesh,rc)
-            r2 = square_gd(mesh,rc)
+            dr = rxyz_ortho(mesh%dom,rc)
+            r2 = square_gd(mesh%dom,rc)
             r = sqrt(r2)
 !!$             r = sqrt((at%astruct%rxyz(1,iat)-ep%mpl(impl)%rxyz(1))**2 + &
 !!$                  (at%astruct%rxyz(2,iat)-ep%mpl(impl)%rxyz(2))**2 + &
@@ -104,7 +105,8 @@ module multipole
     subroutine ionic_energy_of_external_charges(iproc, mesh, ep, at, eion)
       use module_types, only: atoms_data
       use yaml_output, only: yaml_map
-      use box, only: cell,closest_r,rxyz_ortho,square_gd
+      use box, only: cell
+      use at_domain, only: square_gd
       implicit none
 
       ! Calling arguments
@@ -148,7 +150,7 @@ module multipole
                           qqj = -1.0_gp*ep%mpl(jmpl)%qlm(0)%q(1)
                       end if
                       rc = ep%mpl(impl)%rxyz-ep%mpl(jmpl)%rxyz
-                      r2 = square_gd(mesh,rc)
+                      r2 = square_gd(mesh%dom,rc)
                       r = sqrt(r2)
                       !r = sqrt((ep%mpl(impl)%rxyz(1)-ep%mpl(jmpl)%rxyz(1))**2 + &
                       !         (ep%mpl(impl)%rxyz(2)-ep%mpl(jmpl)%rxyz(2))**2 + &
@@ -187,6 +189,7 @@ module multipole
       use io, only: plot_density
 !      use bounds, only: geocode_buffers
       use box
+      use at_domain, only: domain_periodic_dims
       use gaussians
       use module_atoms, only: atomic_cores_charge_density
       implicit none
@@ -275,7 +278,7 @@ module multipole
 !!$      pery=(at%astruct%geocode == 'P')
 !!$      perz=(at%astruct%geocode /= 'F')
 
-      peri=cell_periodic_dims(denspot%dpbox%mesh)
+      peri=domain_periodic_dims(denspot%dpbox%mesh%dom)
       perx=peri(1)
       pery=peri(2)
       perz=peri(3)
@@ -330,7 +333,7 @@ module multipole
       perif(1) = .false.
       perif(2) = .false.
       perif(3) = .false.
-      nbuf=isf_box_buffers(perif, cell_periodic_dims(denspot%dpbox%mesh))
+      nbuf=isf_box_buffers(perif, domain_periodic_dims(denspot%dpbox%mesh%dom))
       nl1=nbuf(1)
       nl2=nbuf(2)
       nl3=nbuf(3)
@@ -1839,6 +1842,7 @@ module multipole
       use orbitalbasis
 !!$      use bounds, only: geocode_buffers
       use box
+      use at_domain
       implicit none
       integer, intent(in) :: l, m, nphi
       type(cell), intent(in) :: mesh_global
@@ -1873,7 +1877,7 @@ module multipole
 !!$      perx=(geocode /= 'F')
 !!$      pery=(geocode == 'P')
 !!$      perz=(geocode /= 'F')
-      peri=cell_periodic_dims(mesh_global)
+      peri=domain_periodic_dims(mesh_global%dom)
 
       !first search the maximum sizes of psir array
       npsir=1
@@ -1913,10 +1917,10 @@ module multipole
             !$ ithread=omp_get_thread_num()
             !$ call box_iter_split(bit,nthread,ithread)
             do while (box_next_point(bit))
-                rc=closest_r(psi_it%lr%mesh,bit%rxyz,lrcntr)
-                rxyz=rxyz_ortho(psi_it%lr%mesh,rc)
+                rc=closest_r(psi_it%lr%mesh%dom,bit%rxyz,lrcntr)
+                rxyz=rxyz_ortho(psi_it%lr%mesh%dom,rc)
                 if (sphere) then
-                   if (square_gd(psi_it%lr%mesh,rc)>rmax**2) cycle
+                   if (square_gd(psi_it%lr%mesh%dom,rc)>rmax**2) cycle
                 end if
                 tt = solid_harmonic(0, l, m, rxyz(1), rxyz(2), rxyz(3))
                 tt = tt*sqrt(4.d0*pi/real(2*l+1,gp))
@@ -1986,6 +1990,7 @@ module multipole
       use orbitalbasis
 !!$      use bounds, only: geocode_buffers
       use box
+      use at_domain
       implicit none
       integer, intent(in) :: lmax
       type(cell), intent(in) :: mesh_global
@@ -2020,7 +2025,7 @@ module multipole
 !!$      perx=(geocode /= 'F')
 !!$      pery=(geocode == 'P')
 !!$      perz=(geocode /= 'F')
-      peri=cell_periodic_dims(mesh_global)
+      peri=domain_periodic_dims(mesh_global%dom)
 
       !first search the maximum sizes of psir array
       npsir=1
@@ -2056,10 +2061,10 @@ module multipole
 !!$            !$omp firstprivate(bit)
 !!$            !$ call box_iter_split(bit,omp_get_num_threads(),omp_get_thread_num())
             do while (box_next_point(bit))
-                rc=closest_r(psi_it%lr%mesh,bit%rxyz,lrcntr)
-                rxyz=rxyz_ortho(psi_it%lr%mesh,rc)
+                rc=closest_r(psi_it%lr%mesh%dom,bit%rxyz,lrcntr)
+                rxyz=rxyz_ortho(psi_it%lr%mesh%dom,rc)
                 if (sphere) then
-                   if (square_gd(psi_it%lr%mesh,rc)>rmax**2) cycle
+                   if (square_gd(psi_it%lr%mesh%dom,rc)>rmax**2) cycle
                 end if
                 do l=0,lmax
                    do m=-l,l
@@ -2253,7 +2258,8 @@ module multipole
       !use Poisson_Solver, only: H_potential
       use Poisson_Solver, except_dp => dp
       use foe_base, only: foe_data
-      use box
+      use box, only: cell
+      use at_domain, only: bc_periodic_dims, geocode_to_bc
       use io, only: get_sparse_matrix_format
       implicit none
       ! Calling arguments
@@ -3636,7 +3642,7 @@ module multipole
    use yaml_output
 !!$   use bounds, only: geocode_buffers
    use orbitalbasis
-   use box, only: cell_geocode
+   use at_domain, only: domain_geocode
    implicit none
    ! Calling arguments
    integer,intent(in) :: iproc, nproc, nphi, nphir
@@ -3680,7 +3686,7 @@ module multipole
 
    do ilr=1,lzd%nlr
 !!$       if (lzd%Llr(ilr)%geocode/='F') then
-       if (cell_geocode(lzd%Llr(ilr)%mesh) /='F') then
+       if (domain_geocode(lzd%Llr(ilr)%mesh%dom) /='F') then
            call f_err_throw('support function locregs must always have free BC')
        end if
    end do
@@ -4431,6 +4437,7 @@ module multipole
  subroutine calculate_gaussian_1D(is, ie, idim, mesh, shift, ep, gaussian_array, nonzero_startend)
    use module_base
    use box
+   use at_domain, only: domain_periodic_dims
    use bounds, only: isf_box_buffers
    use multipole_base, only: lmax, external_potential_descriptors
    implicit none
@@ -4460,7 +4467,7 @@ module multipole
    ! Calculate the boundaries of the Gaussian to be calculated. To make it simple, take always the maximum:
    ! - free BC: entire box
    ! - periodic BC: half of the box size, with periodic wrap around
-   peri=cell_periodic_dims(mesh)
+   peri=domain_periodic_dims(mesh%dom)
    if (.not.peri(idim)) then
        js = 0
        je = 0
@@ -5775,6 +5782,7 @@ END SUBROUTINE calculate_dipole_moment
     use PStypes, only: coulomb_operator
     use PSbox, only: PS_gather
     use box
+    use at_domain, only: distance
     use module_types, only: atoms_data
     use module_atoms, only: atoms_iterator, atoms_iter, atoms_iter_next
     implicit none
@@ -5953,8 +5961,8 @@ END SUBROUTINE calculate_dipole_moment
        internal = (z>=zmin .and. z<=zmax)
        if (.not. internal) then
           tmp=[0.0_gp,0.0_gp,z]
-          if (distance(boxit%mesh,tmp,rmin) > min_distance .and. &
-               distance(boxit%mesh,tmp,rmax) > min_distance) cycle
+          if (distance(boxit%mesh%dom,tmp,rmin) > min_distance .and. &
+               distance(boxit%mesh%dom,tmp,rmax) > min_distance) cycle
        end if
        call f_increment(nat_check)
        atlist(nat_check)=atit%iat
@@ -5965,7 +5973,7 @@ END SUBROUTINE calculate_dipole_moment
     box_loop: do while (box_next_point(boxit))
        do iat=1,nat_check
           !if there is only one atom which is close to this point exclude it
-          if (distance(boxit%mesh,boxit%rxyz,rxyz(:,atlist(iat))) < min_distance) then
+          if (distance(boxit%mesh%dom,boxit%rxyz,rxyz(:,atlist(iat))) < min_distance) then
               cycle box_loop
           end if
        end do
@@ -6198,7 +6206,8 @@ END SUBROUTINE calculate_dipole_moment
     box_loop: do while(box_next_point(boxit))
        icnt=icnt+1
        do iat=1,nat
-          if (distance(boxit%mesh,boxit%rxyz,rxyz(:,iat)) <= min_distance) cycle box_loop
+          !if (distance(boxit%mesh,boxit%rxyz,rxyz(:,iat)) <= min_distance) cycle box_loop
+          if (box_iter_distance(boxit,rxyz(:,iat)) <= min_distance) cycle box_loop
        end do
        igood=igood+1
        ! Farther away from the atoms than the minimal distance

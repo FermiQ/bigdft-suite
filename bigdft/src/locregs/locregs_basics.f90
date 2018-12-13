@@ -10,7 +10,7 @@ subroutine psi_to_tpsi(hgrids,kptv,nspinor,lr,psi,w,hpsi,ekin,k_strten)
   use module_base
   use locregs, only: locreg_descriptors
   use locreg_operations, only: workarr_locham
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: nspinor
   real(gp), dimension(3), intent(in) :: hgrids,kptv
@@ -51,7 +51,7 @@ subroutine psi_to_tpsi(hgrids,kptv,nspinor,lr,psi,w,hpsi,ekin,k_strten)
 
   kstrten=0.0_wp
 !!$  select case(lr%geocode)
-  select case(cell_geocode(lr%mesh))
+  select case(domain_geocode(lr%mesh%dom))
   case('F')
 
      !here kpoints cannot be used (for the moment, to be activated for the 

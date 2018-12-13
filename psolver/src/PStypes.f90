@@ -510,6 +510,7 @@ contains
     use psolver_environment
     use box, only: cell_new
     use f_input_file, only: input_file_dump
+    use at_domain
     implicit none
     integer, intent(in) :: iproc      !< Proc Id
     integer, intent(in) :: nproc      !< Number of processes
@@ -522,13 +523,18 @@ contains
     type(coulomb_operator) :: kernel
     !local variables
     integer :: nthreads,group_size,taskgroup_size
+    type(domain) :: dom
     !$ integer :: omp_get_max_threads
 
     !nullification
     kernel=pkernel_null()
 
     !mesh initialization
-    kernel%mesh=cell_new(geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab)
+    !kernel%mesh=cell_new(geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab)
+    dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+              alpha_bc=alpha_bc,beta_ac=beta_ac,gamma_ab=gamma_ab,acell=ndims*hgrids)
+    kernel%mesh=cell_new(dom,ndims,hgrids)
+
 
     !new treatment for the kernel input variables
     kernel%method=PS_VAC_ENUM
@@ -1242,7 +1248,7 @@ contains
                    i23=i2+(i3-i3s)*mesh%ndims(2)
                    do i1=1,mesh%ndims(1)
                       v(1)=cell_r(mesh,i1,dim=1)
-                      call rigid_cavity_arrays(kernel%cavity,mesh,v,&
+                      call rigid_cavity_arrays(kernel%cavity,mesh%dom,v,&
                            kernel%w%nat,kernel%w%rxyz,kernel%w%radii,ep,depsr,dleps,cc,kk)
                       kernel%w%eps(i1,i23)=ep
                       kernel%w%corr(i1,i23)=cc
@@ -1332,7 +1338,7 @@ contains
                    i23=i2+(i3-i3s)*mesh%ndims(2)
                    do i1=1,mesh%ndims(1)
                       v(1)=cell_r(mesh,i1,dim=1)
-                      call rigid_cavity_arrays(kernel%cavity,mesh,v,kernel%w%nat,&
+                      call rigid_cavity_arrays(kernel%cavity,mesh%dom,v,kernel%w%nat,&
                            kernel%w%rxyz,kernel%w%radii,ep,depsr,dleps,cc,kk)
                       if (i23 <= n23 .and. i23 >=1) then
                          kernel%w%eps(i1,i23)=ep
@@ -1410,7 +1416,7 @@ contains
              tt=kernel%w%oneoeps(i1,i23) !nablapot2(r)
              v(1)=cell_r(mesh,i1,dim=1)
              !this is done to obtain the depsilon
-             call rigid_cavity_arrays(kernel%cavity,mesh,v,kernel%w%nat,&
+             call rigid_cavity_arrays(kernel%cavity,mesh%dom,v,kernel%w%nat,&
                   kernel%w%rxyz,kernel%w%radii,epr,depsr,dleps,cc,kk)
              if (abs(epr-vacuum_eps) < thr) cycle
              deps=dleps*epr
@@ -1765,7 +1771,8 @@ contains
        !loop on atoms
        tt=1.0_dp
        do iat=1,nat
-          d=distance(bit%mesh,rxyz(1,iat),bit%rxyz)
+          !d=distance(bit%mesh,rxyz(1,iat),bit%rxyz)
+          d=box_iter_distance(bit,rxyz(1,iat))
           tt=tt*epsl(d,radii(iat),delta)
        end do
        pkernel%w%epsinnersccs(bit%i,bit%i23+1)=1.0_dp-tt

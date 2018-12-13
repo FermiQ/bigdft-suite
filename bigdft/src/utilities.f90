@@ -49,6 +49,8 @@ program utilities
    use module_input_dicts, only: merge_input_file_to_dict
    use module_utilities, only: calculate_fragment_multipoles_fn
    use box, only: cell_new
+   use at_domain
+   use numerics, only: onehalf,pi
    implicit none
    external :: gather_timings
    character(len=*), parameter :: subname='utilities'
@@ -122,6 +124,7 @@ program utilities
    real(kind=8),dimension(:),allocatable :: fragment_multipoles
    real(kind=8),dimension(3) :: fragment_center
    logical :: perx, pery, perz
+   type(domain) :: dom
    ! Presumably well suited colorschemes from colorbrewer2.org
    character(len=20),dimension(ncolors),parameter :: colors=(/'#a6cee3', &
                                                               '#1f78b4', &
@@ -538,8 +541,11 @@ program utilities
        lzd%glr%d%n2i=2*lzd%glr%d%n2+31
        lzd%glr%d%n3i=2*lzd%glr%d%n3+31
 
-       lzd%glr%mesh = cell_new('F', [lzd%glr%d%n1i,lzd%glr%d%n2i,lzd%glr%d%n3i], 0.5d0*[lzd%hgrids])
-
+       !lzd%glr%mesh = cell_new('F', [lzd%glr%d%n1i,lzd%glr%d%n2i,lzd%glr%d%n3i], 0.5d0*[lzd%hgrids])
+       dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum('F'),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,&
+            acell=[lzd%glr%d%n1i,lzd%glr%d%n2i,lzd%glr%d%n3i]*0.5d0*[lzd%hgrids])
+       lzd%glr%mesh = cell_new(dom,[lzd%glr%d%n1i,lzd%glr%d%n2i,lzd%glr%d%n3i],0.5d0*[lzd%hgrids])
 
        !filename='minBasis'
        if (bigdft_mpi%iproc==0) call yaml_comment('Reading from file '//trim(basis_file)//'*',hfill='~')

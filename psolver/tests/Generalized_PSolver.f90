@@ -24,6 +24,7 @@ program GPS_3D
    use psolver_environment, only: rigid_cavity_arrays,rigid_cavity_forces,vacuum_eps,epsprime
    use FDder
    use f_blas, only: f_dot
+   use at_domain
    implicit none
    
    !now these parameters have to be specified from the command line
@@ -106,6 +107,7 @@ program GPS_3D
    !> correction term of the Generalized Laplacian
    !! if absent, it will be calculated from the array of epsilon
    real(kind=8), dimension(:,:,:), allocatable :: corr
+   type(domain) :: dom
 
    call f_lib_initialize()
 
@@ -168,7 +170,10 @@ program GPS_3D
    angrad(3) = angdeg(3)/180.0_f_double*pi
 !   detg = 1.0d0 - dcos(alpha)**2 - dcos(beta)**2 - dcos(gamma)**2 + 2.0d0*dcos(alpha)*dcos(beta)*dcos(gamma)
   
-   mesh=cell_new(geocode,ndims,hgrids,alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+   !mesh=cell_new(geocode,ndims,hgrids,alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+            alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=ndims*hgrids)
+   mesh=cell_new(dom,ndims,hgrids)
 
    call mpiinit()
    iproc=mpirank()
@@ -309,7 +314,7 @@ program GPS_3D
               end do
            end do
         end do
-        offset=offset*hx*hy*hz*sqrt(mesh%detgd) ! /// to be fixed ///
+        offset=offset*hx*hy*hz*sqrt(mesh%dom%detgd) ! /// to be fixed ///
         !write(*,*) 'offset = ',offset
         if (iproc==0) call yaml_map('offset',offset)
      end if
@@ -601,7 +606,11 @@ program GPS_3D
            alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
   call dict_free(dict_input)
   call pkernel_set(pkernel,verbose=.true.)
-  mesh=cell_new(geocode,ndims,hgrids,alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3))
+
+  !mesh=cell_new(geocode,ndims,hgrids,alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3))
+  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+           alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=ndims*hgrids)
+  mesh=cell_new(dom,ndims,hgrids)
 
   eps=f_malloc([n01,n02,n03],id='eps')
   dlogeps=f_malloc([3,n01,n02,n03],id='dlogeps')
@@ -625,7 +634,7 @@ program GPS_3D
         do i1=1,n01
            v(1)=cell_r(mesh,i1,dim=1)
            !this is done to obtain the depsilon
-           call rigid_cavity_arrays(pkernel%cavity,mesh,v,nat,&
+           call rigid_cavity_arrays(pkernel%cavity,mesh%dom,v,nat,&
                 rxyz,radii,epr,depsr,dleps,cc,kk)
            eps(i1,i2,i3)=epr
            potential(i1,i2,i3)=kk/(pkernel%cavity%epsilon0-vacuum_eps)
@@ -4428,9 +4437,9 @@ subroutine fssnord3DmatNabla_nonortho(mesh,u,du,nord)
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      perx=(mesh%bc(1) /= FREE)
-      pery=(mesh%bc(2) == PERIODIC)
-      perz=(mesh%bc(3) /= FREE)
+      perx=(mesh%dom%bc(1) /= FREE)
+      pery=(mesh%dom%bc(2) == PERIODIC)
+      perz=(mesh%dom%bc(3) /= FREE)
 
       ! Beware that n_cell has to be > than n.
       if (n_cell.lt.n) then
@@ -4559,7 +4568,7 @@ subroutine fssnord3DmatNabla_nonortho(mesh,u,du,nord)
               der(1:3)=0.d0
               do i=1,3
                do j=1,3
-                der(i) =  der(i) + mesh%gu(i,j)*du(i1,i2,i3,isp,j)
+                der(i) =  der(i) + mesh%dom%gu(i,j)*du(i1,i2,i3,isp,j)
                end do
               end do
               du(i1,i2,i3,isp,1:3) = der(1:3)
@@ -4699,7 +4708,7 @@ subroutine fssnord3DmatNabla_LG2(mesh,n01,n02,n03,hx,hy,hz,u,nord,eta,dlogeps,ep
            res=0.d0
             do i=1,3
              do j=1,3
-              res = res + mesh%gu(i,j)*dlogeps(i,i1,i2,i3)*nablau(j)
+              res = res + mesh%dom%gu(i,j)*dlogeps(i,i1,i2,i3)*nablau(j)
              end do
             end do
            res = res*oneo4pi
@@ -5479,11 +5488,11 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,a_gauss,hx,hy,hz,&
   if (iproc==0) then
      call yaml_map('cavity =/ vacuum',cavity)
      call yaml_map('mPB',mPB)
-     call yaml_map('detgd',mesh%detgd)
-     call yaml_map('Angles',mesh%angrad*180.0_dp*oneopi)
-     call yaml_map('Contravariant Metric',mesh%gu)
-     call yaml_map('Covariant Metric',mesh%gd)
-     call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
+     call yaml_map('detgd',mesh%dom%detgd)
+     call yaml_map('Angles',mesh%dom%angrad*180.0_dp*oneopi)
+     call yaml_map('Contravariant Metric',mesh%dom%gu)
+     call yaml_map('Covariant Metric',mesh%dom%gd)
+     call yaml_map('Product of the two',matmul(mesh%dom%gu,mesh%dom%gd))
   end if
 
   if (wrtfiles) then
@@ -5555,10 +5564,10 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,a_gauss,hx,hy,hz,&
               !density(i1,i2,i3) = fx2*fy*fz+fx*fy2*fz+fx*fy*fz2-mu0**2*fx*fy*fz
               !triclinic lattice
               density(i1,i2,i3) = -mu0**2*fx*fy*fz
-              density(i1,i2,i3) = density(i1,i2,i3) + mesh%gu(1,1)*fx2*fy*fz+mesh%gu(2,2)*fx*fy2*fz+&
-                                  mesh%gu(3,3)*fx*fy*fz2
-              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%gu(1,2)*fx1*fy1*fz+&
-                                  mesh%gu(1,3)*fx1*fy*fz1+mesh%gu(2,3)*fx*fy1*fz1)
+              density(i1,i2,i3) = density(i1,i2,i3) + mesh%dom%gu(1,1)*fx2*fy*fz+mesh%dom%gu(2,2)*fx*fy2*fz+&
+                                  mesh%dom%gu(3,3)*fx*fy*fz2
+              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%dom%gu(1,2)*fx1*fy1*fz+&
+                                  mesh%dom%gu(1,3)*fx1*fy*fz1+mesh%dom%gu(2,3)*fx*fy1*fz1)
               denval=max(denval,-density(i1,i2,i3))
            end do
         end do
@@ -5681,10 +5690,10 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,a_gauss,hx,hy,hz,&
               nablapot(2,i1,i2,i3) = fx*fy1*fz
               nablapot(3,i1,i2,i3) = fx*fy*fz1
               density(i1,i2,i3) = -mu0**2*fx*fy*fz
-              density(i1,i2,i3) = density(i1,i2,i3) + mesh%gu(1,1)*fx2*fy*fz+mesh%gu(2,2)*fx*fy2*fz+&
-                                  mesh%gu(3,3)*fx*fy*fz2
-              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%gu(1,2)*fx1*fy1*fz+&
-                                  mesh%gu(1,3)*fx1*fy*fz1+mesh%gu(2,3)*fx*fy1*fz1)
+              density(i1,i2,i3) = density(i1,i2,i3) + mesh%dom%gu(1,1)*fx2*fy*fz+mesh%dom%gu(2,2)*fx*fy2*fz+&
+                                  mesh%dom%gu(3,3)*fx*fy*fz2
+              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%dom%gu(1,2)*fx1*fy1*fz+&
+                                  mesh%dom%gu(1,3)*fx1*fy*fz1+mesh%dom%gu(2,3)*fx*fy1*fz1)
               !old:
               !density(i1,i2,i3) = fx2*fy*fz+fx*fy2*fz+fx*fy*fz2 - mu0**2*fx*fy*fz
               denval=max(denval,-density(i1,i2,i3))
@@ -5809,10 +5818,10 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,a_gauss,hx,hy,hz,&
               nablapot(2,i1,i2,i3) = fx*fy1*fz
               nablapot(3,i1,i2,i3) = fx*fy*fz1
               density(i1,i2,i3) = -mu0**2*fx*fy*fz
-              density(i1,i2,i3) = density(i1,i2,i3) + mesh%gu(1,1)*fx2*fy*fz+mesh%gu(2,2)*fx*fy2*fz+&
-                                  mesh%gu(3,3)*fx*fy*fz2
-              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%gu(1,2)*fx1*fy1*fz+&
-                                  mesh%gu(1,3)*fx1*fy*fz1+mesh%gu(2,3)*fx*fy1*fz1)
+              density(i1,i2,i3) = density(i1,i2,i3) + mesh%dom%gu(1,1)*fx2*fy*fz+mesh%dom%gu(2,2)*fx*fy2*fz+&
+                                  mesh%dom%gu(3,3)*fx*fy*fz2
+              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%dom%gu(1,2)*fx1*fy1*fz+&
+                                  mesh%dom%gu(1,3)*fx1*fy*fz1+mesh%dom%gu(2,3)*fx*fy1*fz1)
               !old:
               !density(i1,i2,i3) = fx2*fy*fz+fx*fy2*fz+fx*fy*fz2 - mu0**2*fx*fy*fz
               denval=max(denval,-density(i1,i2,i3))
@@ -5957,10 +5966,10 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,a_gauss,hx,hy,hz,&
               nablapot(2,i1,i2,i3) = fx*fy1*fz
               nablapot(3,i1,i2,i3) = fx*fy*fz1
               density(i1,i2,i3) = -mu0**2*fx*fy*fz
-              density(i1,i2,i3) = density(i1,i2,i3) + mesh%gu(1,1)*fx2*fy*fz+mesh%gu(2,2)*fx*fy2*fz+&
-                                  mesh%gu(3,3)*fx*fy*fz2
-              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%gu(1,2)*fx1*fy1*fz+&
-                                  mesh%gu(1,3)*fx1*fy*fz1+mesh%gu(2,3)*fx*fy1*fz1)
+              density(i1,i2,i3) = density(i1,i2,i3) + mesh%dom%gu(1,1)*fx2*fy*fz+mesh%dom%gu(2,2)*fx*fy2*fz+&
+                                  mesh%dom%gu(3,3)*fx*fy*fz2
+              density(i1,i2,i3) = density(i1,i2,i3) + 2.0_dp*(mesh%dom%gu(1,2)*fx1*fy1*fz+&
+                                  mesh%dom%gu(1,3)*fx1*fy*fz1+mesh%dom%gu(2,3)*fx*fy1*fz1)
               !old:
               !density(i1,i2,i3) = fx2*fy*fz+fx*fy2*fz+fx*fy*fz2 - mu0**2*fx*fy*fz
               denval=max(denval,-density(i1,i2,i3))
@@ -6275,12 +6284,12 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,a_gauss,hx,hy,hz,&
               d12=0.d0
               do i=1,3
                do j=1,3
-                d12 = d12 + mesh%gu(i,j)*deps(i)*deps(j)
+                d12 = d12 + mesh%dom%gu(i,j)*deps(i)*deps(j)
                end do
               end do
               !d12=square(mesh, de, .....)
-              dd = mesh%gu(1,1)*fx2*fy*fz+mesh%gu(2,2)*fx*fy2*fz+mesh%gu(3,3)*fx*fy*fz2 +&
-                   2.0_dp*(mesh%gu(1,2)*fx1*fy1*fz+mesh%gu(1,3)*fx1*fy*fz1+mesh%gu(2,3)*fx*fy1*fz1)
+              dd = mesh%dom%gu(1,1)*fx2*fy*fz+mesh%dom%gu(2,2)*fx*fy2*fz+mesh%dom%gu(3,3)*fx*fy*fz2 +&
+                   2.0_dp*(mesh%dom%gu(1,2)*fx1*fy1*fz+mesh%dom%gu(1,3)*fx1*fy*fz1+mesh%dom%gu(2,3)*fx*fy1*fz1)
 !              dd = fx2*fy*fz+fx*fy2*fz+fx*fy*fz2
               dd = -eps0m1*dd
               corr(i1,i2,i3)=safe_identity(-oneoeightpi*(0.5d0*d12/e-dd))
@@ -6303,7 +6312,7 @@ subroutine test_functions(mesh,geocode,ixc,n01,n02,n03,acell,a_gauss,hx,hy,hz,&
             k=0.d0
             do i=1,3
              do j=1,3
-              k = k + mesh%gu(i,j)*dlogeps(i,i1,i2,i3)*nablapot(j,i1,i2,i3)
+              k = k + mesh%dom%gu(i,j)*dlogeps(i,i1,i2,i3)*nablapot(j,i1,i2,i3)
 !              k = k + dlogeps(i,i1,i2,i3)*nablapot(i,i1,i2,i3)
              end do
             end do
@@ -6650,6 +6659,7 @@ subroutine SetInitDensPot(mesh,n01,n02,n03,nspden,iproc,natreal,eps,dlogeps,SetE
   use box
   use numerics
   use PSbase
+  use at_domain, only: dotp_gu
 
   implicit none
   type(cell), intent(in) :: mesh
@@ -6916,12 +6926,13 @@ subroutine SetInitDensPot(mesh,n01,n02,n03,nspden,iproc,natreal,eps,dlogeps,SetE
         sumd=0.d0
         bit=box_iter(mesh,origin=rxyz(:,iat))
         do while(box_next_point(bit))
-           r2=square_gd(mesh,bit%rxyz)
+           !r2=square_gd(mesh,bit%rxyz)
+           r2=box_iter_square_gd(bit)
            potential1(bit%i,bit%j,bit%k) = factor*safe_exp(-0.5d0*r2/(sigma**2))
            potential(bit%i,bit%j,bit%k) = potential(bit%i,bit%j,bit%k) + potential1(bit%i,bit%j,bit%k)
            sump=sump+potential(bit%i,bit%j,bit%k)
            offset=offset+potential(bit%i,bit%j,bit%k)
-           k1=dotp_gu(mesh,dlogeps(1,bit%i,bit%j,bit%k),bit%rxyz)
+           k1=dotp_gu(mesh%dom,dlogeps(1,bit%i,bit%j,bit%k),bit%rxyz)
            k1=-potential1(bit%i,bit%j,bit%k)*k1/(sigma**2)
            k2 = potential1(bit%i,bit%j,bit%k)*(r2/(sigma**2)-3.d0)/(sigma**2)
            dens = (-oneofourpi)*eps(bit%i,bit%j,bit%k)*(k1+k2)&
@@ -7855,6 +7866,7 @@ subroutine Eps_rigid_cavity_multiatoms(mesh,ndims,hgrids,natreal,rxyzreal,&
   use f_utils
   use f_enums
   use box
+  use at_domain, only: square_gd,square_gu
   implicit none
   type(cell), intent(in) :: mesh
   integer, intent(in) :: natreal !< number of centres defining the cavity
@@ -8139,7 +8151,7 @@ subroutine Eps_rigid_cavity_multiatoms(mesh,ndims,hgrids,natreal,rxyzreal,&
        !choose the closest atom
        do iat=1,nat
           bit%tmp=bit%rxyz-rxyz(:,iat)
-          d2=square_gd(mesh,bit%tmp)
+          d2=square_gd(mesh%dom,bit%tmp)
 !print *,'i,j,k',bit%i,bit%j,bit%k,d2,iat,bit%rxyz
           d=dsqrt(d2)
           !------------------------------------------------------------------
@@ -8201,7 +8213,7 @@ subroutine Eps_rigid_cavity_multiatoms(mesh,ndims,hgrids,natreal,rxyzreal,&
 !          d12 = d12 + deps(i)**2
        end do
 
-       d12=square_gu(mesh,deps)
+       d12=square_gu(mesh%dom,deps)
 
        dd=0.d0
        do jat=1,nat

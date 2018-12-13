@@ -345,6 +345,7 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
   use box
   use f_perfs
   use f_utils, only: f_size,f_sizeof
+  use at_domain, only: domain_geocode,domain_periodic_dims
   implicit none
   !to be preprocessed
   include 'perfdata.inc'
@@ -401,8 +402,8 @@ subroutine G_PoissonSolver(iproc,nproc,planes_comm,iproc_inplane,inplane_comm,nc
 
   !conditions for periodicity in the three directions
   !perx=(geocode /= 'F' .and. geocode /= 'W' .and. geocode /= 'H')
-  geocode=cell_geocode(mesh)
-  peri=cell_periodic_dims(mesh)
+  geocode=domain_geocode(mesh%dom)
+  peri=domain_periodic_dims(mesh%dom)
   perx=peri(1)
   pery=peri(2)
   perz=peri(3)
@@ -2515,6 +2516,7 @@ subroutine P_multkernel_NO(nd1,nd2,n1,n2,n3,lot,nfft,jS,pot,zw,j3,mesh,offset,sc
   use Poisson_Solver, only: dp, gp
   use numerics, only: pi,oneofourpi
   use box
+  use at_domain, only: square_gu
   implicit none
   !Argments
   integer, intent(in) :: nd1,nd2,n1,n2,n3,lot,nfft,jS,j3
@@ -2593,7 +2595,7 @@ subroutine P_multkernel_NO(nd1,nd2,n1,n2,n3,lot,nfft,jS,pot,zw,j3,mesh,offset,sc
       !running recip space coordinate
       pxyz(1)=p(j1,n1)/L1
       !square of modulus of recip space coordinate
-      g2=square_gu(mesh,pxyz)
+      g2=square_gu(mesh%dom,pxyz)
 !      g2=0.0_gp
 !      do i=1,3
 !       do j=1,3
@@ -2606,12 +2608,12 @@ subroutine P_multkernel_NO(nd1,nd2,n1,n2,n3,lot,nfft,jS,pot,zw,j3,mesh,offset,sc
       rhog2=rhog2/pi*scal**2
       if (j3 /= n3/2+1 .and. j3 /= 1) rhog2=2.0_dp*rhog2 !to consider the fact that we only treat half of the box  (to be reviewed for NO)
       !stress tensor components (to be reviewed for NO)
-      strten(1)=strten(1)+(pxyz(1)**2/g2-mesh%gd(1,1)*0.5_dp)*rhog2
-      strten(3)=strten(3)+(pxyz(3)**2/g2-mesh%gd(3,3)*0.5_dp)*rhog2
-      strten(2)=strten(2)+(pxyz(2)**2/g2-mesh%gd(2,2)*0.5_dp)*rhog2
-      strten(5)=strten(5)+(pxyz(1)*pxyz(3)/g2-mesh%gd(1,3)*0.5_dp)*rhog2
-      strten(6)=strten(6)+(pxyz(1)*pxyz(2)/g2-mesh%gd(1,2)*0.5_dp)*rhog2
-      strten(4)=strten(4)+(pxyz(3)*pxyz(2)/g2-mesh%gd(3,2)*0.5_dp)*rhog2
+      strten(1)=strten(1)+(pxyz(1)**2/g2-mesh%dom%gd(1,1)*0.5_dp)*rhog2
+      strten(3)=strten(3)+(pxyz(3)**2/g2-mesh%dom%gd(3,3)*0.5_dp)*rhog2
+      strten(2)=strten(2)+(pxyz(2)**2/g2-mesh%dom%gd(2,2)*0.5_dp)*rhog2
+      strten(5)=strten(5)+(pxyz(1)*pxyz(3)/g2-mesh%dom%gd(1,3)*0.5_dp)*rhog2
+      strten(6)=strten(6)+(pxyz(1)*pxyz(2)/g2-mesh%dom%gd(1,2)*0.5_dp)*rhog2
+      strten(4)=strten(4)+(pxyz(3)*pxyz(2)/g2-mesh%dom%gd(3,2)*0.5_dp)*rhog2
 
       !then multiply the density for the kernel in Fourier space
       ker=pi*g2+mu0_square*oneofourpi
