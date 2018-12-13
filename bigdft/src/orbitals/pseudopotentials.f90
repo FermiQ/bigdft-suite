@@ -5,7 +5,7 @@
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
-!!    For the list of contributors, see ~/AUTHORS 
+!!    For the list of contributors, see ~/AUTHORS
 module pseudopotentials
 
   use module_defs, only: gp
@@ -15,8 +15,8 @@ module pseudopotentials
   use dictionaries
   use public_keys
   use public_enums
-  
-  private 
+
+  private
 
   integer, parameter :: SKIP=0
   integer, parameter :: DIAGONAL=1
@@ -102,14 +102,14 @@ contains
          end do
       end do
     end subroutine free_atomic_proj_matrix
-    
+
     subroutine allocate_atomic_proj_matrix(hij, iat,ispin,prj, gamma_targets)
       use f_arrays
       use dynamic_memory
       integer, intent(in) :: iat,ispin
       real(gp), dimension(3,3,4), intent(in) :: hij
       type(atomic_proj_matrix), intent(out) :: prj
-      type(f_matrix), dimension(:,:,:), intent(in), optional :: gamma_targets
+      type(f_matrix), dimension(0:,:,:), intent(in), optional :: gamma_targets
       !local variables
       logical :: occ_ctrl
       integer :: i,l,j,m !, igamma
@@ -145,7 +145,7 @@ contains
                !allocate upper triangular and associate lower triangular
                prj%ij_terms(i,j,l)%hij=hij(i,j,l)
 
-               prj%ij_terms(j,i,l)%mat => prj%ij_terms(i,j,l)%mat 
+               prj%ij_terms(j,i,l)%mat => prj%ij_terms(i,j,l)%mat
                prj%ij_terms(j,i,l)%hij=hij(j,i,l)
             end do
          end do
@@ -334,7 +334,7 @@ contains
          if (present(valid)) valid = valid .and. has_key(loc, kRLOC) .and. &
               & has_key(loc, COEFF_KEY)
       end if
- 
+
       ! Nonlocal terms
       if (present(psppar))   psppar(:,:) = 0._gp
       if (has_key(dict, NLPSP_KEY) .and. present(psppar)) then
@@ -908,7 +908,7 @@ contains
                  (psppar(l,j+2),j=2,nprl) !h_ij terms
             do i=2,nprl
                call f_iostream_get_line(ios, line)
-               read(line,*) psppar(l,i),(psppar(l,i+j+1),j=i+1,nprl) !h_ij 
+               read(line,*) psppar(l,i),(psppar(l,i+j+1),j=i+1,nprl) !h_ij
             end do
             if (l==1) cycle
             do i=1,nprl
@@ -1040,7 +1040,7 @@ contains
 !!$              ' l=' // trim(yaml_toa(1)) // ' is ' // trim(yaml_toa(tt)) // &
 !!$              " while it is supposed to be about 1.0.", err_name='BIGDFT_RUNTIME_ERROR')) &
 !!$              & return
-         
+
          indices(:, i) = [l, n]
          psppar(l, n) = pspiof_projector_get_energy(proj)
          if (n == 1) then
@@ -1200,11 +1200,11 @@ contains
       end do
       psppar(0, 0) = max(rloc / 6._gp, 0.2_gp) ! Avoid too sharp gaussians.
     END SUBROUTINE paw_from_file
-    
+
     !> routine for applying the coefficients needed HGH-type PSP to the scalar product
-    !! among wavefunctions and projectors. The coefficients are real therefore 
+    !! among wavefunctions and projectors. The coefficients are real therefore
     !! there is no need to separate scpr in its real and imaginary part before
-    !pure 
+    !pure
     subroutine apply_hij_coeff(prj,n_w,n_p,scpr,hscpr)
       use module_defs, only: gp,wp
       use f_blas, only: f_eye,f_gemv
@@ -1216,7 +1216,7 @@ contains
       real(gp), dimension(n_w,n_p), intent(out) :: hscpr
       !local variables
       integer :: i,j,l,m,iproj,iw
-      real(gp), dimension(7,3,4) :: cproj,dproj 
+      real(gp), dimension(7,3,4) :: cproj,dproj
       logical, dimension(3,4) :: cont
 
       hscpr=0.0_gp
@@ -1299,7 +1299,7 @@ contains
       real(wp), dimension(n_p * (n_p + 1) / 2, ncplx), intent(in) :: kij
       real(wp), dimension(n_w,n_p), intent(in) :: scpr
       real(wp), dimension(n_w,n_p), intent(out) :: hscpr
-      
+
       integer :: klmn, j_m, i_m
       real(wp), dimension(n_w) :: k
 
@@ -1325,7 +1325,7 @@ contains
 
 end module pseudopotentials
 
-!> Calculate the core charge described by a sum of spherical harmonics of s-channel with 
+!> Calculate the core charge described by a sum of spherical harmonics of s-channel with
 !! principal quantum number increased with a given exponent.
 !! the principal quantum numbers admitted are from 1 to 4
 function charge_from_gaussians(expo,rhoc)
@@ -1341,7 +1341,7 @@ function charge_from_gaussians(expo,rhoc)
 end function charge_from_gaussians
 
 
-!> Calculate the value of the gaussian described by a sum of spherical harmonics of s-channel with 
+!> Calculate the value of the gaussian described by a sum of spherical harmonics of s-channel with
 !! principal quantum number increased with a given exponent.
 !! the principal quantum numbers admitted are from 1 to 4
 function spherical_gaussian_value(r2,expo,rhoc,ider)
@@ -1353,14 +1353,14 @@ function spherical_gaussian_value(r2,expo,rhoc,ider)
   real(gp) :: spherical_gaussian_value
   !local variables
   real(gp) :: arg
-  
+
   arg=r2/(expo**2)
 !added underflow to evaluation of the density to avoid fpe in ABINIT xc routines
   spherical_gaussian_value=&
        (rhoc(1)+r2*rhoc(2)+r2**2*rhoc(3)+r2**3*rhoc(4))*safe_exp(-0.5_gp*arg,underflow=1.d-50)
   if (ider ==1) then !first derivative with respect to r2
      spherical_gaussian_value=-0.5_gp*spherical_gaussian_value/(expo**2)+&
-         (rhoc(2)+2.0_gp*r2*rhoc(3)+3.0_gp*r2**2*rhoc(4))*safe_exp(-0.5_gp*arg,underflow=1.d-50)           
+         (rhoc(2)+2.0_gp*r2*rhoc(3)+3.0_gp*r2**2*rhoc(4))*safe_exp(-0.5_gp*arg,underflow=1.d-50)
      !other derivatives to be implemented
   end if
 
@@ -1385,7 +1385,7 @@ subroutine hgh_hij_matrix(npspcode,psppar,hij)
   offdiagarr(2,1,1)=-0.5_gp*sqrt(100._gp/63._gp)
   offdiagarr(1,2,1)=0.5_gp*sqrt(5._gp/21._gp)
   offdiagarr(2,2,1)=0.0_gp !never used
-  offdiagarr(1,1,2)=-0.5_gp*sqrt(5._gp/7._gp)  
+  offdiagarr(1,1,2)=-0.5_gp*sqrt(5._gp/7._gp)
   offdiagarr(2,1,2)=-7._gp/3._gp*sqrt(1._gp/11._gp)
   offdiagarr(1,2,2)=1._gp/6._gp*sqrt(35._gp/11._gp)
   offdiagarr(2,2,2)=0.0_gp !never used
