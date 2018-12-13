@@ -10,6 +10,8 @@ glib3.patch
 v_sim-dev.patch
 libffi-toolexeclibdir.patch
 wannier90-2.0.0.patch
+yaml-doxygen.patch
+yaml-doxygen-in.patch
 distfiles
 Installer.py
 UniParse.py
