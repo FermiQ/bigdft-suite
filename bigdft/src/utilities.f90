@@ -57,9 +57,10 @@ program utilities
    character(len=30) :: tatonam, radical, colorname, linestart, lineend, cname, methodc
    character(len=1024) :: method_name, overlap_file, hamiltonian_file, kernel_file, coeff_file, pdos_file, metadata_file
    character(len=1024) :: line, cc, output_pdos, conversion, infile, outfile, iev_min_, iev_max_, fscale_, matrix_basis
-   character(len=1024) :: kernel_matmul_file, istart_ks_, iend_ks_, matrix_format, fragment_file, orbital_file
+   character(len=1024) :: kernel_matmul_file, istart_ks_, iend_ks_, matrix_format, fragment_file, orbital_file, logging
    character(len=1024),dimension(-lmax:lmax,0:lmax) :: multipoles_files
    logical :: multipole_analysis = .false.
+   logical :: do_logging = .false.
    logical :: solve_eigensystem = .false.
    logical :: calculate_pdos = .false.
    logical :: convert_matrix_format = .false.
@@ -93,7 +94,7 @@ program utilities
    type(sparse_matrix) :: smat_s, smat_m, smat_l
    type(sparse_matrix),dimension(2) :: smat
    type(dictionary), pointer :: dict_timing_info
-   integer :: iunit, nat, iat, iat_prev, ii, iitype, iorb, itmb, itype, ival, ios, ipdos, ispin
+   integer :: iunit, log_unit, nat, iat, iat_prev, ii, iitype, iorb, itmb, itype, ival, ios, ipdos, ispin
    integer :: jtmb, norbks, npdos, npt, ntmb, jjtmb, istart_ks, iend_ks, nat_frag, iat_frag
    integer :: isf, iiat, nsf_frag, mm, nmpmat, ist1, ist2
    character(len=20),dimension(:),pointer :: atomnames
@@ -142,28 +143,6 @@ program utilities
    !call bigdft_mpi_init(ierr)
    call bigdft_init()
 
-    if (bigdft_mpi%iproc==0) then
-        call yaml_new_document()
-        call print_logo()
-    end if
-
-   !Time initialization
-   call f_timing_reset(filename='time.yaml',master=(bigdft_mpi%iproc==0),verbose_mode=.false.)
-
-   if (bigdft_mpi%iproc==0) then
-       call yaml_scalar('',hfill='~')
-       call yaml_scalar('BIGDFT PRE-/POST-PROCESSING',hfill='~')
-   end if
-
-   if (bigdft_mpi%iproc==0) then
-       call yaml_mapping_open('Parallel environment')
-       call yaml_map('MPI tasks',bigdft_mpi%nproc)
-       nthread = 1
-       !$ nthread = omp_get_max_threads()
-       call yaml_map('OpenMP threads',nthread)
-       call yaml_mapping_close()
-   end if
-
    ! Get arguments
    call get_command_argument(1, value = tatonam, status = istat)
 
@@ -174,7 +153,7 @@ program utilities
       write(*,'(1x,a)')&
          &   '[option] can be the following: '
       write(*,'(1x,a)')&
-           &   '"multipoles-analysis"" ' 
+           &   '"multipoles-analysis"" '
       write(*,'(1x,a)')&
            & 'perform a charge analysis (Loewdin or Mulliken)'
 
@@ -305,10 +284,43 @@ program utilities
             i_arg = i_arg + 1
             call get_command_argument(i_arg, value = coeff_file)
             calculate_fragment_multipoles = .true.
+            i_arg = i_arg + 1
+            call get_command_argument(i_arg, value = logging)
+            if (.not. trim(logging) == '') then
+               do_logging = .true.
+            end if
             exit loop_getargs
          end if
          i_arg = i_arg + 1
       end do loop_getargs
+   end if
+
+   if (bigdft_mpi%iproc==0) then
+       if (do_logging) then
+         call yaml_set_stream(filename=trim(logging))
+         call yaml_get_default_stream(log_unit)
+         call yaml_new_document(log_unit)
+       else
+         call yaml_new_document()
+       end if
+       call print_logo()
+   end if
+
+   !Time initialization
+   call f_timing_reset(filename='time.yaml',master=(bigdft_mpi%iproc==0),verbose_mode=.false.)
+
+   if (bigdft_mpi%iproc==0) then
+       call yaml_scalar('',hfill='~')
+       call yaml_scalar('BIGDFT PRE-/POST-PROCESSING',hfill='~')
+   end if
+
+   if (bigdft_mpi%iproc==0) then
+       call yaml_mapping_open('Parallel environment')
+       call yaml_map('MPI tasks',bigdft_mpi%nproc)
+       nthread = 1
+       !$ nthread = omp_get_max_threads()
+       call yaml_map('OpenMP threads',nthread)
+       call yaml_mapping_close()
    end if
 
 
@@ -614,7 +626,7 @@ program utilities
        call f_memcpy(src=smmd%nelpsp, dest=at%nelpsp)
 
        !read(101,*) coeff_ptr
-       
+
        !!rxyz(1:3,1) = (/7.576417, 5.980391, 5.963297/)
        !!rxyz(1:3,2) = (/5.771699, 5.702495, 5.771181/)
        !!rxyz(1:3,3) = (/7.728301, 7.297505, 7.228819/)
@@ -754,7 +766,7 @@ program utilities
    !!!    if (bigdft_mpi%iproc==0) then
    !!!        call yaml_sequence_open('Atoms and support functions to be taken into account for each partial density of states')
    !!!    end if
-   !!!        do 
+   !!!        do
    !!!            !read(iunit01,*,iostat=ios) cc, ival
    !!!            read(iunit,'(a128)',iostat=ios) line
    !!!            if (ios/=0) exit
@@ -770,7 +782,7 @@ program utilities
    !!!                    call yaml_sequence(advance='no')
    !!!                    call yaml_mapping_open(trim(pdos_name(ipdos)))
    !!!                end if
-   !!!                cycle 
+   !!!                cycle
    !!!            end if
    !!!            read(line,*,iostat=ios) cc, ival
    !!!            if (bigdft_mpi%iproc==0) then
@@ -1450,7 +1462,7 @@ end program utilities
 !!!!!                       end if
 !!!!!                   end do
 !!!!!               end do
-!!!!!            
+!!!!!
 !!!!!           end do
 !!!!!
 !!!!!           if (iproc==0) then

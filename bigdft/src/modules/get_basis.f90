@@ -37,12 +37,13 @@ module get_basis
                                 synchronize_onesided_communication
       use rhopotential, only: full_local_potential
       use sparsematrix_base, only: assignment(=), sparsematrix_malloc, sparsematrix_malloc_ptr, SPARSE_FULL, &
-                                   SPARSE_TASKGROUP
+                                   SPARSE_TASKGROUP, DENSE_FULL
       use constrained_dft, only: cdft_data
       use fragment_base, only: fragmentInputParameters
       use module_fragments, only: system_fragment
-      use sparsematrix,only: gather_matrix_from_taskgroups_inplace, extract_taskgroup_inplace
-      use transposed_operations, only: calculate_overlap_transposed
+      use sparsematrix,only: gather_matrix_from_taskgroups_inplace, extract_taskgroup_inplace, &
+                                   compress_matrix, uncompress_matrix2
+      use transposed_operations, only: calculate_overlap_transposed, build_linear_combination_transposed
       use matrix_operations, only: overlapPowerGeneral, check_taylor_order
       use public_enums
       use locreg_operations
@@ -94,7 +95,7 @@ module get_basis
       real(kind=8),intent(inout),optional :: eproj, ekin
      
       ! Local variables
-      integer :: iorb, it, it_tot, ncount, ncharge, ii, kappa_satur, nit_exit, ispin, jproc
+      integer :: iorb, it, it_tot, ncount, ncharge, ii, kappa_satur, nit_exit, ispin, jproc, jorb, ierr
       !integer :: jorb, nspin
       !real(kind=8),dimension(:),allocatable :: occup_tmp
       real(kind=8) :: meanAlpha, ediff_best, alpha_max, delta_energy, delta_energy_prev, ediff
@@ -119,8 +120,9 @@ module get_basis
       integer,dimension(:),allocatable :: n3p
       character(len=6) :: label
       integer,dimension(3) :: power
-    
-    
+      real(kind=8),dimension(:,:,:),pointer :: weight_matrixp
+      real(kind=8), dimension(:), pointer :: matrix_compr
+
     
       call f_routine(id='getLocalizedBasis')
     
@@ -431,6 +433,82 @@ module get_basis
           if(ncount>0) call vcopy(ncount, hpsit_c(1), 1, hpsit_c_tmp(1), 1)
           ncount=7*tmb%ham_descr%collcom%ndimind_f
           if(ncount>0) call vcopy(ncount, hpsit_f(1), 1, hpsit_f_tmp(1), 1)
+
+      ! moved from orthoconstraintnonorthogonal, as need it already here
+      call transpose_localized(iproc, nproc,  tmb%ham_descr%npsidim_orbs, tmb%orbs, tmb%ham_descr%collcom, &
+           TRANSPOSE_GATHER, tmb%ham_descr%psi, tmb%ham_descr%psit_c, tmb%ham_descr%psit_f, tmb%ham_descr%lzd, wt_philarge)
+      !can_use_transposed=.true.
+
+
+          ! add the CDFT term to hpsi, such that will be included in the gradient
+          if (present(cdft)) then
+              ! calculate |phi> Vc (S^-1 W + W S^-1)
+
+              cdft%weight_matrix_%matrix = sparsematrix_malloc_ptr(cdft%weight_matrix,&
+                   iaction=DENSE_FULL,id='weight_matrix_%matrix')
+              call uncompress_matrix2(bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, &
+                   cdft%weight_matrix, cdft%weight_matrix_%matrix_compr, cdft%weight_matrix_%matrix)
+
+              tmb%linmat%ovrlppowers_(1)%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(3),&
+                   iaction=DENSE_FULL,id='weight_matrix_%matrix')
+              call uncompress_matrix2(bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, &
+                   tmb%linmat%smat(3), tmb%linmat%ovrlppowers_(1)%matrix_compr, tmb%linmat%ovrlppowers_(1)%matrix)
+
+              ! could maybe just do this with sparse matrices...
+              weight_matrixp = f_malloc_ptr((/tmb%orbs%norb,tmb%orbs%norbp,1/),id='weight_matrixp')
+              if (tmb%orbs%norbp>0) then
+                 call dgemm('n', 'n', tmb%orbs%norb, tmb%orbs%norbp, & 
+                      tmb%orbs%norb, 1.d0, &
+                      tmb%linmat%ovrlppowers_(1)%matrix(1,1,1), tmb%orbs%norb, &
+                      cdft%weight_matrix_%matrix(1,tmb%orbs%isorb+1,1), tmb%orbs%norb, 0.d0, &
+                      weight_matrixp(1,1,1), tmb%orbs%norb)
+                 !call dgemm('n', 'n', tmb%orbs%norb, tmb%orbs%norb, & 
+                 !     tmb%orbs%norb, 1.d0, &
+                 !     tmb%linmat%ovrlppowers_(1)%matrix(1,1,1), tmb%orbs%norb, &
+                 !     cdft%weight_matrix_%matrix(1,1,1), tmb%orbs%norb, 0.d0, &
+                 !     weight_matrix_tmp(1,1,1), tmb%orbs%norb)
+              end if
+              call f_free_ptr(tmb%linmat%ovrlppowers_(1)%matrix)
+
+              if (bigdft_mpi%nproc>1) then
+                 call mpi_allgatherv(weight_matrixp, tmb%orbs%norb*tmb%orbs%norbp, mpi_double_precision, &
+                      cdft%weight_matrix_%matrix, tmb%orbs%norb*tmb%orbs%norb_par(:,0), &
+                      tmb%orbs%norb*tmb%orbs%isorb_par, mpi_double_precision, bigdft_mpi%mpi_comm, ierr)
+              else
+                  ! not just here...
+                  if (cdft%weight_matrix%nspin/=1) then
+                      stop 'NEED TO FIX THE SPIN HERE: calculate_weight_matrix_lowdin'
+                  end if
+                 call vcopy(tmb%orbs%norb*tmb%orbs%norb*cdft%weight_matrix%nspin,weight_matrixp(1,1,1),1,&
+                      cdft%weight_matrix_%matrix(1,1,1),1)
+              end if
+              call f_free_ptr(weight_matrixp)
+
+              !add transpose
+              !weight_matrix_tmp = f_malloc_ptr((/weight_matrix%nfvctr,weight_matrix%nfvctr/),id='weight_matrix_tmp')
+              do iorb=1,cdft%weight_matrix%nfvctr
+                do jorb=1,cdft%weight_matrix%nfvctr
+                   cdft%weight_matrix_%matrix(jorb,iorb,1) = cdft%lag_mult * 0.5d0 * &
+                        (cdft%weight_matrix_%matrix(iorb,jorb,1) + cdft%weight_matrix_%matrix(jorb,iorb,1))
+                end do
+              end do
+
+              !want to preserve original weight matrix not gradient version
+              matrix_compr=f_malloc_ptr(cdft%weight_matrix%nvctr,id='matrix_compr')
+              call vcopy(cdft%weight_matrix%nvctr,cdft%weight_matrix_%matrix_compr(1),1,matrix_compr(1),1)
+              call compress_matrix(bigdft_mpi%iproc,bigdft_mpi%nproc,cdft%weight_matrix,cdft%weight_matrix_%matrix,&
+                   cdft%weight_matrix_%matrix_compr)
+              call f_free_ptr(cdft%weight_matrix_%matrix)
+
+              call build_linear_combination_transposed(tmb%ham_descr%collcom, &
+                   tmb%linmat%smat(2), tmb%linmat%auxm, cdft%weight_matrix_, &
+                   tmb%ham_descr%psit_c, tmb%ham_descr%psit_f, .false., hpsit_c, hpsit_f, iproc)
+
+              !copy back original weight matrix
+              call vcopy(cdft%weight_matrix%nvctr,matrix_compr(1),1,cdft%weight_matrix_%matrix_compr(1),1)
+              call f_free_ptr(matrix_compr)
+          end if
+
     
           ! optimize the tmbs for a few extra states
           if (target_function==TARGET_FUNCTION_IS_ENERGY.and.extra_states>0) then
@@ -454,7 +532,7 @@ module get_basis
               !call extract_taskgroup_inplace(tmb%linmat%smat(3), tmb%linmat%kernel_)
               !call transform_sparse_matrix(tmb%linmat%denskern, tmb%linmat%denskern_large, 'large_to_small')
           end if
-    
+  
           ! use hpsi_tmp as temporary array for hpsi_noprecond, even if it is allocated with a larger size
           !write(*,*) 'calling calc_energy_and.., correction_co_contra',correction_co_contra
           calculate_inverse = (target_function/=TARGET_FUNCTION_IS_HYBRID) .or. energy_increased
@@ -472,7 +550,7 @@ module get_basis
           !!call gather_matrix_from_taskgroups_inplace(iproc, nproc, tmb%linmat%smat(3), tmb%linmat%kernel_)
           !fnrm_old=fnrm
     
-    
+
           if (it_tot==1) then
               energy_first=trH
           end if
@@ -492,7 +570,7 @@ module get_basis
     
           ediff=trH-trH_old
           ediff_best=trH-trH_ref
-    
+   
           if (it>1 .and. (target_function==TARGET_FUNCTION_IS_HYBRID .or. experimental_mode)) then
               if (.not.energy_increased .and. .not.energy_increased_previous) then
                   if (.not.ldiis%switchSD) then
@@ -569,7 +647,7 @@ module get_basis
                  call fmpi_get(fnrm%receivebuf(1), count=1, target_rank=0,target_disp=int(0,fmpi_address),win=fnrm%window)
               end if
           end if
-    
+  
           if (energy_increased .and. ldiis%isx==0 .and. (.not. allow_increase)) then
               !if (iproc==0) write(*,*) 'WARNING: ENERGY INCREASED'
               !if (iproc==0) call yaml_warning('The target function increased, D='&
@@ -613,7 +691,7 @@ module get_basis
               !alpha(:) = alpha(:)*0.6d0
               !if (iproc==0) call yaml_warning('set recovered_old_kernel to true')
     
-    
+  
               ! Recalculate the matrix powers
               power=(/2,-2,1/)
               call overlapPowerGeneral(iproc, nproc, bigdft_mpi%mpi_comm, &
@@ -624,7 +702,7 @@ module get_basis
                    check_accur=order_taylor<1000, max_error=max_error, mean_error=mean_error, &
                    ice_obj=tmb%ice_obj)
               call check_taylor_order(iproc, mean_error, max_inversion_error, order_taylor)
-    
+
               trH_old=0.d0
               it=it-2 !go back one iteration (minus 2 since the counter was increased)
               overlap_calculated=.false.
@@ -653,8 +731,8 @@ module get_basis
               recovered_old_kernel = .false.
               !if (iproc==0) call yaml_warning('set recovered_old_kernel to false')
           end if 
-    
-    
+
+  
           ! information on the progress of the optimization
           if (iproc==0) then
               call yaml_newline()
@@ -680,7 +758,7 @@ module get_basis
     
           ! Add some extra iterations if DIIS failed (max 6 failures are allowed before switching to SD)
           nit_exit=min(nit_basis+ldiis%icountDIISFailureTot,nit_basis+6)
-    
+   
           ! Normal case
           if (.not.energy_increased .or. ldiis%isx/=0 .or. allow_increase) then
               if (nproc>1) then
@@ -1006,7 +1084,7 @@ module get_basis
 
 
 
-    subroutine improveOrbitals(iproc, nproc, tmb, nspin, ldiis, alpha, gradient, experimental_mode)
+    subroutine improveOrbitals(iproc, nproc, tmb, nspin, ldiis, alpha, gradient, one_diis_mat)
       use module_base
       use module_types
       implicit none
@@ -1017,7 +1095,7 @@ module get_basis
       type(localizedDIISParameters),intent(inout) :: ldiis
       real(kind=8),dimension(tmb%orbs%norbp),intent(in) :: alpha
       real(kind=wp),dimension(tmb%npsidim_orbs),intent(inout) :: gradient
-      logical,intent(in) :: experimental_mode
+      logical,intent(in) :: one_diis_mat
       
       ! Local variables
       integer :: istart, iorb, iiorb, ilr, ncount
@@ -1043,7 +1121,7 @@ module get_basis
           end if
           call optimizeDIIS(iproc, nproc, max(tmb%npsidim_orbs,tmb%npsidim_comp), &
                tmb%orbs, nspin, tmb%lzd, gradient, tmb%psi, ldiis, &
-               experimental_mode)
+               one_diis_mat)
       end if
     
       call f_release_routine()
@@ -1595,77 +1673,7 @@ module get_basis
            TRANSPOSE_GATHER, hpsit_c, hpsit_f, tmb%hpsi, tmb%ham_descr%lzd, wt_hphi)
 
       !!if (iproc==0) write(*,*) 'after orthoconstr: sum(tmb%hpsi)',sum(tmb%hpsi)
-    
-    
-      !EXPERIMENTAL and therefore deactivated
-      ! SM: WARNING trH is only available after the call to calculate_trace_finish
-      !add CDFT gradient, or at least an approximation thereof
-      if (present(cdft).and..false.) then
-         if (.not.present(input_frag).or..not.present(ref_frags)) stop 'input_frag, ref_frags and cdft must be present together'
-         cdft_gradt_c = f_malloc_ptr(tmb%ham_descr%collcom%ndimind_c,id='cdft_gradt_c')
-         cdft_gradt_f = f_malloc_ptr(7*tmb%ham_descr%collcom%ndimind_f,id='cdft_gradt_f')
-         !calculate gradient (1st order taylor), assume S needs calculating though might not be needed
-         !print*,size(cdft_gradt_c),size(cdft_gradt_f),tmb%ham_descr%collcom%ndimind_c,7*tmb%ham_descr%collcom%ndimind_f
-    
-    
-         call calculate_weight_matrix_lowdin_gradient(cdft%weight_matrix,cdft%weight_matrix_,cdft%ifrag_charged,&
-              tmb,input_frag,ref_frags,.true.,.true.,norder_taylor,cdft_gradt_c,cdft_gradt_f)
-         !add gradient to hpsi_t
-         !print*,'corr',cdft%lag_mult**2*ddot(tmb%ham_descr%collcom%ndimind_c, cdft_gradt_c(1), 1, cdft_gradt_c(1), 1),&
-         !     cdft%lag_mult**2*ddot(7*tmb%ham_descr%collcom%ndimind_f, cdft_gradt_f(1), 1, cdft_gradt_f(1), 1)
-         !print*,'orig',ddot(tmb%ham_descr%collcom%ndimind_c, hpsit_c(1), 1, hpsit_c(1), 1),&
-         !          ddot(7*tmb%ham_descr%collcom%ndimind_f, hpsit_f(1), 1, hpsit_f(1), 1)
-         !call daxpy(tmb%ham_descr%collcom%ndimind_c,cdft%lag_mult,cdft_gradt_c,1,hpsit_c,1)
-         !call daxpy(7*tmb%ham_descr%collcom%ndimind_f,cdft%lag_mult,cdft_gradt_f,1,hpsit_f,1)
-         !print*,'after',ddot(tmb%ham_descr%collcom%ndimind_c, hpsit_c(1), 1, hpsit_c(1), 1),&
-         !        ddot(7*tmb%ham_descr%collcom%ndimind_f, hpsit_f(1), 1, hpsit_f(1), 1)
-         !call dcopy(tmb%ham_descr%collcom%ndimind_c,cdft_gradt_c,1,hpsit_c,1)
-         !call dcopy(7*tmb%ham_descr%collcom%ndimind_f,cdft_gradt_f,1,hpsit_f,1)
-    
-         cdft_grad=f_malloc_ptr(tmb%ham_descr%npsidim_orbs,id='cdft_grad')
-         call untranspose_localized(iproc, nproc, tmb%ham_descr%npsidim_orbs, tmb%orbs, tmb%ham_descr%collcom, &
-              TRANSPOSE_FULL, cdft_gradt_c, cdft_gradt_f, cdft_grad, tmb%ham_descr%lzd)
-         !print*,ddot(tmb%ham_descr%npsidim_orbs, cdft_grad(1), 1, cdft_grad(1), 1)
-    
-         if (.false.) then
-            cdft_grad_small=f_malloc_ptr(tmb%npsidim_orbs,id='cdft_grad_small')
-            !no point keeping in tmblarge for now as fd will only be in small
-            call large_to_small_locreg(iproc, tmb%npsidim_orbs, tmb%ham_descr%npsidim_orbs, tmb%lzd, tmb%ham_descr%lzd, &
-                 tmb%orbs, cdft_grad, cdft_grad_small)
-            !print CDFT gradient
-            !open(10+iproc)
-            !do iorb=19000,21500 !1,tmb%npsidim_orbs
-            !write(10+iproc,*) cdft_grad_small(iorb)
-            !end do
-            !close(10+iproc)
-    
-            call calculate_weight_matrix_lowdin_gradient_fd(cdft%weight_matrix,cdft%weight_matrix_,cdft%ifrag_charged,&
-                 tmb,input_frag,ref_frags,.true.,.true.,norder_taylor,cdft_grad_small)
-            !call untranspose_localized(iproc, nproc, tmb%ham_descr%npsidim_orbs, tmb%orbs, tmb%ham_descr%collcom, &
-            !     cdft_gradt_c, cdft_gradt_f, cdft_grad, tmb%ham_descr%lzd)
-    
-            !open(20+iproc)
-            !do iorb=19000,21500 !1,tmb%npsidim_orbs
-            !write(20+iproc,*) cdft_grad_small(iorb)
-            !end do
-            !close(20+iproc)
-    
-            !call f_free_ptr(cdft_grad_small)
-    
-            !call mpi_finalize(bigdft_mpi%mpi_comm)
-            !stop
-         end if
-    
-         call f_free_ptr(cdft_gradt_c)
-         call f_free_ptr(cdft_gradt_f)   
-         !call daxpy(tmb%ham_descr%npsidim_orbs,cdft%lag_mult,cdft_grad,1,tmb%hpsi,1)
-         call dcopy(tmb%ham_descr%npsidim_orbs,cdft_grad,1,tmb%hpsi,1)
-         !call dscal(tmb%ham_descr%npsidim_orbs,cdft%lag_mult,tmb%hpsi)
-    
-         call f_free_ptr(cdft_grad)
-      end if
-    
-    
+  
       !!if (target_function==TARGET_FUNCTION_IS_ENERGY .and. iproc==0) then
       !!    ist=0
       !!    do iorb=1,tmb%orbs%norbp
@@ -2134,6 +2142,7 @@ module get_basis
       ! Improve the orbitals, depending on the choice made above.
       if (present(psidiff)) call vcopy(tmb%npsidim_orbs, tmb%psi(1), 1, psidiff(1), 1)
       if(.not.ldiis%switchSD) then
+          ! this call should use one_diis_mat rather than experimental mode
           call improveOrbitals(iproc, nproc, tmb, tmb%linmat%smat(1)%nspin, ldiis, alpha, hpsi_small, experimental_mode)
       else
           if (iproc==0) then
@@ -2170,6 +2179,8 @@ module get_basis
           if (iproc == 0) then
               call yaml_map('Orthogonalization',.true.)
           end if
+
+      ! not sure how this connects with experimental_mode...
       else if (experimental_mode .or. .not.ldiis%switchSD) then
           ist=1
           do iorb=1,tmb%orbs%norbp

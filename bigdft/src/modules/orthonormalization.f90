@@ -663,8 +663,9 @@ module orthonormalization
       end if
     
       ! Gather together the data (has been posted in getLocalizedBasis
-      call transpose_localized(iproc, nproc, npsidim_orbs, orbs, collcom, &
-           TRANSPOSE_GATHER, lphi, psit_c, psit_f, lzd, wt_philarge)
+      ! LR: moved back to getLocalizedBasis, as it is already needed for the CDFT gradient
+      !call transpose_localized(iproc, nproc, npsidim_orbs, orbs, collcom, &
+      !     TRANSPOSE_GATHER, lphi, psit_c, psit_f, lzd, wt_philarge)
       can_use_transposed=.true.
 
       !@NEW Calculate Omega in a different way ####################################

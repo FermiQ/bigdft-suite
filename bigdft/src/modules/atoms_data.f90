@@ -22,7 +22,8 @@ module module_atoms
        & ASTRUCT_ATT_IGSPIN, ASTRUCT_ATT_IGCHRG, ASTRUCT_ATT_IXYZ_1, &
        & ASTRUCT_ATT_IXYZ_2, ASTRUCT_ATT_IXYZ_3, &
        & ASTRUCT_ATT_RXYZ_INT_1, ASTRUCT_ATT_RXYZ_INT_2, &
-       & ASTRUCT_ATT_RXYZ_INT_3, ASTRUCT_ATT_MODE, ASTRUCT_ATT_CAVRAD
+       & ASTRUCT_ATT_RXYZ_INT_3, ASTRUCT_ATT_MODE, ASTRUCT_ATT_CAVRAD, &
+       & ASTRUCT_REDUCED
   use dictionaries, only: dictionary
   use f_trees, only: f_tree
   use f_arrays
@@ -1388,7 +1389,7 @@ contains
     real(gp), dimension(3, astruct%nat), intent(in) :: rxyz
     character(len=*), intent(in), optional :: comment
     !local variables
-    type(dictionary), pointer :: pos, at, last
+    type(dictionary), pointer :: pos, at, last, tmp
     integer :: iat,ichg,ispol,i
     real(gp) :: factor(3)
     logical, dimension(3) :: peri
@@ -1405,12 +1406,16 @@ contains
     case('angstroem','angstroemd0')
        call set(dict // ASTRUCT_UNITS, 'angstroem')
        factor=Bohr_Ang
-    case('reduced')
+    case('reduced') ! Old way to store reduced positions.
        call set(dict // ASTRUCT_UNITS, 'reduced')
        reduced = .true.
     case('atomic','atomicd0','bohr','bohrd0')
        ! Default, store nothing
     end select Units
+    if (ASTRUCT_PROPERTIES .in. dict) call dict_remove(dict // ASTRUCT_PROPERTIES, ASTRUCT_REDUCED)
+    if (associated(astruct%properties)) then
+       reduced = astruct%properties .get. ASTRUCT_REDUCED
+    end if
 
     peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
     do i=1,3
