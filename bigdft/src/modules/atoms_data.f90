@@ -1468,9 +1468,9 @@ contains
     case('atomic','atomicd0','bohr','bohrd0')
        ! Default, store nothing
     end select Units
-    if (ASTRUCT_PROPERTIES .in. dict) then
-        tmp => dict // ASTRUCT_PROPERTIES
-       reduced = tmp .get. ASTRUCT_REDUCED
+    if (ASTRUCT_PROPERTIES .in. dict) call dict_remove(dict // ASTRUCT_PROPERTIES, ASTRUCT_REDUCED)
+    if (associated(astruct%properties)) then
+       reduced = astruct%properties .get. ASTRUCT_REDUCED
     end if
 
     peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
