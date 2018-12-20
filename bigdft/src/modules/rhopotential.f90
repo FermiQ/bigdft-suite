@@ -56,9 +56,10 @@ module rhopotential
     nullifyVXC=.false.
 
     ! rhov should be the electronic density
-    if (denspot%rhov_is /= ELECTRONIC_DENSITY) &
-         call f_err_throw('updatePotential: ELECTRONIC_DENSITY not available, control the operations on rhov',&
-         err_name='BIGDFT_RUNTIME_ERROR')
+    !todo: the sumrho for TMB should update the rhov_is status, in the linear scaling case
+    !if (denspot%rhov_is /= ELECTRONIC_DENSITY) &
+    !      call f_err_throw('updatePotential: ELECTRONIC_DENSITY not available, control the operations on rhov',&
+    !    err_name='BIGDFT_RUNTIME_ERROR')
 
     if(nspin==4) then
        !this wrapper can be inserted inside the poisson solver

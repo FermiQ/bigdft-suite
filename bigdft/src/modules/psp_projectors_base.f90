@@ -26,7 +26,7 @@ module psp_projectors_base
      real(wp), dimension(:), pointer :: coeff
      type(projector_coefficients), pointer :: next
   end type projector_coefficients
-  
+
   type, public :: daubechies_projectors
      type(nonlocal_psp_descriptors) :: region
      integer :: mproj !< number of projectors per k-point
@@ -36,7 +36,7 @@ module psp_projectors_base
   integer, parameter :: PROJ_DESCRIPTION_GAUSSIAN = 1
   integer, parameter :: PROJ_DESCRIPTION_PSPIO = 2
   integer, parameter :: PROJ_DESCRIPTION_PAW = 3
-  
+
   !> Description of the atomic functions
   type, public :: atomic_projectors
      integer :: iat !< Index of the atom this structure refers to.
@@ -55,7 +55,7 @@ module psp_projectors_base
      type(pawrad_type), pointer :: pawrad !< Radial mesh.
      type(pawtab_type), pointer :: pawtab !< Radial projector.
   end type atomic_projectors
-  
+
   integer, parameter :: SEPARABLE_1D=0
   integer, parameter :: RS_COLLOCATION=1
   integer, parameter :: MP_COLLOCATION=2
@@ -96,11 +96,11 @@ module psp_projectors_base
      type(atomic_projectors), pointer :: parent
      real(gp), dimension(3) :: kpoint
      real(gp) :: normalisation
-     
+
      integer :: cplx !< 1 for real coeff. 2 for complex ones.
      integer :: nc !< Number of components in one projector.
      integer :: nproj !< Total number of projectors.
-     
+
      integer :: n, l !< Quantum number and orbital moment of current shell.
      integer :: istart_c !< Starting index in proj array of current shell.
      integer :: mproj !< Number of projectors for this shell.
@@ -314,7 +314,7 @@ contains
     type(daubechies_projectors), intent(inout) :: projs
 
     type(projector_coefficients), pointer :: proj, doomed
-    
+
     call deallocate_nonlocal_psp_descriptors(projs%region)
     proj => projs%projs
     do while (associated(proj))
@@ -514,9 +514,9 @@ contains
        call f_err_throw("Unknown atomic projector kind.", &
             & err_name = 'BIGDFT_RUNTIME_ERROR')
     end if
-    iter%mproj = 2 * iter%l - 1    
+    iter%mproj = 2 * iter%l - 1
     next = .true.
-       
+
     if (associated(iter%proj_root)) then
        if (iter%istart_c + iter%nc * iter%mproj > size(iter%proj_root) + 1) &
             & call f_err_throw('istart_c > nprojel+1', err_name = 'BIGDFT_RUNTIME_ERROR')
@@ -596,7 +596,7 @@ contains
        call f_err_throw("Unknown atomic projector kind.", &
             & err_name = 'BIGDFT_RUNTIME_ERROR')
     end if
-    
+
     ! Check norm for each proj.
     if (ider == 0) then
        do np = 1, iter%mproj
@@ -631,7 +631,7 @@ contains
        aproj%gbasis%rxyz => rxyz
     end if
   end subroutine atomic_projectors_set_position
-  
+
   subroutine psp_update_positions(nlpsp, lr, lr0, rxyz)
     implicit none
     type(DFT_PSP_projectors), intent(inout) :: nlpsp
@@ -720,6 +720,7 @@ contains
   subroutine rfuncs_to_wavelets_collocation(rfunc, ider, lr, rxyz, l, n, ncplx_p, psi, &
        & projector_real, w, mp_order)
     use box
+    use at_domain
     use pspiof_m, only: pspiof_projector_eval
     use f_utils, only: f_zero
     use gaussians, only: ylm_coefficients, ylm_coefficients_new
@@ -755,7 +756,7 @@ contains
     v = sqrt(lr%mesh%volume_element)
     do while(ylm_coefficients_next_m(ylm))
        call f_zero(projector_real)
-       if (all(lr%mesh%bc == 0)) then
+       if (.not. any(domain_periodic_dims(lr%mesh%dom))) then
           boxit = lr%bit
        else
           nbox = box_nbox_from_cutoff(lr%mesh, rxyz, radius + &
@@ -766,7 +767,7 @@ contains
        nthread=1
        !$omp parallel default(shared)&
        !$omp private(ithread, r, factor) &
-       !$omp firstprivate(boxit) 
+       !$omp firstprivate(boxit)
        !$ ithread=omp_get_thread_num()
        !$ nthread=omp_get_num_threads()
        call box_iter_split(boxit,nthread,ithread)
@@ -857,7 +858,7 @@ contains
     d2 = f_malloc(pawrad%mesh_size, id = "d2")
     call paw_spline(pawrad%rad, tproj, pawrad%mesh_size, &
          & (tproj(2) - tproj(1)) / (pawrad%rad(2) - pawrad%rad(1)), 0._dp, d2)
-      
+
     centre = rxyz - [cell_r(lr%mesh_coarse, lr%ns1 + 1, 1), &
          & cell_r(lr%mesh_coarse, lr%ns2 + 1, 2), &
          & cell_r(lr%mesh_coarse, lr%ns3 + 1, 3)]
@@ -876,7 +877,7 @@ contains
        nthread=1
        !$omp parallel default(shared)&
        !$omp private(ithread, r, raux, ierr, factor) &
-       !$omp firstprivate(boxit) 
+       !$omp firstprivate(boxit)
        !$ ithread=omp_get_thread_num()
        !$ nthread=omp_get_num_threads()
        call box_iter_split(boxit,nthread,ithread)
