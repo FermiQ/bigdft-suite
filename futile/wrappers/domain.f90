@@ -178,14 +178,14 @@ contains
     !!this means free BC
     !if (.not. any(bc_is_periodic(bc))) return
     !this means only Periodic BC go ahead
-    if (any(bc_is_periodic(bc) .eqv. .false.)) return
+    if ( .not. any(bc_is_periodic(bc))) return
 
     !check of the availablilty of the options
     if (present(acell) .eqv. present(abc)) call f_err_throw('Domain inconsistency: only acell or abc may be given')
 
     if (any([present(alpha_bc),present(beta_ac),present(gamma_ab)]) .and. present(abc)) &
          call f_err_throw('Domain inconsistency: angles cannot be present if unit cell vectors are given')
-    
+
     if (present(abc)) then
        dom%abc=abc
        call abc_to_angrad_and_acell(abc,dom%angrad,dom%acell)
@@ -193,7 +193,7 @@ contains
        dom%acell=acell
        if (present(alpha_bc)) dom%angrad(BC_)=alpha_bc
        if (present(beta_ac)) dom%angrad(AC_)=beta_ac
-       if (present(gamma_ab)) dom%angrad(AB_)=gamma_ab      
+       if (present(gamma_ab)) dom%angrad(AB_)=gamma_ab
        call angrad_and_acell_to_abc(dom%angrad,dom%acell,dom%abc)
     end if
     do i=1,3
@@ -313,7 +313,7 @@ contains
     implicit none
     real(gp), dimension(3,3), intent(in) :: abc
     real(gp), dimension(3), intent(out) :: angrad,acell
-    
+
     !construct reduced cell vectors (if they do not exist)
     acell(A_) = sqrt(abc(X_,A_)**2 + abc(Y_,A_)**2 + abc(Z_,A_)**2)
     acell(B_) = sqrt(abc(X_,B_)**2 + abc(Y_,B_)**2 + abc(Z_,B_)**2)
@@ -321,7 +321,7 @@ contains
 
     angrad(AB_) = acos(dot_product(abc(:,A_),abc(:,B_))/(acell(A_)*acell(B_)))
     angrad(BC_) = acos(dot_product(abc(:,B_),abc(:,C_))/(acell(B_)*acell(C_)))
-    angrad(AC_) = acos(dot_product(abc(:,A_),abc(:,C_))/(acell(A_)*acell(C_)))   
+    angrad(AC_) = acos(dot_product(abc(:,A_),abc(:,C_))/(acell(A_)*acell(C_)))
 
   end subroutine abc_to_angrad_and_acell
 
@@ -332,7 +332,7 @@ contains
     !local variables
     integer :: i
     real(gp) :: aa,cc,a2,cosang
-    
+
 
     if (all(angrad== onehalf*pi)) then
        ! orthorhombic case
@@ -352,30 +352,30 @@ contains
        abc(Y_,A_)=0.0_gp
        abc(Z_,A_)=cc
 
-       abc(X_,B_)=-0.5_gp*aa 
-       abc(Y_,B_)=sqrt(3.0_gp)*0.5_gp*aa 
+       abc(X_,B_)=-0.5_gp*aa
+       abc(Y_,B_)=sqrt(3.0_gp)*0.5_gp*aa
        abc(Z_,B_)=cc
 
-       abc(X_,C_)=-0.5_gp*aa 
-       abc(Y_,C_)=-sqrt(3.0_gp)*0.5_gp*aa 
+       abc(X_,C_)=-0.5_gp*aa
+       abc(Y_,C_)=-sqrt(3.0_gp)*0.5_gp*aa
        abc(Z_,C_)=cc
     else if (angrad(AC_)/= onehalf*pi .and. angrad(AB_) == onehalf*pi .and. angrad(BC_)==onehalf*pi ) then
-       abc=0.0_gp      
+       abc=0.0_gp
        abc(X_,A_)=1.0_gp
        abc(Y_,B_)=1.0_gp
-       
+
        abc(X_,C_)=cos(angrad(AC_))
        !abc(Z_,C_)=sin(angrad(AC_))
        abc(Z_,C_)=sqrt(1.0_gp-abc(X_,C_)**2)
     else if (angrad(BC_)/= onehalf*pi .and. angrad(AB_) == onehalf*pi .and. angrad(AC_)==onehalf*pi ) then
-       abc=0.0_gp      
+       abc=0.0_gp
        abc(X_,A_)=1.0_gp
        abc(Y_,B_)=1.0_gp
        abc(Y_,C_)=cos(angrad(BC_))
        !abc(Z_,C_)=sin(angrad(BC_))
        abc(Z_,C_)=sqrt(1.0_gp-abc(Y_,C_)**2)
     else if (angrad(AB_)/= onehalf*pi .and. angrad(AC_) == onehalf*pi .and. angrad(BC_)==onehalf*pi ) then
-       abc=0.0_gp      
+       abc=0.0_gp
        abc(X_,A_)=1.0_gp
        abc(X_,B_)=cos(angrad(AB_))
        abc(Y_,B_)=sin(angrad(AB_))
@@ -422,12 +422,12 @@ contains
     real(gp), dimension(3,3), intent(in) :: abc
     real(gp), dimension(3), intent(in) :: angrad,acell
     real(gp) :: tol
-    !local variables  
+    !local variables
     integer, parameter :: ANGLE_=1,AXIS1_=2,AXIS2_=3
     integer :: i,angle,ax1,ax2
     real(gp), dimension(3) :: vect_norm,cang
     integer, dimension(3,3) :: icontrol
-    
+
     tol=0.0_gp
     do i=1,3
        vect_norm(i) = sqrt(abc(1,i)**2 + abc(2,i)**2 + abc(3,i)**2)
@@ -445,7 +445,7 @@ contains
     icontrol(ANGLE_,3)=AC_
     icontrol(AXIS1_,3)=A_
     icontrol(AXIS2_,3)=C_
-    
+
     do i=1,3
        angle=icontrol(ANGLE_,i)
        ax1=icontrol(AXIS1_,i)
@@ -466,7 +466,7 @@ contains
     !local variables
     character(len = max_field_length), dimension(3) :: str
     integer :: i
-    
+
     !get the specific cells
     bc=PERIODIC_BC
     do i=0,2
@@ -474,7 +474,7 @@ contains
     end do
 
     where (str == YAML_INFINITY) bc=FREE_BC
-    
+
     !for the periodic bc retrieve the cell size
     cell=0.0_gp
     do i=0,2
@@ -500,7 +500,7 @@ contains
     end do
 
   end subroutine bc_and_cell_to_dict
-  
+
   !that function cannot be pure
   function bc_enum_from_int(ibc) result(bc)
     implicit none
@@ -558,7 +558,7 @@ contains
     case('angstroemd0','atomicd0','bohrd0')
        call f_enum_attr(dest=units,attr=DOUBLE_PRECISION_ENUM)
     end select
-    
+
   end function units_enum_from_str
 
   function units_enum_from_int(iunit) result(units)
@@ -576,8 +576,8 @@ contains
     case default
        units=ANGSTROEM_UNITS
     end select Units_case
-    
-  end function units_enum_from_int  
+
+  end function units_enum_from_int
 
   subroutine domain_set_from_dict(dict,dom)
     use yaml_output
@@ -639,13 +639,13 @@ contains
        !in this case abc is not provided
        dom=domain_new(units,bc,acell=cell,alpha_bc=angrad(BC_),beta_ac=angrad(AC_),gamma_ab=angrad(AB_))
     end if
-    
+
   end subroutine domain_set_from_dict
 
   subroutine domain_merge_to_dict(dict,dom)
     implicit none
     type(dictionary), pointer :: dict
-    type(domain), intent(in) :: dom   
+    type(domain), intent(in) :: dom
 
     call set(dict//DOMAIN_UNITS,toa(units_enum_from_int(dom%units)))
 
@@ -706,8 +706,8 @@ contains
     case default
        bc=NULL_PAR
     end select
-  end function geocode_to_bc     
- 
+  end function geocode_to_bc
+
   !>give the associated geocode, 'X' for unknown
   pure function domain_geocode(dom) result(dom_geocode)
     implicit none
@@ -729,7 +729,7 @@ contains
        dom_geocode='X'
     end if
 
-  end function domain_geocode 
+  end function domain_geocode
 
   !> returns a logical array of size 3 which is .true. for all the periodic dimensions
   pure function bc_periodic_dims(bc) result(peri)
@@ -1147,7 +1147,7 @@ contains
 !!$    !local variables
 !!$    logical :: eol
 !!$    character(len=256) :: line
-!!$   
+!!$
 !!$    !first line of the header
 !!$    eol=f_iostream_line_read(ios,&
 !!$         '[nat,units_str,energy,comment]',&
@@ -1173,18 +1173,18 @@ contains
 !!$    !second line of the header
 !!$    eol=f_iostream_line_read(ios,&
 !!$         '[boundary_conditions,alat(3),properties(dict)]',&
-!!$         dom_dict)   
+!!$         dom_dict)
 !!$
 !!$  end subroutine parse_ascii_header
 
-  
+
 
 !!$  !direct metric
-!!$  function gd(bc,angrad) 
+!!$  function gd(bc,angrad)
 !!$  end function gd
 !!$
 !!$  !direct metric
-!!$  function gu(bc,angrad) 
+!!$  function gu(bc,angrad)
 !!$  end function gu
 !!$
 !!$

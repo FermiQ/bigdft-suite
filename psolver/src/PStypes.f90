@@ -81,7 +81,7 @@ module PStypes
 
 
   !> Define the work arrays needed for the treatment of the generalized (nonvacuum) or
-  !! standard (vacuum) Poisson Equation. Not all of them are allocated, the actual memory usage 
+  !! standard (vacuum) Poisson Equation. Not all of them are allocated, the actual memory usage
   !! depends on the treatment.
   type, public :: PS_workarrays
      integer :: nat !< dimensions of the atomic based cavity. Zero if unused
@@ -144,7 +144,7 @@ module PStypes
      logical :: use_input_guess
      !> For an implicit solvation run, trigger the energy calculation to the only electrostatic contribution.
      !! If .true., the code only calculates the electrostatic contribution
-     !! and the non electrostatic terms to the total solvation energy (cavitation, 
+     !! and the non electrostatic terms to the total solvation energy (cavitation,
      !! repulsion and dispersion) are neglected.
      logical :: only_electrostatic
      !> extract the polarization charge and the dielectric function, to be used for plotting purposes
@@ -170,7 +170,7 @@ module PStypes
 !!$     !!          - 'F' free BC, isolated systems.
 !!$     !!                The program calculates the solution as if the given density is
 !!$     !!                "alone" in R^3 space.
-!!$     !!          - 'S' surface BC, isolated in y direction, periodic in xz plane                
+!!$     !!          - 'S' surface BC, isolated in y direction, periodic in xz plane
 !!$     !!                The given density is supposed to be periodic in the xz plane,
 !!$     !!                so the dimensions in these direction mus be compatible with the FFT
 !!$     !!                Beware of the fact that the isolated direction is y!
@@ -179,7 +179,7 @@ module PStypes
 !!$     !!                then all the dimensions must be compatible with the FFT.
 !!$     !!                No need for setting up the kernel (in principle for Plane Waves)
 !!$     !!          - 'W' Wires BC.
-!!$     !!                The density is supposed to be periodic in z direction, 
+!!$     !!                The density is supposed to be periodic in z direction,
 !!$     !!                which has to be compatible with the FFT.
 !!$     !!          - 'H' Helmholtz Equation Solver
 !!$!     character(len=1) :: geocode
@@ -187,9 +187,9 @@ module PStypes
 !!$     !!          - 'VAC' Poisson Equation in vacuum. Default case.
 !!$     !!          - 'PCG' Generalized Poisson Equation, Preconditioned Conjugate Gradient
 !!$     !!          - 'PI'  Generalized Poisson Equation, Polarization Iteration method
-!!$     !character(len=3) :: method 
+!!$     !character(len=3) :: method
 !!$     !! this represents the information for the equation and the algorithm to be solved
-!!$     !! this enumerator contains the algorithm and has the attribute associated to the 
+!!$     !! this enumerator contains the algorithm and has the attribute associated to the
 !!$     !! type of cavity to be used
      type(f_enumerator) :: method
      type(cell) :: mesh !< structure which includes all cell informations
@@ -533,8 +533,9 @@ contains
     !kernel%mesh=cell_new(geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab)
     dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
               alpha_bc=alpha_bc,beta_ac=beta_ac,gamma_ab=gamma_ab,acell=ndims*hgrids)
-    kernel%mesh=cell_new(dom,ndims,hgrids)
 
+
+    kernel%mesh=cell_new(dom,ndims,hgrids)
 
     !new treatment for the kernel input variables
     kernel%method=PS_VAC_ENUM
@@ -1085,8 +1086,8 @@ contains
   !! treatment. It generate the dielectric cavity epsilon(r) and all working
   !! arrays needed by the PCG or SC solver of the generalized Poisson equation.
   !! There are several methods to do that:
-  !! 1. In case of the soft-sphere model we need just to pass some informations 
-  !!    of our atomistic system like the total number of atoms (nat), their positions 
+  !! 1. In case of the soft-sphere model we need just to pass some informations
+  !!    of our atomistic system like the total number of atoms (nat), their positions
   !!    (rxyz(1:3,nat)) and their radii.
   !!      call pkernel_set_epsilon(pkernel,nat=nat,rxyz=rxyz,radii=radii)
   !! 2. If you have a given cavity epsilon(r) (on the same real space grid of the input
