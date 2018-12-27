@@ -2286,7 +2286,7 @@ module multipole
       type(matrices),dimension(-lmax:lmax,0:lmax),intent(in),target,optional :: multipole_matrix_in
       type(foe_data),intent(inout),optional :: ice_obj
       character(len=*),intent(in),optional :: filename
-      real(kind=8),dimension(:,:),target,intent(in),optional :: multipole_centers
+      real(kind=8),dimension(:,:),pointer, intent(in),optional :: multipole_centers
 
       ! Local variables
       integer :: methTransformOverlap, iat, ind, ispin, ishift, iorb, jorb, iiorb, l, m, itype, natpx, isatx, kat, n, i, kkat
@@ -6524,7 +6524,7 @@ END SUBROUTINE calculate_dipole_moment
       logical,intent(in) :: centers_auto
       character(len=*),intent(in) :: filename
       integer,intent(in) :: write_multipole_matrices_mode
-      real(kind=8),dimension(:,:),target,intent(in),optional :: multipole_centers
+      real(kind=8),dimension(:,:),pointer,intent(in),optional :: multipole_centers
 
       ! Local variables
       integer :: iat, ilr, iilr, l, m

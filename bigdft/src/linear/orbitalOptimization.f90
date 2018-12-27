@@ -8,7 +8,7 @@
 !!    For the list of contributors, see ~/AUTHORS
 
 
-subroutine optimizeDIIS(iproc, nproc, npsidim, orbs, nspin, lzd, hphi, phi, ldiis, experimental_mode)
+subroutine optimizeDIIS(iproc, nproc, npsidim, orbs, nspin, lzd, hphi, phi, ldiis, one_diis_mat)
 
   use module_base
   use module_types
@@ -22,7 +22,7 @@ subroutine optimizeDIIS(iproc, nproc, npsidim, orbs, nspin, lzd, hphi, phi, ldii
   real(8),dimension(npsidim),intent(in):: hphi
   real(8),dimension(npsidim),intent(inout):: phi
   type(localizedDIISParameters),intent(inout):: ldiis
-  logical,intent(in) :: experimental_mode                       
+  logical,intent(in) :: one_diis_mat                    
 
 
   ! Local variables
@@ -173,7 +173,7 @@ subroutine optimizeDIIS(iproc, nproc, npsidim, orbs, nspin, lzd, hphi, phi, ldii
             mat(i,min(ldiis%isx,ldiis%is)+1)=1.d0
             rhs(i)=0.d0
             do j=i,min(ldiis%isx,ldiis%is)
-                if (experimental_mode) then
+                if (one_diis_mat) then
                     !if (iproc==0) write(*,*) 'WARNING: TAKING ONE SINGLE MATRIX!!'
                     mat(i,j)=totmat(i,j,ispin)
                 else

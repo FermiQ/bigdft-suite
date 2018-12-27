@@ -548,12 +548,11 @@ def fragmentation_dict(pattern,repeat,labels=None):
 
     Args:
        pattern (list): number of atoms to be considered for each froagment
-	   repeat (int): number of times to apply the pattern to
+       repeat (int): number of times to apply the pattern to
        labels (list): list of strings, of length *either* ``len(pattern)``,
-           in which casethe labels are repeated ``repeat`` times *or*
-           ``len(pattern)*repeat``, in which case the labels are uniquely assigned to each of the fragments
+          in which casethe labels are repeated ``repeat`` times *or*
+          ``len(pattern)*repeat``, in which case the labels are uniquely assigned to each of the fragments
     """
-
     iat=0
     frag=[]
     ifrag=0

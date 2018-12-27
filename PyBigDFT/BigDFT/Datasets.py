@@ -8,6 +8,24 @@ with the code, and to deal with parallel executions of multiple instances of the
 
 from Calculators import Runner
 
+def name_from_id(id):
+    """Hash the id into a run name
+    Construct the name of the run from the id dictionary
+
+    Args:
+        id (dict): id associated to the run
+
+    Returns:
+       str: name of the run associated to the dictionary ``id``
+    """
+    keys=id.keys()
+    keys.sort()
+    name=''
+    for k in keys:
+        name += k+':'+str(id[k])+','
+    return name.rstrip(',')
+
+
 class Dataset(Runner):
     """A set of calculations.
 
@@ -75,7 +93,7 @@ class Dataset(Runner):
 
         """
         from copy import deepcopy
-        name=self._name_from_id(id)
+        name=name_from_id(id)
         if name in self.names:
             raise ValueError('The run id',name,' is already provided, modify the run id.')
         self.names.append(name)
@@ -133,17 +151,6 @@ class Dataset(Runner):
         else:
             return self.results
 
-    def _name_from_id(self,id):
-        """
-        Construct the name of the run from the id dictionary
-        """
-        keys=id.keys()
-        keys.sort()
-        name=''
-        for k in keys:
-            name += k+':'+str(id[k])+','
-        return name.rstrip(',')
-
     def fetch_results(self,id=None,attribute=None):
         """Retrieve some attribute from some of the results.
 
@@ -167,13 +174,15 @@ class Dataset(Runner):
            >>> # returns a list of the energies of first and the third result in this example
            >>> data=study.fetch_results(id={'cr': 3},attribute='energy')
         """
-        name='' if id is None else self._name_from_id(id)
+        name='' if id is None else name_from_id(id)
         data=[]
         for irun,n in enumerate(self.names):
             if name not in n: continue
             r=self.results[irun]
             data.append(r if attribute is None else getattr(r,attribute))
         return data
+
+
 
 def combine_datasets(*args):
     """

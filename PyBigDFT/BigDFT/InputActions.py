@@ -311,7 +311,7 @@ def read_orbitals_from_disk(inp):
     newid=2
     previous_ipid=inp.get('dft','False')
     if previous_ipid: previous_ipid=inp.get('inputpsiid','False')
-    if previous_ipid == 'linear' or previous_id==100: newid=102
+    if previous_ipid == 'linear' or previous_ipid==100: newid=102
     __set__(inp,'dft','inputpsiid',102)
 
 def set_random_inputguess(inp):
@@ -376,11 +376,32 @@ def use_gpu_acceleration(inp):
     __set__(inp,'perf','accel','OCLGPU')
     __set__(inp,'psolver','setup','accel','CUDA')
 
+def set_wavefunction_iterations(inp,nit=[50,1]):
+    """
+    Set the number of the iteration per loop
+
+    Args:
+       nit (int,list): integer of the number of iterations. Might be a scalar or a list, up to length two.
+            The first element of the list contains the number of iterations of the direct minimization loop.
+            if ``nit`` is a scalar, only this contribution is taken into account.
+            The second element is the number of subspace iterations where the hamiltonian is diagonalized in the
+            subspace.
+    """
+    try:
+        nlen=len(nit)
+    except:
+        nlen=0
+    if nlen >= 1: __set__(inp,'dft','itermax',nit[0])
+    if nlen == 2: __set__(inp,'dft','nrepmax',nit[1])
+    if nlen == 0: __set__(inp,'dft','itermax',nit)
 
 def change_data_directory(inp,name=''):
     """
     Modify the name of the ``data-`` directory.
     Useful to grab the orbitals from another directory than the run name
+
+    Args:
+       name (str): the name of the run
     """
     __set__(inp,'radical',name)
 
