@@ -1025,7 +1025,11 @@ end if
          occup_tmp=f_malloc(tmb%orbs%norb,id='occup_tmp')
          call vcopy(tmb%orbs%norb, tmb%orbs%occup(1), 1, occup_tmp(1), 1)
          call f_zero(tmb%orbs%occup)
-         call vcopy(KSwfn%orbs%norb, KSwfn%orbs%occup(1), 1, tmb%orbs%occup(1), 1)
+         ! assume that norbu == norbd
+         do ispin=1,input%nspin
+            call vcopy(KSwfn%orbs%norbu, KSwfn%orbs%occup((ispin-1)*KSwfn%orbs%norbu+1), 1,&
+                 tmb%orbs%occup((ispin-1)*tmb%orbs%norbu+1), 1)
+         end do
          call write_eigenvalues_data(0.1d0,tmb%orbs,mom_vec_fake)
          call vcopy(KSwfn%orbs%norb, occup_tmp(1), 1, tmb%orbs%occup(1), 1)
          call f_free(occup_tmp)
@@ -1078,13 +1082,19 @@ end if
 
 
   ! only do if explicitly activated, but still check for fragment calculation
-  if (input%coeff_weight_analysis .and. input%lin%fragment_calculation .and. input%frag%nfrag>1) then
+  if (input%coeff_weight_analysis .and. input%lin%fragment_calculation) then ! .and. input%frag%nfrag>1) then
      ! unless we already did a diagonalization, the coeffs will probably be nonsensical in this case, so print a warning
      ! maybe just don't do it in this case?  or do for the whole kernel and not just coeffs?
      if (input%lin%kernel_restart_mode==LIN_RESTART_KERNEL .or.  input%lin%kernel_restart_mode==LIN_RESTART_DIAG_KERNEL) then
         if (iproc==0) call yaml_warning('Output of coeff weight analysis might be nonsensical when restarting from kernel')
      end if
-     call coeff_weight_analysis(iproc, nproc, input, KSwfn%orbs, tmb, ref_frags)
+     call coeff_weight_analysis(iproc, nproc, input, KSwfn%orbs, tmb, ref_frags, (/0,0/))
+     if (input%lin%cdft_orb(1) /= 0) then
+        call coeff_weight_analysis(iproc, nproc, input, KSwfn%orbs, tmb, ref_frags, (/input%lin%cdft_orb(1),0/))
+        if (input%lin%calc_transfer_integrals) then
+           call coeff_weight_analysis(iproc, nproc, input, KSwfn%orbs, tmb, ref_frags, (/input%lin%cdft_orb(2),0/))
+        end if
+     end if
   end if
 
 

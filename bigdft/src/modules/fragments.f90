@@ -23,11 +23,16 @@ module module_fragments
   !> information about the basis set metadata shared between cubic and ASF approaches
   type, public :: minimal_orbitals_data
      integer :: norb          !< Total number of orbitals per k point
-     integer :: norbp         !< Total number of orbitals for the given processors
-     integer :: isorb         !< Total number of orbitals for the given processors
+     !integer :: norbp         !< Total number of orbitals for the given processors
+     !integer :: isorb         !< Total number of orbitals for the given processors
+     !integer :: isorbu, isorbd
+     integer :: nspin
+     integer :: nspinor
+     integer :: norbu, norbd
+     real(gp), dimension(:), pointer :: spinsgn
      integer, dimension(:), pointer :: inwhichlocreg,onwhichatom !< associate the basis centers
-     integer, dimension(:), pointer :: isorb_par,ispot
-     integer, dimension(:,:), pointer :: norb_par
+     !integer, dimension(:), pointer :: isorb_par,ispot
+     !integer, dimension(:,:), pointer :: norb_par,norbu_par,norbd_par
   end type minimal_orbitals_data
 
   type, public :: phi_array
@@ -69,7 +74,7 @@ module module_fragments
   !public operator(*)
 
   public :: fragment_null, fragment_free, init_fragments, minimal_orbitals_data_null, fragmentInputParameters
-  public :: calculate_fragment_density, init_minimal_orbitals_data
+  public :: calculate_fragment_density, init_minimal_orbitals_data, min_orbs_to_orbs_point
 
 
 contains
@@ -280,7 +285,7 @@ contains
     type(atomic_structure), intent(in) :: astruct_full ! atomic structure of full system
   
     ! Local variables
-    integer :: norb, ityp, iat, jtyp
+    integer :: norb, ityp, iat, jtyp, iorb
     !integer :: norbu, norbd, nlr, ilr, iall, iorb, istat
     !integer,dimension(:),allocatable :: norbsPerLocreg, norbsPerAtom
     !real(kind=8),dimension(:,:),allocatable :: locregCenter
@@ -311,7 +316,26 @@ contains
     !norbu=norb
     !norbd=0
  
-    forbs%norb=norb
+    forbs%nspin = input%nspin
+    ! to be verified that this is always the case
+    forbs%nspinor = 1
+    forbs%norb=norb*input%nspin
+
+    forbs%spinsgn = f_malloc_ptr(forbs%norb,id='forbs%spinsgn')
+    if (input%nspin == 1) then
+        forbs%norbu = forbs%norb
+        forbs%spinsgn = 1.0_gp
+    else
+        ! maybe this is a naive assumption, but I think it should always be the case
+        forbs%norbu = norb
+        forbs%norbd = norb
+        do iorb=1,forbs%norbu
+           forbs%spinsgn(iorb)=1.0_gp
+        end do
+        do iorb=1,forbs%norbd
+           forbs%spinsgn(iorb+forbs%norbu)=-1.0_gp
+        end do
+    end if
 
     !call orbitals_descriptors(iproc, nproc, norb, norbu, norbd, input%nspin, nspinor,&
     !     input%nkpt, input%kpt, input%wkpt, lorbs,.true.) !simple repartition
@@ -366,6 +390,55 @@ contains
 
 
   !> Point minimal orbs structure to a given full orbs structure
+  subroutine min_orbs_to_orbs_point(orbs,forbs)
+    implicit none
+    ! Calling arguments
+    type(minimal_orbitals_data),intent(in):: orbs
+    type(orbitals_data),intent(inout):: forbs
+
+    forbs%norb = orbs%norb
+    forbs%norbu = orbs%norbu
+    forbs%norbd = orbs%norbd
+    !forbs%norbp = orbs%norbp
+    !forbs%isorbu = orbs%isorbu
+    !forbs%isorbd = orbs%isorbd
+    !forbs%isorb = orbs%isorb
+    forbs%nspin = orbs%nspin
+    forbs%nspinor = orbs%nspinor
+
+    !forbs%norb_par => orbs%norb_par
+    !forbs%inwhichlocreg => orbs%inwhichlocreg
+    !forbs%onwhichatom => orbs%onwhichatom
+    !forbs%isorb_par => orbs%isorb_par
+    !forbs%ispot => orbs%ispot
+    !forbs%norb_par      = f_malloc_ptr(src_ptr=orbs%norb_par,id='forbs%norb_par')
+    !forbs%norbu_par     = f_malloc_ptr(src_ptr=orbs%norbu_par,id='forbs%norbu_par')
+    !forbs%norbd_par     = f_malloc_ptr(src_ptr=orbs%norbd_par,id='forbs%norbd_par')
+    forbs%inwhichlocreg = f_malloc_ptr(src_ptr=orbs%inwhichlocreg,id='forbs%inwhichlocreg')
+    forbs%onwhichatom   = f_malloc_ptr(src_ptr=orbs%onwhichatom,id='forbs%onwhichatom')
+    !forbs%isorb_par     = f_malloc_ptr(src_ptr=orbs%isorb_par,id='forbs%isorb_par')
+    !forbs%ispot         = f_malloc_ptr(src_ptr=orbs%ispot,id='forbs%ispot')
+    forbs%spinsgn       = f_malloc_ptr(src_ptr=orbs%spinsgn,id='forbs%spinsgn')
+
+!!$    if(associated(orbs%norb_par)) then
+!!$        forbs%norb_par = f_malloc_ptr(src=orbs%norb_par,lbounds=lbound(orbs%norb_par),id='forbs%norb_par')
+!!$    end if
+!!$    if(associated(orbs%inwhichlocreg)) then
+!!$        forbs%inwhichlocreg = f_malloc_ptr(src=orbs%inwhichlocreg,lbounds=lbound(orbs%inwhichlocreg),id='forbs%inwhichlocreg')
+!!$    end if
+!!$    if(associated(orbs%onwhichatom)) then
+!!$        forbs%onwhichatom = f_malloc_ptr(src=orbs%onwhichatom,lbounds=lbound(orbs%onwhichatom),id='forbs%onwhichatom')
+!!$    end if
+!!$    if(associated(orbs%isorb_par)) then
+!!$        forbs%isorb_par = f_malloc_ptr(src=orbs%isorb_par,lbounds=lbound(orbs%isorb_par),id='forbs%isorb_par')
+!!$    end if
+!!$    if(associated(orbs%ispot)) then
+!!$        forbs%ispot = f_malloc_ptr(src=orbs%ispot,lbounds=lbound(orbs%ispot),id='forbs%ispot')
+!!$    end if
+
+  end subroutine min_orbs_to_orbs_point
+
+  !> Point minimal orbs structure to a given full orbs structure
   subroutine orbs_to_min_orbs_point(orbs,forbs)
     implicit none
     ! Calling arguments
@@ -373,19 +446,28 @@ contains
     type(minimal_orbitals_data),intent(inout):: forbs
 
     forbs%norb = orbs%norb
-    forbs%norbp = orbs%norbp
-    forbs%isorb = orbs%isorb
+    forbs%norbu = orbs%norbu
+    forbs%norbd = orbs%norbd
+    !forbs%norbp = orbs%norbp
+    !forbs%isorbu = orbs%isorbu
+    !forbs%isorbd = orbs%isorbd
+    !forbs%isorb = orbs%isorb
+    forbs%nspin = orbs%nspin
+    forbs%nspinor = orbs%nspinor
 
     !forbs%norb_par => orbs%norb_par
     !forbs%inwhichlocreg => orbs%inwhichlocreg
     !forbs%onwhichatom => orbs%onwhichatom
     !forbs%isorb_par => orbs%isorb_par
     !forbs%ispot => orbs%ispot
-    forbs%norb_par      = f_malloc_ptr(src_ptr=orbs%norb_par,id='forbs%norb_par')
+    !forbs%norb_par      = f_malloc_ptr(src_ptr=orbs%norb_par,id='forbs%norb_par')
+    !forbs%norbu_par     = f_malloc_ptr(src_ptr=orbs%norbu_par,id='forbs%norbu_par')
+    !forbs%norbd_par     = f_malloc_ptr(src_ptr=orbs%norbd_par,id='forbs%norbd_par')
     forbs%inwhichlocreg = f_malloc_ptr(src_ptr=orbs%inwhichlocreg,id='forbs%inwhichlocreg')
     forbs%onwhichatom   = f_malloc_ptr(src_ptr=orbs%onwhichatom,id='forbs%onwhichatom')
-    forbs%isorb_par     = f_malloc_ptr(src_ptr=orbs%isorb_par,id='forbs%isorb_par')
-    forbs%ispot         = f_malloc_ptr(src_ptr=orbs%ispot,id='forbs%ispot')
+    !forbs%isorb_par     = f_malloc_ptr(src_ptr=orbs%isorb_par,id='forbs%isorb_par')
+    !forbs%ispot         = f_malloc_ptr(src_ptr=orbs%ispot,id='forbs%ispot')
+    forbs%spinsgn       = f_malloc_ptr(src_ptr=orbs%spinsgn,id='forbs%spinsgn')
 
 !!$    if(associated(orbs%norb_par)) then
 !!$        forbs%norb_par = f_malloc_ptr(src=orbs%norb_par,lbounds=lbound(orbs%norb_par),id='forbs%norb_par')
@@ -567,13 +649,20 @@ contains
     type(minimal_orbitals_data), intent(out) :: forbs
 
     forbs%norb=0
-    forbs%norbp=0
-    forbs%isorb=0
+    forbs%norbu=0
+    forbs%norbd=0
+    !forbs%norbp=0
+    !forbs%isorb=0
+    !forbs%isorbu=0
+    !forbs%isorbd=0
     nullify(forbs%inwhichlocreg)
     nullify(forbs%onwhichatom)
-    nullify(forbs%isorb_par)
-    nullify(forbs%ispot)
-    nullify(forbs%norb_par)
+    !nullify(forbs%isorb_par)
+    !nullify(forbs%ispot)
+    !nullify(forbs%norb_par)
+    !nullify(forbs%norbu_par)
+    !nullify(forbs%norbd_par)
+    nullify(forbs%spinsgn)
   end subroutine nullify_minimal_orbitals_data
 
 
@@ -627,9 +716,12 @@ contains
 
     if (associated(forbs%inwhichlocreg)) call f_free_ptr(forbs%inwhichlocreg)
     if (associated(forbs%onwhichatom)) call f_free_ptr(forbs%onwhichatom)
-    if (associated(forbs%isorb_par)) call f_free_ptr(forbs%isorb_par)
-    if (associated(forbs%ispot)) call f_free_ptr(forbs%ispot)
-    if (associated(forbs%norb_par)) call f_free_ptr(forbs%norb_par)
+    !if (associated(forbs%isorb_par)) call f_free_ptr(forbs%isorb_par)
+    !if (associated(forbs%ispot)) call f_free_ptr(forbs%ispot)
+    !if (associated(forbs%norb_par)) call f_free_ptr(forbs%norb_par)
+    !if (associated(forbs%norbu_par)) call f_free_ptr(forbs%norbu_par)
+    !if (associated(forbs%norbd_par)) call f_free_ptr(forbs%norbd_par)
+    if (associated(forbs%spinsgn)) call f_free_ptr(forbs%spinsgn)
     forbs=minimal_orbitals_data_null()
   end subroutine minimal_orbitals_data_free
 
@@ -676,7 +768,8 @@ contains
 
     !frag%rxyz_env=f_malloc_ptr((/3,min(1,frag%nat_env)/),id='frag%rxyz_env')
     frag%coeff=f_malloc_ptr((/frag%fbasis%forbs%norb,frag%fbasis%forbs%norb/),id='frag%coeff')
-    frag%kernel=f_malloc_ptr((/frag%fbasis%forbs%norb,frag%fbasis%forbs%norb,1/),id='frag%kernel') !NEED SPIN HERE
+    frag%kernel=f_malloc_ptr((/frag%fbasis%forbs%norbu,frag%fbasis%forbs%norbu, &
+         frag%fbasis%forbs%nspin/),id='frag%kernel')
     frag%kernel_env=f_malloc_ptr((/frag%nbasis_env,frag%nbasis_env,1/),id='frag%kernel_env') !NEED SPIN HERE
     frag%eval=f_malloc_ptr(frag%fbasis%forbs%norb,id='frag%eval')
     !frag%env_mapping=f_malloc0_ptr((/frag%nbasis_env,3/),id='frag%env_mapping')

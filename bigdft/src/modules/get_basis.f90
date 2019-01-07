@@ -450,7 +450,7 @@ module get_basis
                    cdft%weight_matrix, cdft%weight_matrix_%matrix_compr, cdft%weight_matrix_%matrix)
 
               tmb%linmat%ovrlppowers_(1)%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(3),&
-                   iaction=DENSE_FULL,id='weight_matrix_%matrix')
+                   iaction=DENSE_FULL,id='tmb%linmat%smat(3)_%matrix')
               call uncompress_matrix2(bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, &
                    tmb%linmat%smat(3), tmb%linmat%ovrlppowers_(1)%matrix_compr, tmb%linmat%ovrlppowers_(1)%matrix)
 

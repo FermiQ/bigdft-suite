@@ -3518,7 +3518,8 @@ END SUBROUTINE input_wf
 
 
 !> Check for the input psi (wavefunctions)
-subroutine input_check_psi_id(inputpsi, input_wf_format, dir_output, orbs, lorbs, iproc, nproc, nfrag, frag_dir, ref_frags)
+subroutine input_check_psi_id(inputpsi, input_wf_format, dir_output, orbs, lorbs, iproc, nproc, nfrag, frag_calc, frag_dir, ref_frags)
+  use module_base
   use module_types
   use yaml_output
   use module_fragments
@@ -3537,6 +3538,7 @@ subroutine input_check_psi_id(inputpsi, input_wf_format, dir_output, orbs, lorbs
   integer, intent(in) :: iproc                    !< (in)  id proc
   integer, intent(in) :: nproc                    !< (in)  #proc
   integer, intent(in) :: nfrag                    !< number of fragment directories which need checking
+  logical, intent(in) :: frag_calc                !< whether or not it's a fragment calculation
   type(system_fragment), dimension(:), pointer :: ref_frags  !< number of orbitals for each fragment
   character(len=100), dimension(nfrag), intent(in) :: frag_dir !< label for fragment subdirectories (blank if not a fragment calculation)
   character(len = *), intent(in) :: dir_output
@@ -3544,6 +3546,7 @@ subroutine input_check_psi_id(inputpsi, input_wf_format, dir_output, orbs, lorbs
 
   logical :: onefile
   integer :: ifrag
+  type(orbitals_data) :: fake_orbs
 
   input_wf_format=WF_FORMAT_NONE !default value
   !for the inputPsi == WF_FORMAT_NONE case, check
@@ -3571,8 +3574,22 @@ subroutine input_check_psi_id(inputpsi, input_wf_format, dir_output, orbs, lorbs
         if (onefile) then
            input_wf_format = WF_FORMAT_ETSF
         else
-           call verify_file_presence(trim(dir_output)//trim(frag_dir(ifrag))//"minBasis",lorbs,input_wf_format,&
-                nproc,ref_frags(ifrag)%fbasis%forbs%norb)
+           if (.not. frag_calc) then
+               call verify_file_presence(trim(dir_output)//trim(frag_dir(ifrag))//"minBasis",lorbs,&
+                    input_wf_format,nproc)
+           else
+               ! there might be a better way of doing this rather than making the fake_orbs, but this seems easiest for now
+               call nullify_orbitals_data(fake_orbs)
+               call min_orbs_to_orbs_point(ref_frags(ifrag)%fbasis%forbs,fake_orbs)
+               ! only at the gamma point
+               fake_orbs%iokpt = f_malloc_ptr(fake_orbs%norb,id='fake_orbs%iokpt')
+               fake_orbs%iokpt = 1
+               fake_orbs%isorb = 0
+               fake_orbs%norbp = fake_orbs%norb
+               call verify_file_presence(trim(dir_output)//trim(frag_dir(ifrag))//"minBasis",fake_orbs,&
+                    input_wf_format,nproc)
+               call deallocate_orbs(fake_orbs)
+           end if
         end if
         if (input_wf_format == WF_FORMAT_NONE) then
            if (iproc==0) call yaml_warning('Missing wavefunction files, switch to normal input guess')

@@ -123,6 +123,7 @@ module module_input_keys
      real(kind=8) :: cdft_lag_mult_init !< Initial value for lagrange multiplier
      real(kind=8) :: cdft_conv_crit     !< Convergence threshold for cdft charge
      integer :: cdft_nit     !< Number of iterations for loop over Vc in CDFT calculation
+     integer,dimension(2) :: cdft_orb !< which orbital (if any) for CDFT constraint
      logical :: calculate_onsite_overlap
      integer :: output_mat_format     !< Output Matrices format
      integer :: output_coeff_format   !< Output Coefficients format
@@ -2249,6 +2250,8 @@ contains
           in%lin%cdft_conv_crit = val
        case (CDFT_NIT)
           in%lin%cdft_nit = val
+       case (CDFT_ORBITAL)
+          in%lin%cdft_orb(1:2) = val
        case (CALC_DIPOLE)
           in%lin%calc_dipole = val
        case (CALC_QUADRUPOLE)

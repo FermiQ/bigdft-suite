@@ -1699,6 +1699,15 @@
        COMMENT: Number of iterations for CDFT loop over V_c
        default: 100
        RANGE: [1,1000]
+     cdft_orbital:
+       COMMENT: Which orbital to add/remove charge from in CDFT
+       DESCRIPTION: |
+         Indicates whether the constraint is spatial or orbital based
+          0 => spatial
+          -1, -2 => HOMO, HOMO-1...
+          1, 2... => LUMO, LUMO+1...
+       default: [0,0]
+       RANGE: [-1000,1000]
      calc_dipole:
        DESCRIPTION: |
          Indicates whether the dipole moment should be calculated after the run or not

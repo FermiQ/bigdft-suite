@@ -18,7 +18,7 @@ AC_DEFUN([AX_FC_BUILD_SHARED],
 subroutine test()
   implicit none
 
-  write(*,*) "test"
+  write(*,*) "test"  
 end subroutine test])
 
   AC_MSG_CHECKING([for option to create shared libraries with $FC])
@@ -145,7 +145,7 @@ AC_DEFUN([AX_LINKER_OPTS],
 [dnl try to find the option flag to specify various options when linking.
    AC_REQUIRE([AX_FLAG_PIC])
    #Fortran first
-   AC_LANG_PUSH(Fortran)
+   AC_LANG_PUSH(Fortran)	
    #test for rpath
    AX_LD_OPT([RPATH],[$ax_fc_linker_rpath],[FC],
    [program test
@@ -169,7 +169,7 @@ end program test],[])
 {
   return 0;
 }],[])
-
+   
    AC_LANG_POP(C)
 ])
 
@@ -199,7 +199,7 @@ end program test
     AC_SUBST([FC_RPATH], [$ax_fc_rpath])
     AC_MSG_RESULT([$ax_fc_rpath])
   fi
-
+  
   AC_LANG_POP(Fortran)
 ])
 
@@ -228,7 +228,7 @@ int main(int argc, char **argv)
     AC_SUBST([CC_RPATH], [$ax_cc_rpath])
     AC_MSG_RESULT([$ax_cc_rpath])
   fi
-
+  
   AC_LANG_POP(C)
 ])
 
@@ -280,7 +280,7 @@ end subroutine testlib
         case $CFLAGS   in *"$ax_cc_pic"*) ;; *) CFLAGS="$CFLAGS $ax_cc_pic";; esac
         case $CXXFLAGS in *"$ax_cc_pic"*) ;; *) CXXFLAGS="$CXXFLAGS $ax_cc_pic";; esac
         case $FCFLAGS  in *"$ax_fc_pic"*) ;; *) FCFLAGS="$FCFLAGS $ax_fc_pic";; esac
-
+    
 dnl         eval "set x $ac_configure_args"
 dnl         shift
 dnl         ac_configure_args=
