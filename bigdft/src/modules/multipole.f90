@@ -4810,7 +4810,7 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
 !!$  !call center_of_charge(at,at%astruct%rxyz,charge_center_cores)
 !!$  call f_zero(charge_center_cores)
 !!$  call f_multipoles_create(mp_cores,1)!,center=charge_center_cores)
-!!$  call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
+!!$  call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh%dom,&
 !!$       charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
 !!$  qtot=get_monopole(mp_cores)
 !!$  dipole_cores=get_dipole(mp_cores)
