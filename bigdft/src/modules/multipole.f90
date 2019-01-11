@@ -4809,28 +4809,31 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
 
 !!$  !call center_of_charge(at,at%astruct%rxyz,charge_center_cores)
 !!$  call f_zero(charge_center_cores)
-!!$  call f_multipoles_create(mp_cores,1)!,center=charge_center_cores)
-!!$  call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh%dom,&
-!!$       charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
-!!$  qtot=get_monopole(mp_cores)
-!!$  dipole_cores=get_dipole(mp_cores)
-!!$  !this defines the origin of the coordinate system
-!!$  if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
-!!$  call f_multipoles_release(mp_cores)
-!!$
-!!$  !now the cores dipole should become zero
-!!$
-  qtot=0.d0
-  call f_zero(dipole_cores)!(1:3)=0._gp
-  call f_zero(charge_center_cores)
-  do iat=1,at%astruct%nat
-     !write(*,*) 'iat, rxyz(1:3,iat)',iat, rxyz(1:3,iat)
-     q=at%nelpsp(at%astruct%iatype(iat))
-     dipole_cores(1:3)=dipole_cores(1:3)+q * rxyz(1:3,iat)
-     qtot=qtot+q
-  end do
+  call core_multipoles(0.5_gp*at%astruct%cell_dim)
+  qtot=get_monopole(mp_cores)
+  dipole_cores=get_dipole(mp_cores)
+  
   !this defines the origin of the coordinate system
-  if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
+  if (qtot /=0.0_gp) charge_center_cores= -dipole_cores/qtot
+  call f_multipoles_release(mp_cores)
+  !now the cores dipole should become zero, unless there are wrapping of atoms around the
+  !structure.
+  !therefore recalculate the dipole of the cores.
+  call core_multipoles(charge_center_cores)
+  dipole_cores=get_dipole(mp_cores)
+
+  !qtot=0.d0
+  !call f_zero(dipole_cores)!(1:3)=0._gp
+  !call f_zero(charge_center_cores)
+  !do iat=1,at%astruct%nat
+  !     !write(*,*) 'iat, rxyz(1:3,iat)',iat, rxyz(1:3,iat)
+  !     q=at%nelpsp(at%astruct%iatype(iat))
+  !   dipole_cores(1:3)=dipole_cores(1:3)+q * rxyz(1:3,iat)
+  !     qtot=qtot+q
+  !end do
+
+  !this defines the origin of the coordinate system
+  !if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
 
   !!write(*,*) 'dipole_cores',dipole_cores
   !!write(*,*) 'nc3',nc3
@@ -4850,90 +4853,32 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   end if
   qtot=-get_monopole(mp_electrons)
 
-!!$  !calculate electronic dipole and thus total dipole of the system
-!!$  call f_zero(dipole_el)!   (1:3)=0._gp
-!!$  do ispin=1,nspin
-!!$     !the iterator here is on the potential distribution
-!!$     do while(box_next_point(dpbox%bitp))
-!!$        q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
-!!$        qtot=qtot+q
-!!$        dipole_el=dipole_el+q*(dpbox%bitp%rxyz-charge_center_cores)
-!!$     end do
-!!$  end do
-
-!!$  call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-!!$  call fmpi_allreduce(dipole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-
   if (present(dipole)) dipole = dipole_el
 
   !quadrupole should be calculated with the shifted positions!
   quadrupole_if: if (calculate_quadrupole) then
 
      !now reset the multipole quantities
-     call f_multipoles_create(mp_cores,2,center=charge_center_cores)
-     call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
-          charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
+     !call f_multipoles_create(mp_cores,2,center=charge_center_cores)
+     !call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
+     !    charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
      quadropole_cores=get_quadrupole(mp_cores)
-
-!!$      call f_zero(quadropole_cores)!(1:3,1:3)=0._gp
-!!$      do iat=1,at%astruct%nat
-!!$         q=at%nelpsp(at%astruct%iatype(iat))
-!!$         tmpdip=rxyz(:,iat)-charge_center_cores
-!!$         tt=square_gd(dpbox%mesh,tmpdip)
-!!$          do i=1,3
-!!$             ri=rxyz(i,iat)-charge_center_cores(i)
-!!$             do j=1,3
-!!$                rj=rxyz(j,iat)-charge_center_cores(j)
-!!$                if (i==j) then
-!!$                   delta_term = tt
-!!$                else
-!!$                   delta_term=0.d0
-!!$                end if
-!!$                quadropole_cores(j,i) = quadropole_cores(j,i) + q*(3.d0*rj*ri-delta_term)
-!!$             end do
-!!$          end do
-!!$       end do
-
-!!$     call f_zero(quadropole_el)
-!!$      do ispin=1,nspin
-!!$         do while(box_next_point(dpbox%bitp))
-!!$            q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
-!!$            tmpdip=dpbox%bitp%rxyz-charge_center_cores
-!!$            tt=square_gd(dpbox%mesh,tmpdip)
-!!$            do i=1,3
-!!$               ri=dpbox%bitp%rxyz(i)-charge_center_cores(i)
-!!$               do j=1,3
-!!$                  rj=dpbox%bitp%rxyz(j)-charge_center_cores(j)
-!!$                  if (i==j) then
-!!$                     delta_term = tt
-!!$                  else
-!!$                     delta_term=0.d0
-!!$                  end if
-!!$                  quadropole_el(j,i) = quadropole_el(j,i) + q*(3.d0*rj*ri-delta_term)
-!!$               end do
-!!$            end do
-!!$         end do
-!!$      end do
-
-      quadropole_el=-get_quadrupole(mp_electrons)
-
-!!$      call fmpi_allreduce(quadropole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-      tmpquadrop=quadropole_cores+quadropole_el
-
-      if (present(quadrupole)) quadrupole = tmpquadrop
+     quadropole_el=-get_quadrupole(mp_electrons)
+     tmpquadrop=quadropole_cores+quadropole_el
+     if (present(quadrupole)) quadrupole = tmpquadrop
 
   end if quadrupole_if
 
-  tmpdip=dipole_el !dipole_cores+ !should not be needed as it is now in  if (present(dipole)) dipole(1:3) = tmpdip(1:3)
+  tmpdip=dipole_el+dipole_cores!+ !should not be needed as it is now in  if (present(dipole)) dipole(1:3) = tmpdip(1:3)
   if(bigdft_mpi%iproc==0 .and. .not.quiet) then
      call yaml_map('Multipole analysis origin',charge_center_cores,fmt='(1pe14.6)')
      call yaml_mapping_open('Electric Dipole Moment (AU)')
-       call yaml_map('P vector',tmpdip(1:3),fmt='(1pe15.6)')
+       call yaml_map('P vector',tmpdip,fmt='(1pe15.6)')
        call yaml_map('norm(P)',sqrt(sum(tmpdip**2)),fmt='(1pe16.8)')
      call yaml_mapping_close()
      tmpdip=tmpdip/Debye_AU  ! au2debye
      call yaml_mapping_open('Electric Dipole Moment (Debye)')
-       call yaml_map('P vector',tmpdip(1:3),fmt='(1pe15.6)')
+       call yaml_map('P vector',tmpdip,fmt='(1pe15.6)')
        call yaml_map('norm(P)',sqrt(sum(tmpdip**2)),fmt='(1pe16.8)')
      call yaml_mapping_close()
 
@@ -4952,6 +4897,17 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   call f_multipoles_release(mp_electrons)
 
   call f_release_routine()
+
+contains
+
+  subroutine core_multipoles(center)
+    implicit none
+    real(gp), dimension(3), intent(in) :: center
+    call f_multipoles_create(mp_cores,2,center=center)
+    call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh%dom,&
+        charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
+  end subroutine core_multipoles
+
 
 END SUBROUTINE calculate_dipole_moment
 
