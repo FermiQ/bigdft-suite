@@ -5,9 +5,9 @@
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
-!!    For the list of contributors, see ~/AUTHORS 
+!!    For the list of contributors, see ~/AUTHORS
 
- 
+
 !> Module which contains the Fortran data structures
 !! and the routines of allocations and de-allocations
 module module_types
@@ -51,14 +51,14 @@ module module_types
      real(gp) :: eproj   !< energy of PSP projectors
      real(gp) :: eexctX  !< exact exchange energy
      real(gp) :: eelec   !< electrostatic energy. Replaces the hartree energy for cavities
-     real(gp) :: ebs     
-     real(gp) :: eKS     
-     real(gp) :: trH     !< Trace of Hamiltonian i.e. band structure 
-     real(gp) :: evsum   
-     real(gp) :: evsic   
-     real(gp) :: excrhoc 
+     real(gp) :: ebs
+     real(gp) :: eKS
+     real(gp) :: trH     !< Trace of Hamiltonian i.e. band structure
+     real(gp) :: evsum
+     real(gp) :: evsic
+     real(gp) :: excrhoc
      real(gp) :: epaw, epawdc
-     real(gp) :: eTS     
+     real(gp) :: eTS
      real(gp) :: ePV     !< Pressure term
      real(gp) :: energy  !< The functional which is minimized
      real(gp) :: e_prev  !< The previous value, to show the delta
@@ -106,7 +106,7 @@ module module_types
 
   !> All the parameters which are important for describing the orbitals
   !! Add also the objects related to k-points sampling, after symmetries applications
-  type, public :: orbitals_data 
+  type, public :: orbitals_data
      integer :: norb          !< Total number of orbitals per k point
      integer :: norbp         !< Total number of orbitals for the given processors
      integer :: norbup        !< Total number of orbitals if there were only up orbitals
@@ -158,10 +158,10 @@ module module_types
   end type GPU_pointers
 
 
-  !> Contains all the descriptors necessary for splitting the calculation in different locregs 
+  !> Contains all the descriptors necessary for splitting the calculation in different locregs
   type, public :: local_zone_descriptors
      logical :: linear                                      !< if true, use linear part of the code
-     integer :: nlr                                         !< Number of localization regions 
+     integer :: nlr                                         !< Number of localization regions
      integer :: lintyp                                      !< If 0 cubic, 1 locreg and 2 TMB
      integer :: ndimpotisf                                  !< Total dimension of potential in isf (including exctX)
      real(gp), dimension(3) :: hgrids                       !< Grid spacings of wavelet grid (coarser resolution)
@@ -176,7 +176,7 @@ module module_types
   !  integer,dimension(:),pointer :: nsegline, istsegline
   !  integer,dimension(:,:),pointer :: keyg
   !  real(kind=8) :: ef                     !< Fermi energy for FOE
-  !  real(kind=8) :: evlow, evhigh          !< Eigenvalue bounds for FOE 
+  !  real(kind=8) :: evlow, evhigh          !< Eigenvalue bounds for FOE
   !  real(kind=8) :: bisection_shift        !< Bisection shift to find Fermi energy (FOE)
   !  real(kind=8) :: fscale                 !< Length scale for complementary error function (FOE)
   !  real(kind=8) :: ef_interpol_det        !< FOE: max determinant of cubic interpolation matrix
@@ -200,7 +200,7 @@ module module_types
   !!    integer,dimension(:),pointer :: ind_compr !< lookup arrays for transposed operations
   !!    integer :: offset_compr
   !!end type matrixindex_in_compressed_fortransposed
-  
+
   type,public :: linmat_auxiliary
       !!type(matrixindex_in_compressed_fortransposed),dimension(:),pointer :: mat_ind_compr
       type(matrixindex_in_compressed_fortransposed2),dimension(:),pointer :: mat_ind_compr2
@@ -275,7 +275,7 @@ module module_types
     integer :: confPotOrder                                !< The order of the algebraic expression for Confinement potential
     integer :: ncong                                       !< Number of CG iterations for the preconditioning equation
     logical, dimension(:), pointer :: withConfPot          !< Use confinement potentials
-    real(kind=8), dimension(:), pointer :: potentialPrefac !< Prefactor for the potentiar : Prefac * f(r) 
+    real(kind=8), dimension(:), pointer :: potentialPrefac !< Prefactor for the potentiar : Prefac * f(r)
   end type precond_data
 
 
@@ -399,7 +399,7 @@ module module_types
      integer :: infocode !< return value after optimization loop.
                          !! - 0 run successfully succeded
                          !! - 1 the run ended after the allowed number of minimization steps. gnrm_cv not reached
-                         !!     forces may be meaningless   
+                         !!     forces may be meaningless
                          !! - 2 (present only for inputPsiId=INPUT_PSI_MEMORY_WVL) gnrm of the first iteration > 1 AND growing in
                          !!     the second iteration OR grnm 1st >2.
                          !!     Input wavefunctions need to be recalculated.
@@ -453,16 +453,16 @@ module module_types
       'Pot_comm start','Communications' ,'MPI_types/_get' ,  &  !< Communication of potential
       'Un-TransSwitch','Other         ' ,'RMA pattern   ' ,  &  !< Transposition of wavefunction, computation
       'Un-TransComm  ','Communications' ,'ALLtoALLV     ' ,  &  !< Transposition of wavefunction, communication
-      'GramS_comput  ','Linear Algebra' ,'DPOTRF        ' ,  &  !< Gram Schmidt computation        
+      'GramS_comput  ','Linear Algebra' ,'DPOTRF        ' ,  &  !< Gram Schmidt computation
       'GramS_commun  ','Communications' ,'ALLReduce orbs' ,  &  !< Gram Schmidt communication
       'LagrM_comput  ','Linear Algebra' ,'DGEMM         ' ,  &  !< Lagrange Multipliers computation
       'LagrM_commun  ','Communications' ,'ALLReduce orbs' ,  &  !< Lagrange Multipliers communication
-      'Diis          ','Other         ' ,'Other         ' ,  &  
-      !       'PSolv_comput  ','Potential     ' ,'3D FFT        ' ,  &  
-      !       'PSolv_commun  ','Communications' ,'ALLtoALL      ' ,  &  
-      !       'PSolvKernel   ','Initialization' ,'Miscellaneous ' ,  &  
-!      'Exchangecorr  ','Potential     ' ,'Miscellaneous ' ,  &  
-      'Forces        ','Finalization  ' ,'Miscellaneous ' ,  &  
+      'Diis          ','Other         ' ,'Other         ' ,  &
+      !       'PSolv_comput  ','Potential     ' ,'3D FFT        ' ,  &
+      !       'PSolv_commun  ','Communications' ,'ALLtoALL      ' ,  &
+      !       'PSolvKernel   ','Initialization' ,'Miscellaneous ' ,  &
+!      'Exchangecorr  ','Potential     ' ,'Miscellaneous ' ,  &
+      'Forces        ','Finalization  ' ,'Miscellaneous ' ,  &
       'Tail          ','Finalization  ' ,'Miscellaneous ' ,  &
       'Loewdin_comput','Linear Algebra' ,'              ' ,  &
       'Loewdin_commun','Communications' ,'ALLReduce orbs' ,  &
@@ -515,7 +515,7 @@ module module_types
       'init_orbs_lin ','Initialization' ,'Miscellaneous ' ,  &
       'init_repart   ','Initialization' ,'Miscellaneous ' ,  &
       'initMatmulComp','Initialization' ,'Miscellaneous ' ,  &
-      'Pot_after_comm','Other         ' ,'global_to_loca' ,  & 
+      'Pot_after_comm','Other         ' ,'global_to_loca' ,  &
       !       'Init to Zero  ','Other         ' ,'Memset        ' ,  &
       'calc_kernel   ','Other         ' ,'Miscellaneous ' ,  &
       'commun_kernel ','Communications' ,'mpi_allgatherv' ,  &
@@ -543,7 +543,7 @@ module module_types
       'UnBlockPot    ','Other         ' ,'Overlap comms ' ,  &
       'UnBlockDen    ','Other         ' ,'Overlap comms ' ,  &
       'global_local  ','Initialization' ,'Unknown       ' ,  &
-      'wfd_creation  ','Other         ' ,'Miscellaneous ' ,  & 
+      'wfd_creation  ','Other         ' ,'Miscellaneous ' ,  &
       'comm_llr      ','Communications' ,'Miscellaneous ' ,  &
       !       'AllocationProf','Other         ' ,'Allocate arrs ' ,  &
       'dirmin_lagmat1','Linear Algebra' ,'grad calc     ' ,  &
@@ -639,12 +639,12 @@ contains
   pure function energy_terms_null() result(en)
     implicit none
     type(energy_terms) :: en
-    en%eh      =0.0_gp 
-    en%exc     =0.0_gp 
-    en%evxc    =0.0_gp 
-    en%eion    =0.0_gp 
-    en%edisp   =0.0_gp 
-    en%ekin    =0.0_gp 
+    en%eh      =0.0_gp
+    en%exc     =0.0_gp
+    en%evxc    =0.0_gp
+    en%eion    =0.0_gp
+    en%edisp   =0.0_gp
+    en%ekin    =0.0_gp
     en%epot    =0.0_gp
     en%eproj   =0.0_gp
     en%eexctX  =0.0_gp
@@ -653,16 +653,16 @@ contains
     en%eKS     =0.0_gp
     en%trH     =0.0_gp
     en%evsum   =0.0_gp
-    en%evsic   =0.0_gp 
+    en%evsic   =0.0_gp
     en%excrhoc =0.0_gp
-    en%epaw    =0.0_gp 
+    en%epaw    =0.0_gp
     en%epawdc  =0.0_gp
     en%eTS     =0.0_gp
-    en%ePV     =0.0_gp 
-    en%energy  =0.0_gp 
-    en%e_prev  =0.0_gp 
-    en%trH_prev=0.0_gp 
-    en%c_obj   =int(0,kind=8) 
+    en%ePV     =0.0_gp
+    en%energy  =0.0_gp
+    en%e_prev  =0.0_gp
+    en%trH_prev=0.0_gp
+    en%c_obj   =int(0,kind=8)
   end function energy_terms_null
 
 
@@ -687,11 +687,11 @@ contains
     lzd%llr_on_all_mpi=0
     nullify(lzd%Llr)
   end function default_lzd
- 
+
   !> Fills the old_wavefunction structure with corresponding data
   !! Deallocate previous workspaces if already existing
   subroutine old_wavefunction_set(wfn,nat,norbp,Lzd,rxyz,psi)
-    
+
     implicit none
     integer, intent(in) :: nat,norbp
     type(local_zone_descriptors), intent(in) :: Lzd
@@ -705,7 +705,7 @@ contains
     call old_wavefunction_free(wfn)
     !then allocate the workspaces and fill them
     wfn%psi = f_malloc_ptr((Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f)*norbp,id='wfn%psi')
-    
+
     if (norbp>0) call vcopy((Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f)*norbp,&
          psi(1),1,wfn%psi(1),1)
 
@@ -731,7 +731,7 @@ contains
     call deallocate_local_zone_descriptors(wfn%Lzd)
 
   end subroutine old_wavefunction_free
-   
+
 
   !> De-Allocate gaussian_basis type
   subroutine deallocate_gwf_c(G)
@@ -747,7 +747,7 @@ contains
     call f_free_ptr(G%expof)
     call f_free_ptr(G%rxyz)
 
-  END SUBROUTINE 
+  END SUBROUTINE
 
 
 !!$  subroutine deallocate_abscalc_input(in)
@@ -845,7 +845,7 @@ contains
 !!!!!$   nullify(Lzd%Gnlpspd%keyg_p)
 !!!!!$   nullify(Lzd%Gnlpspd%nboxp_c)
 !!!!!$   nullify(Lzd%Gnlpspd%nboxp_f)
-!!! 
+!!!
 !!!!Now destroy the Llr
 !!!    do ilr = 1, Lzd%nlr
 !!!       call deallocate_locreg_descriptors(Lzd%Llr(ilr))
@@ -876,9 +876,9 @@ contains
 !!$    call nullify_denspot_distribution(denspot%dpbox)
 !!$    call nullify_coulomb_operator(denspot%pkernel)
 !!$    call nullify_coulomb_operator(denspot%pkernelseq)
-!!$    
+!!$
 !!$  end subroutine nullify_DFT_local_fields
-  
+
 
 !!$  subroutine nullify_coulomb_operator(coul_op)
 !!$    implicit none
@@ -982,7 +982,7 @@ contains
   pure subroutine nullify_paw_objects(paw)
     implicit none
     type(paw_objects),intent(inout) :: paw
-    
+
     paw%usepaw = .false.
     nullify(paw%spsi)
 
@@ -1001,7 +1001,7 @@ contains
     use m_pawrhoij, only: pawrhoij_free
     implicit none
     type(paw_objects),intent(inout) :: paw
-    
+
     call f_free_ptr(paw%spsi)
 
     if (associated(paw%paw_an)) then
@@ -1102,7 +1102,7 @@ contains
   end subroutine deallocate_work_mpiaccumulate
 
 
-  !> create a null Lzd. Note: this is the correct way of defining 
+  !> create a null Lzd. Note: this is the correct way of defining
   !! association through prure procedures.
   !! A pure subroutine has to be defined to create a null structure.
   !! this is important when using the nullification inside other
@@ -1126,7 +1126,7 @@ contains
     lzd%hgrids=0.0_gp
     lzd%llr_on_all_mpi=0
     call nullify_locreg_descriptors(lzd%glr)
-    nullify(lzd%llr) 
+    nullify(lzd%llr)
   end subroutine nullify_local_zone_descriptors
 
 
@@ -1210,7 +1210,7 @@ contains
          TCAT_IO_MULTIPOLES)
 
 
-    !! little by little, these categories should be transformed in the 
+    !! little by little, these categories should be transformed in the
     !! new scheme dictated by f_timing API in time_profiling module of f_lib.
 
     !initialize categories
@@ -1316,6 +1316,7 @@ contains
     orbs%npsidim_comp=1
 
   end subroutine nullify_orbitals_data
+  
 
   !> Finds the fermi level ef for an error function distribution with a width wf
   !! eval are the Kohn Sham eigenvalues and melec is the total number of electrons
@@ -1381,7 +1382,7 @@ contains
     !!!   !if (iproc == 0) print *,'Fermilevel: CANNOT write input.occ with more than one k-point'
     !!!   !stop
     !!!end if
-   
+
     newnorbu=orbs%norbu
     if (present(norbu)) newnorbu=min(norbu,newnorbu)
     newnorbd=orbs%norbd
@@ -1453,7 +1454,7 @@ contains
     !!            else
     !!               f  = 0.d0
     !!               df = 0.d0
-    !!            end if 
+    !!            end if
     !!            if (iorb > orbs%norbu+newnorbd .or. (iorb <= orbs%norbu .and. iorb > newnorbu)) then
     !!               f  = 0.d0
     !!               df = 0.d0

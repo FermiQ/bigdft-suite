@@ -1016,7 +1016,7 @@ end if
   !!end if
 
   ! only print eigenvalues if they have meaning, i.e. diag or the case above
-  if (input%lin%scf_mode==LINEAR_MIXPOT_SIMPLE.or.input%lin%scf_mode==LINEAR_MIXDENS_SIMPLE & 
+  if (input%lin%scf_mode==LINEAR_MIXPOT_SIMPLE.or.input%lin%scf_mode==LINEAR_MIXDENS_SIMPLE &
             .or.output_eigenvalues) then
       if (bigdft_mpi%iproc ==0) then
          ! it would be more useful to have the actual KS occupancies here,
@@ -1298,7 +1298,7 @@ end if
 !!      !if (iproc==0) write(*,'(1x,a)') 'WARNING: commented correction_locrad!'
 !!      if (iproc==0) call yaml_warning('commented correction_locrad')
 !!      !!! Testing energy corrections due to locrad
-!!      !!call correction_locrad(iproc, nproc, tmblarge, KSwfn%orbs,tmb%coeff) 
+!!      !!call correction_locrad(iproc, nproc, tmblarge, KSwfn%orbs,tmb%coeff)
 !!      ! Calculate Pulay correction to the forces
 !!      !!if (input%lin%scf_mode==LINEAR_FOE) then
 !!      !!    tmb%coeff=f_malloc_ptr((/tmb%orbs%norb,tmb%orbs%norb/),id='tmb%coeff')
@@ -2692,7 +2692,7 @@ subroutine output_fragment_rotations(iproc,nat,rxyz,iformat,filename,input_frag,
 !!$           end do
 !!$
 !!$           call find_frag_trans(ref_frags(ifrag_ref)%astruct_frg%nat,rxyz_ref,rxyz_new,frag_trans)
-           
+
            if (frag_trans%Werror > W_tol) call f_increment(itoo_big)
            call f_free(rxyz_ref)
            call f_free(rxyz_new)

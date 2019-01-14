@@ -6,7 +6,7 @@
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
-!!    For the list of contributors, see ~/AUTHORS 
+!!    For the list of contributors, see ~/AUTHORS
 
 
 !> Module handling the eXchange-Correlation functionals
@@ -145,7 +145,7 @@ contains
     else
       xcObj%default_alpha=-1.0d0
     end if
-    
+
   end subroutine obj_init_
 
   subroutine obj_free_(xcObj)
@@ -235,7 +235,7 @@ contains
        call yaml_sequence('"Comput. Phys. Commun. 183, 2272 (2012)"')
        do i = 1, 2
           if (xcObj%family(i) == 0) cycle
-          
+
           ii = 0
           if (xcObj%id(i) > 0) then
              call xc_f90_info_refs(xcObj%funcs(i)%info,ii,str1,message)
@@ -268,7 +268,7 @@ contains
   !> Get the XC id from the name
   subroutine xc_get_id_from_name(id, name)
     implicit none
-    
+
     integer, intent(out) :: id
     character(len = *), intent(in) :: name
 
@@ -489,7 +489,7 @@ contains
              !Allocations of the exchange-correlation terms, depending on the ixc value
              order = 1
              if ( present(dvxci) ) order = -2
-             
+
              !temporary nspden==2, to force the code to do as if nspin==2
              nspden_tmp=2
              !define the size of the temporary variables
@@ -514,7 +514,7 @@ contains
                   ndvxc_tmp,ngr2_tmp,nd2vxc_tmp,nvxcdgr_tmp, dvxc=dvxci_tmp)
 
              !fill the true vxc
-             call axpy(npts,1.d0,vxc_tmp(1,2),1,vxc_tmp(1,1),1) 
+             call axpy(npts,1.d0,vxc_tmp(1,2),1,vxc_tmp(1,1),1)
              call f_memcpy(n=npts,src=vxc_tmp(1,1),dest=vxc(1,1))
              !fill the true dvxci
              call f_memcpy(n=2*npts,src=dvxci_tmp(1,1),dest=dvxci(1,1))
@@ -533,14 +533,14 @@ contains
 
        case (XC_FAMILY_GGA)
           !case with gradient, no big order
-          if (ixc /= 13) then             
+          if (ixc /= 13) then
              call abi_drivexc(exc,ixc,npts,nspden,order,rho,&
                   vxc,ndvxc,ngr2,nd2vxc,nvxcdgr,&
-                  grho2_updn=grho2,vxcgr=vxcgr) 
+                  grho2_updn=grho2,vxcgr=vxcgr)
           else
              call abi_drivexc(exc,ixc,npts,nspden,order,rho,&
                   vxc,ndvxc,ngr2,nd2vxc,nvxcdgr,&
-                  grho2_updn=grho2) 
+                  grho2_updn=grho2)
           end if
        end select
     else if (xcObj%kind == XC_MIXED) then
@@ -627,7 +627,7 @@ contains
              do j = 1, nspden
                 vxc(ipts:ipte,j) = vxc(ipts:ipte,j) + vxctmp(j, 1:nb)
              end do
-             
+
              if (xc_isgga(xcObj)) then
                 !Convert the quantities returned by Libxc to the ones needed by ABINIT
                 if (nspden == 1) then
@@ -751,7 +751,7 @@ contains
 
 
   !> Calculate the XC terms from the given density in a distributed way.
-  !! it assign also the proper part of the density to the zf array 
+  !! it assign also the proper part of the density to the zf array
   !! which will be used for the core of the FFT procedure.
   !! Following the values of ixc and of sumpion, the array pot_ion is either summed or assigned
   !! to the XC potential, or even ignored.
@@ -769,17 +769,17 @@ contains
     integer, intent(in) :: m1,m3     !< Global dimensions in the three directions.
     integer, intent(in) :: nxc       !< Value of the effective distributed dimension in the third direction
     integer, intent(in) :: nwb       !< Enlarged dimension for calculating the WB correction
-    integer, intent(in) :: nxt       !< Enlarged dimension for calculating the GGA case 
+    integer, intent(in) :: nxt       !< Enlarged dimension for calculating the GGA case
     !! (further enlarged for compatibility with WB correction if it is the case)
     integer, intent(in) :: nwbl,nwbr !< nwb=nxc+nxcl+nxcr-2, nwb+nwbl+nwbr=nxt.
     integer, intent(in) :: nxcl,nxcr !< Shifts in the three directions to be compatible with the relation
-    !> eXchange-Correlation code. Indicates the XC functional to be used 
-    !!   for calculating XC energies and potential. 
-    !!   ixc=0 indicates that no XC terms are computed. 
+    !> eXchange-Correlation code. Indicates the XC functional to be used
+    !!   for calculating XC energies and potential.
+    !!   ixc=0 indicates that no XC terms are computed.
     !!   The XC functional codes follow the ABINIT convention or if negative the libXC one.
     type(xc_info), intent(in) :: xc
     integer, intent(in) :: order,ndvxc,nspden
-    real(gp), intent(in) :: hx,hy,hz                            !< Grid spacings. 
+    real(gp), intent(in) :: hx,hy,hz                            !< Grid spacings.
     real(dp), dimension(*), intent(in) :: gradient              !< of size 1 if not needed
     real(dp), dimension(m1,m3,nxt,nspden), intent(inout) :: rho !< Density in the distributed format, also in spin-polarised
     real(dp), dimension(m1,m3,nwb,nspden), intent(out) :: vxci
@@ -911,7 +911,7 @@ contains
        end do
     end if
 
-    !the two factor is due to the 
+    !the two factor is due to the
     !need of using the density of states in abinit routines
     exc=sfactor*real(hx*hy*hz,dp)*exc
     vxc=sfactor*real(hx*hy*hz,dp)*vxc

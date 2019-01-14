@@ -78,6 +78,7 @@
      PBE0: -406
      B97-D: -170 #to be verified
      B3LYP: -402
+     HARTREE: 0 #No exchange-correlation potential
      HF: 100 #Hartree-Fock
      NONE: 1000 #No Hartree and No XC (useful for H atom)
    qcharge:
