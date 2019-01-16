@@ -4809,12 +4809,13 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
 
 !!$  !call center_of_charge(at,at%astruct%rxyz,charge_center_cores)
 !!$  call f_zero(charge_center_cores)
-  call core_multipoles(0.5_gp*at%astruct%cell_dim)
+  charge_center_cores=0.5_gp*at%astruct%cell_dim
+  call core_multipoles(charge_center_cores)
   qtot=get_monopole(mp_cores)
   dipole_cores=get_dipole(mp_cores)
-  
+
   !this defines the origin of the coordinate system
-  if (qtot /=0.0_gp) charge_center_cores= -dipole_cores/qtot
+  if (qtot /=0.0_gp) charge_center_cores= charge_center_cores -dipole_cores/qtot
   call f_multipoles_release(mp_cores)
   !now the cores dipole should become zero, unless there are wrapping of atoms around the
   !structure.
