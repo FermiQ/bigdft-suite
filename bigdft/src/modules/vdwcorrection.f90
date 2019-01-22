@@ -1412,7 +1412,7 @@ contains
     end if
     !   ic corrections November 12th 2013
     if (f_err_raise(atoms%astruct%geocode /= 'F', &
-         & 'Dispersion is made for non-isolated systems.', &
+         & 'Dispersion is availble for isolated systems only.', &
          & err_name='BIGDFT_RUNTIME_ERROR')) &
          & return
   END SUBROUTINE vdwcorrection_warnings
