@@ -3175,3 +3175,38 @@ metals_diag:
    Atomic Forces (Ha/Bohr): 9.7e-10
    Raw forces norm (Ha/Bohr): 8.0e-9
    HYBRID: 1.8e-10
+
+PSPIO_Si:
+  Energies: 3e-5
+  EKS: 1e-6
+  Energy (Hartree): 1e-8
+  gnrm: 2e-5
+  Orbitals: 2e-8
+  P vector: 1e-4
+  Q matrix: 2.3
+  DIIS weights: 0.02
+  D: 1.1e-5
+  maxval: 2e-5
+  fnrm2: 7e-5
+  psppar.Si: 2e-9
+  Average noise forces: 2e-5
+  norm(P): 3e-6
+  Spreads of the electronic density (AU): 0.07
+
+PSPIO_Li:
+  Energies: 3e-5
+  EKS: 1e-6
+  Energy (Hartree): 1e-8
+  gnrm: 2e-5
+  Orbitals: 2e-8
+  P vector: 1e-4
+  Q matrix: 2.3
+  DIIS weights: 0.02
+  D: 1.1e-5
+  maxval: 2e-5
+  fnrm2: 7e-5
+  psppar.Li: 3e-6
+  Average noise forces: 2e-5
+  norm(P): 3e-6
+  Spreads of the electronic density (AU): 0.07
+
