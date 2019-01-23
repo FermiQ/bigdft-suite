@@ -126,7 +126,7 @@ program babel
          end if
 
          iter=>frag//trim(yaml_toa(id))//'atoms'
-         call dict_copy(dest=frag_list//id-1,src=iter)
+         call dict_copy(dest=frag_list//(id-1),src=iter)
       end do
       call yaml_dict_dump(frag_list,flow=.true.)
       call yaml_close_stream(unit=fileunit)

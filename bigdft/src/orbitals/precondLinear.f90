@@ -136,7 +136,7 @@ subroutine differentiateBetweenBoundaryConditions(iproc,nproc,ncplx,lr,hx,hy,hz,
   use module_base
   use locregs
   use locreg_operations
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iproc,nproc,ncplx
   real(gp), intent(in) :: hx,hy,hz,cprecr,kx,ky,kz
@@ -155,7 +155,7 @@ subroutine differentiateBetweenBoundaryConditions(iproc,nproc,ncplx,lr,hx,hy,hz,
   call f_routine(id='differentiateBetweenBoundaryConditions')
 
 !!$  if (lr%geocode == 'F') then
-  if (cell_geocode(lr%mesh) == 'F') then
+  if (domain_geocode(lr%mesh%dom) == 'F') then
      do idx=1,ncplx
         call applyOperator(iproc,nproc,lr%d%n1,lr%d%n2,lr%d%n3,&
              lr%d%nfl1,lr%d%nfu1,lr%d%nfl2,lr%d%nfu2,lr%d%nfl3,lr%d%nfu3, lr%ns1, lr%ns2, lr%ns3, &
@@ -173,7 +173,7 @@ subroutine differentiateBetweenBoundaryConditions(iproc,nproc,ncplx,lr,hx,hy,hz,
              w%x_f1,w%x_f2,w%x_f3, work_conv)
      end do
 !!$  else if (lr%geocode == 'P') then
-  else if (cell_geocode(lr%mesh) == 'P') then
+  else if (domain_geocode(lr%mesh%dom) == 'P') then
      if (lr%hybrid_on) then
 
         nf=(lr%d%nfu1-lr%d%nfl1+1)*(lr%d%nfu2-lr%d%nfl2+1)*(lr%d%nfu3-lr%d%nfl3+1)
@@ -202,7 +202,7 @@ subroutine differentiateBetweenBoundaryConditions(iproc,nproc,ncplx,lr,hx,hy,hz,
         end if
      end if
 !!$  else if (lr%geocode == 'S') then
-  else if (cell_geocode(lr%mesh) == 'S') then
+  else if (domain_geocode(lr%mesh%dom) == 'S') then
      if (ncplx == 1) then
         call apply_hp_slab_sd(lr%d%n1,lr%d%n2,lr%d%n3,&
              lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,&
@@ -216,7 +216,7 @@ subroutine differentiateBetweenBoundaryConditions(iproc,nproc,ncplx,lr,hx,hy,hz,
              cprecr,hx,hy,hz,kx,ky,kz,x,y,w%psifscf,w%ww) 
 
      end if
-  else if (cell_geocode(lr%mesh) == 'W') then
+  else if (domain_geocode(lr%mesh%dom) == 'W') then
      if (ncplx == 1) then
         call apply_hp_wire_sd(lr%d%n1,lr%d%n2,lr%d%n3,&
              lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,&

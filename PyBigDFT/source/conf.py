@@ -16,10 +16,14 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
+from os import path as p
 import sys
-sys.path.insert(0, os.path.abspath('../'))
-sys.path.insert(0, os.path.abspath('../notebooks'))
+sourcepath=p.abspath(p.realpath(__file__))
+pybigdftpath=p.dirname(p.dirname(sourcepath))
+bigdftsuitepath=p.dirname(pybigdftpath)
+sys.path.insert(0, p.abspath(p.join(bigdftsuitepath,'futile','src','python')))
+sys.path.insert(0, p.abspath(pybigdftpath))
+sys.path.insert(0, p.abspath(p.join(pybigdftpath,'notebooks')))
 
 # -- General configuration ------------------------------------------------
 
@@ -35,11 +39,29 @@ extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
+    'sphinxcontrib.jinja',
     'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.autosummary',
     'nbsphinx']
+
+import guzzle_sphinx_theme
+
+html_theme_path = guzzle_sphinx_theme.html_theme_path()
+html_theme = 'guzzle_sphinx_theme'
+
+# Register the theme as an extension to generate a sitemap.xml
+extensions.append("guzzle_sphinx_theme")
+
+# Guzzle theme options (see theme.conf for more information)
+html_theme_options = {
+    # Set the name of the project to appear in the sidebar
+    "project_nav_name": "PyBigDFT",
+}
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['sphinx_templates']
@@ -91,7 +113,7 @@ todo_include_todos = True
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'bizstyle'
+#html_theme = 'bizstyle'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -103,6 +125,8 @@ html_theme = 'bizstyle'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['sphinx_static']
+html_logo = 'sphinx_static/logo_header.png'
+html_favicon = 'sphinx_static/logo_header.png'
 
 
 # -- Options for HTMLHelp output ------------------------------------------
@@ -188,18 +212,23 @@ epub_exclude_files = ['search.html']
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
 
+from BigDFT import InputActions as A
+
+# information about the input actions that can be used and their documentation
+jinja_contexts = {'input_actions': { 'actions': { a: getattr(A,a).__doc__  for a in dir(A) if '__' not in a and a !='dict_set'}}}
+
 # tools to be done in the readthedocs environment
-import os
-on_rtd = os.environ.get('READTHEDOCS') == 'True'
-if on_rtd:
-    sys.path.insert(0, os.path.abspath('../../futile/src/python/'))
-    import sys
-    from unittest.mock import MagicMock
-
-    class Mock(MagicMock):
-        @classmethod
-        def __getattr__(cls, name):
-            return MagicMock()
-
-    MOCK_MODULES = ['yaml','gi.repository']
-    sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+#import os
+#on_rtd = os.environ.get('READTHEDOCS') == 'True'
+#if on_rtd:
+#    sys.path.insert(0, p.abspath('../../futile/src/python/'))
+#    import sys
+#    from unittest.mock import MagicMock
+#
+#    class Mock(MagicMock):
+#        @classmethod
+#        def __getattr__(cls, name):
+#            return MagicMock()
+#
+#    MOCK_MODULES = ['yaml','gi.repository']
+#    sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)

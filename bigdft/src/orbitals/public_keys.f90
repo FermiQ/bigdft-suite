@@ -33,6 +33,8 @@ module public_keys
   character(len = *), parameter :: GNRM_CV_VIRT = "gnrm_cv_virt"
   character(len = *), parameter :: GNRM_IG = "gnrm_ig"
   character(len = *), parameter :: NIT_IG = "nit_ig"
+  character(len = *), parameter :: EXTENDED_IG = "extended_ig"
+  character(len = *), parameter :: ORTHOGONALIZE_SFS = "orthogonalize_sfs"
   character(len = *), parameter :: ITERMAX = "itermax",ITERMIN = "itermin", NREPMAX = "nrepmax"
   character(len = *), parameter :: ITERMAX_VIRT = "itermax_virt"
   character(len = *), parameter :: NCONG = "ncong", IDSX = "idsx"
@@ -215,6 +217,7 @@ module public_keys
   character(len = *), parameter :: EXPERIMENTAL_MODE = "experimental_mode"
   character(len = *), parameter :: WRITE_ORBITALS = "orbitals"
   character(len = *), parameter :: OUTPUTPSIID = "outputpsiid"
+  character(len = *), parameter :: DUMP_COUPLING_MATRIX = "coupling_matrix"
   character(len = *), parameter :: EXPLICIT_LOCREGCENTERS = "explicit_locregcenters"
   character(len = *), parameter :: CALCULATE_KS_RESIDUE = "calculate_KS_residue"
   character(len = *), parameter :: INTERMEDIATE_FORCES = "intermediate_forces"
@@ -259,6 +262,7 @@ module public_keys
   character(len=*), parameter :: CALC_QUADRUPOLE ='calc_quadrupole'
   character(len=*), parameter :: CDFT_LAG_MULT_INIT='cdft_lag_mult_init'
   character(len=*), parameter :: CDFT_CONV_CRIT  ='cdft_conv_crit'
+  character(len=*), parameter :: CDFT_NIT        ='cdft_nit'
   character(len=*), parameter :: SUBSPACE_DIAG   ='subspace_diag'
   character(len=*), parameter :: ALPHA_DIIS      ='alpha_diis'
   character(len=*), parameter :: ALPHA_SD        ='alpha_sd'
@@ -287,6 +291,7 @@ module public_keys
   character(len=*), parameter :: FOE_RESTART="FOE_restart"
   character(len=*), parameter :: IMETHOD_OVERLAP = "imethod_overlap"
   character(len=*), parameter :: EXTRA_SHELLS_KEY='empty_shells'
+  character(len=*), parameter :: EXTRA_ORBITALS_KEY='empty_orbitals'
   character(len=*), parameter :: ENABLE_MATRIX_TASKGROUPS='enable_matrix_taskgroups'
   character(len=*), parameter :: HAMAPP_RADIUS_INCR='hamapp_radius_incr'
   character(len=*), parameter :: ADJUST_KERNEL_ITERATIONS='adjust_kernel_iterations'
@@ -347,7 +352,8 @@ module public_keys
   character(len=*), parameter :: BABEL_SOURCE = 'babel'
 end module public_keys
 
-!>module identifying constants that have to be used as enumerators
+
+!> Module identifying constants that have to be used as enumerators
 !! they can be used to define f_enumerator types or directly as integers
 module public_enums
   use f_enums
@@ -395,6 +401,13 @@ module public_enums
   integer, parameter :: CUBE=22
   integer, parameter :: MPI_NATIVE=4 !<native (i.e. non-portable) MPI format
 
+  integer, parameter :: RPA=-1
+  integer, parameter :: FXC=-2
+  integer, parameter :: SUM_CONTRIBUTIONS=-3
+
+  integer, parameter :: TDDFT_TDA=-10
+  integer, parameter :: TDDFT_FULL=-11
+  
   !> Output wf parameters.
   integer, parameter, public :: WF_FORMAT_NONE       = NONE
   integer, parameter, public :: WF_FORMAT_PLAIN      = TEXT
@@ -436,12 +449,21 @@ module public_enums
   type(f_enumerator), public :: ENUM_LINEAR =f_enumerator('LINEAR',LINEAR_VERSION,null())
   type(f_enumerator), public :: ENUM_GAUSSIAN =f_enumerator('GAUSSIAN',20002,null())
 
+  type(f_enumerator), public :: TDDFT_FULL_ENUM=f_enumerator('full',TDDFT_FULL,null())
+  type(f_enumerator), public :: TDDFT_TDA_ENUM=f_enumerator('TDA',TDDFT_TDA,null())
+  
   !> enumerators defining the i/o format
   type(f_enumerator), public :: ENUM_TEXT =f_enumerator('TEXT',TEXT,null())
   type(f_enumerator), public :: ENUM_ETSF =f_enumerator('ETSF',ETSF,null())
   type(f_enumerator), public :: ENUM_CUBE =f_enumerator('CUBE',CUBE,null())
   type(f_enumerator), public :: ENUM_BINARY =f_enumerator('BINARY',BINARY,null())
 
+  !> enumerator for the dumping of the coupling matrix
+  type(f_enumerator), public :: DUMP_COUPLING_MATRIX_RPA_ENUM =f_enumerator('rpa',RPA,null())
+  type(f_enumerator), public :: DUMP_COUPLING_MATRIX_FXC_ENUM =f_enumerator('fxc',FXC,null())
+  type(f_enumerator), public :: DUMP_COUPLING_MATRIX_SUM_ENUM =f_enumerator('complete',SUM_CONTRIBUTIONS,null())
+
+  
   !> enumerators defining the operations
   type(f_enumerator), public :: ENUM_DENSITY =f_enumerator('DENSITY',CHARGE_DENSITY,null())
 

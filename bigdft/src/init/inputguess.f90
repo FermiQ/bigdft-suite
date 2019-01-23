@@ -177,6 +177,7 @@ subroutine inputguess_gaussian_orbitals(iproc,nproc,at,rxyz,nvirt,nspin,&
 
 END SUBROUTINE inputguess_gaussian_orbitals
 
+
 !> Read atomic orbitals
 subroutine readAtomicOrbitals(at,norbe,norbsc,nspin,nspinor,norbsc_arr,locrad)
    use module_base, only: gp
@@ -242,6 +243,7 @@ subroutine readAtomicOrbitals(at,norbe,norbsc,nspin,nspinor,norbsc_arr,locrad)
    if (nspin == 2) norbsc_arr(:,2)=norbsc_arr(:,1)
 
 END SUBROUTINE readAtomicOrbitals
+
 
 !> Generate atomic orbitals
 subroutine AtomicOrbitals(iproc,at,rxyz,norbe,orbse,norbsc,&

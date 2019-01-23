@@ -13,19 +13,21 @@
   ilsize=product(int(shape(array),kind=8))
   !retrieve the address of the first element if the size is not zero
   !iadd=int(0,kind=8)
-  !if (ilsize /= int(0,kind=8)) 
+  !if (ilsize /= int(0,kind=8))
   iadd=loc_arr(array)!call getlongaddress(array,iadd)
 
   call f_purge_database(ilsize,kind(array),iadd,info=info)
 
   if (associated(info)) then
-     val=' '
-     val=info .get. 'Type'
-     select case(trim(val))
-     case('SHARED')
+     val=dict_get(info,INFO_TYPE_KEY,default=' ')
+     if (trim(val) == INFO_SHARED_TYPE .or. &
+          (INFO_ALIGNMENT_KEY .in. info)) then
+     !val=info .get. 'Type'
+     !select case(trim(val))
+     !case('SHARED')
         call bindfree(iadd)
         ierror=0
-     case default
+     else !case default
         if ("alignment" .in. info) then
            call bindfree(iadd)
            ierror=0
@@ -33,7 +35,8 @@
            !fallback to traditional deallocation
            deallocate(array,stat=ierror) !temporary
         end if
-     end select
+    end if
+     !end select
      call dict_free(info)
   else
      !fortran deallocation (here we should modify the calls if the array has been allocated by c)
@@ -50,5 +53,3 @@
 !!$  end if
 
   call f_timer_resume()!TCAT_ARRAY_ALLOCATIONS
-  
-  

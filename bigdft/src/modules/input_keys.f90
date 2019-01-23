@@ -122,6 +122,7 @@ module module_input_keys
      real(kind=8) :: max_inversion_error
      real(kind=8) :: cdft_lag_mult_init !< Initial value for lagrange multiplier
      real(kind=8) :: cdft_conv_crit     !< Convergence threshold for cdft charge
+     integer :: cdft_nit     !< Number of iterations for loop over Vc in CDFT calculation
      logical :: calculate_onsite_overlap
      integer :: output_mat_format     !< Output Matrices format
      integer :: output_coeff_format   !< Output Coefficients format
@@ -143,6 +144,8 @@ module module_input_keys
      logical :: reset_DIIS_history !< reset the DIIS history when starting the loop which optimizes the support functions
      real(kind=8) :: delta_pnrm !<stop the kernel optimization if the density/potential difference has decreased by this factor
      logical :: consider_entropy !< Indicate whether the entropy contribution to the total energy shall be considered
+     logical :: extended_ig !< whether or not to do an extended SF input guess (always done for experimental_mode)
+     logical :: orthogonalize_sfs !< whether or not to orthogonalize SFs (not done for experimental_mode)
   end type linearInputParameters
 
   !> Structure controlling the nature of the accelerations (Convolutions, Poisson Solver)
@@ -306,7 +309,7 @@ module module_input_keys
      real(gp), dimension(6) :: strtarget
      real(gp), dimension(:), pointer :: qmass
      real(gp) :: dtinit, dtmax           !< For FIRE
-     character(len=10) :: tddft_approach !< TD-DFT variables from *.tddft
+     type(f_enumerator) :: tddft_approach 
      character(len=max_field_length) :: dir_perturbation  !< Strings of the directory which contains the perturbation
      type(SIC_data) :: SIC               !< Parameters for the SIC methods
      !variables for SQNM
@@ -384,6 +387,9 @@ module module_input_keys
      !>id of the output wavefunctions
      character(len=64) :: outputpsiid
 
+     !> dump coupling matrix method
+     type(f_enumerator) :: dump_coupling_matrix
+     
      type(external_potential_descriptors) :: ep !< contains the multipoles for the external potential
      logical :: mp_centers_auto !< indicates whether the multipole centers shall be determined automatically (i.e. the atoms) or provided manually
      real(kind=8),dimension(:,:),pointer :: mp_centers !< contains the positions of the multipoles to be calculated
@@ -862,6 +868,21 @@ contains
             err_name='BIGDFT_INPUT_VARIABLES_ERROR')
     end if
 
+    ! override some linear input variables which are inter-dependent
+    ! set variables associated with experimental_mode
+    ! these should also now be able to be activated independently
+    ! but if the experimental_mode is set they are all set accordingly for backwards compatibility
+    ! eventually experimental_mode should be eliminated or turned into a profile
+    if (in%experimental_mode) then
+       in%lin%extended_ig = .true.
+       in%lin%orthogonalize_sfs = .false.
+    end if
+    ! no point in setting DIIS histories higher than the number of iterations
+    in%lin%dmin_hist_lowaccuracy = min(in%lin%dmin_hist_lowaccuracy, in%lin%nItdmin_lowaccuracy)
+    in%lin%dmin_hist_highaccuracy = min(in%lin%dmin_hist_highaccuracy, in%lin%nItdmin_highaccuracy)
+    in%lin%DIIS_hist_lowaccur=min(in%lin%DIIS_hist_lowaccur,in%lin%nItBasis_lowaccuracy)
+    in%lin%DIIS_hist_highaccur=min(in%lin%DIIS_hist_highaccur,in%lin%nItBasis_highaccuracy)
+
     ! not sure whether to actually make this an input variable or not so just set to false for now
     in%lin%diag_start=.false.
 
@@ -1018,7 +1039,8 @@ contains
     type(dictionary), pointer :: as_is,nested,dict_ps_min,dict_chess_min,tmp,tmpdft,tmppos
     character(max_field_length) :: meth
     real(gp) :: dtmax_, betax_
-    logical :: free,dftvar,symbool
+    logical :: free,dftvar
+!!$    logical :: symbool
     integer :: nat
     integer, parameter :: natoms_dump = 500
 
@@ -1694,6 +1716,18 @@ contains
           call set_output_wf_from_text(str,in%output_wf)
        case (OUTPUTPSIID)
           in%outputpsiid=val
+       case (DUMP_COUPLING_MATRIX)
+          str=val
+          select case(trim(str))
+          case('complete')
+             in%dump_coupling_matrix=DUMP_COUPLING_MATRIX_RPA_ENUM
+             call f_enum_attr(in%dump_coupling_matrix,DUMP_COUPLING_MATRIX_FXC_ENUM)
+             call f_enum_attr(in%dump_coupling_matrix,DUMP_COUPLING_MATRIX_SUM_ENUM)
+          case('rpa')
+             in%dump_coupling_matrix=DUMP_COUPLING_MATRIX_RPA_ENUM
+          case('fxc')
+             in%dump_coupling_matrix=DUMP_COUPLING_MATRIX_FXC_ENUM
+          end select
        end select
     case (DFT_VARIABLES)
        ! the DFT variables ------------------------------------------------------
@@ -2153,7 +2187,13 @@ contains
        ! the TDDFT variables ----------------------------------------------------
        select case (trim(dict_key(val)))
        case (TDDFT_APPROACH)
-          in%tddft_approach = val
+          str=val
+          select case(trim(str))
+          case('full')
+             in%tddft_approach = TDDFT_FULL_ENUM
+          case('TDA')
+             in%tddft_approach = TDDFT_TDA_ENUM
+          end select
        case (DECOMPOSE_PERTURBATION)
           in%dir_perturbation = val
           !add a slash to the directory name if not present
@@ -2207,6 +2247,8 @@ contains
           in%lin%cdft_lag_mult_init = val
        case (CDFT_CONV_CRIT)
           in%lin%cdft_conv_crit = val
+       case (CDFT_NIT)
+          in%lin%cdft_nit = val
        case (CALC_DIPOLE)
           in%lin%calc_dipole = val
        case (CALC_QUADRUPOLE)
@@ -2277,6 +2319,10 @@ contains
           in%lin%orthogonalize_ao = val
        case (RESET_DIIS_HISTORY)
           in%lin%reset_DIIS_history = val
+       case (EXTENDED_IG)
+          in%lin%extended_ig = val
+       case (ORTHOGONALIZE_SFS)
+          in%lin%orthogonalize_sfs = val
        case DEFAULT
           if (bigdft_mpi%iproc==0) &
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")
@@ -2520,6 +2566,7 @@ contains
     call f_zero(in%dir_perturbation)
     call f_zero(in%outputpsiid)
     call f_zero(in%naming_id)
+    in%dump_coupling_matrix=f_enumerator_null()
     in%projection=f_enumerator_null()
     nullify(in%gen_kpt)
     nullify(in%gen_wkpt)
@@ -2671,7 +2718,7 @@ contains
     implicit none
     type(input_variables), intent(inout) :: in
 
-    in%tddft_approach='NONE'
+    in%tddft_approach=ENUM_EMPTY
 
   END SUBROUTINE tddft_input_variables_default
 
@@ -2927,6 +2974,10 @@ contains
             err_name='BIGDFT_INPUT_VARIABLES_ERROR')
     end select
 
+
+    !determine the TDDFT approach, including the coupling matrix policy
+    if (in%tddft_approach /= 'NONE') call f_enum_attr(in%tddft_approach,in%dump_coupling_matrix)
+    
     call f_release_routine()
   END SUBROUTINE input_analyze
 
@@ -2940,7 +2991,7 @@ contains
     use yaml_output
     use public_keys
     use f_utils
-    use box, only: bc_periodic_dims,geocode_to_bc
+    use at_domain, only: bc_periodic_dims,geocode_to_bc
     implicit none
     !Arguments
     integer, intent(in) :: iproc

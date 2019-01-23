@@ -14,7 +14,7 @@ subroutine daub_to_isf(lr,w,psi,psir)
   use module_base
   use locregs
   use locreg_operations
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   type(locreg_descriptors), intent(in) :: lr
   type(workarr_sumrho), intent(inout) :: w
@@ -34,7 +34,7 @@ subroutine daub_to_isf(lr,w,psi,psir)
   enddo
 
 !!$  select case(lr%geocode)
-  select case(cell_geocode(lr%mesh))
+  select case(domain_geocode(lr%mesh%dom))
   case('F')
      call f_zero(psir)
 
@@ -118,7 +118,7 @@ subroutine isf_to_daub(lr,w,psir,psi)
   use module_base
   use locregs
   use locreg_operations
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   type(locreg_descriptors), intent(in) :: lr
   type(workarr_sumrho), intent(inout) :: w
@@ -141,7 +141,7 @@ subroutine isf_to_daub(lr,w,psir,psi)
   isegf=lr%wfd%nseg_c+iseg_f
 
 !!$  select case(lr%geocode)
-  select case(cell_geocode(lr%mesh))
+  select case(domain_geocode(lr%mesh%dom))
   case('F')
      call comb_shrink(lr%d%n1,lr%d%n2,lr%d%n3,&
           lr%d%nfl1,lr%d%nfu1,lr%d%nfl2,lr%d%nfu2,lr%d%nfl3,lr%d%nfu3,&
@@ -215,7 +215,7 @@ subroutine daub_to_isf_locham(nspinor,lr,w,psi,psir)
   use module_base, only: wp,f_zero,f_err_throw
   use locregs
   use locreg_operations
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: nspinor
   type(locreg_descriptors), intent(in) :: lr
@@ -238,7 +238,7 @@ subroutine daub_to_isf_locham(nspinor,lr,w,psi,psir)
   !call f_zero((2*n1+31)*(2*n2+31)*(2*n3+31)*nspinor,psir)
   !call MPI_COMM_RANK(bigdft_mpi%mpi_comm,iproc,ierr)
 !!$  select case(lr%geocode)
-  select case(cell_geocode(lr%mesh))
+  select case(domain_geocode(lr%mesh%dom))
   case('F')
      call f_zero(psir)
      !call timing(iproc,'CrtDescriptors','ON') !temporary

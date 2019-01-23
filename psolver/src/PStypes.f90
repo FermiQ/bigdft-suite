@@ -81,7 +81,7 @@ module PStypes
 
 
   !> Define the work arrays needed for the treatment of the generalized (nonvacuum) or
-  !! standard (vacuum) Poisson Equation. Not all of them are allocated, the actual memory usage 
+  !! standard (vacuum) Poisson Equation. Not all of them are allocated, the actual memory usage
   !! depends on the treatment.
   type, public :: PS_workarrays
      integer :: nat !< dimensions of the atomic based cavity. Zero if unused
@@ -144,7 +144,7 @@ module PStypes
      logical :: use_input_guess
      !> For an implicit solvation run, trigger the energy calculation to the only electrostatic contribution.
      !! If .true., the code only calculates the electrostatic contribution
-     !! and the non electrostatic terms to the total solvation energy (cavitation, 
+     !! and the non electrostatic terms to the total solvation energy (cavitation,
      !! repulsion and dispersion) are neglected.
      logical :: only_electrostatic
      !> extract the polarization charge and the dielectric function, to be used for plotting purposes
@@ -170,7 +170,7 @@ module PStypes
 !!$     !!          - 'F' free BC, isolated systems.
 !!$     !!                The program calculates the solution as if the given density is
 !!$     !!                "alone" in R^3 space.
-!!$     !!          - 'S' surface BC, isolated in y direction, periodic in xz plane                
+!!$     !!          - 'S' surface BC, isolated in y direction, periodic in xz plane
 !!$     !!                The given density is supposed to be periodic in the xz plane,
 !!$     !!                so the dimensions in these direction mus be compatible with the FFT
 !!$     !!                Beware of the fact that the isolated direction is y!
@@ -179,7 +179,7 @@ module PStypes
 !!$     !!                then all the dimensions must be compatible with the FFT.
 !!$     !!                No need for setting up the kernel (in principle for Plane Waves)
 !!$     !!          - 'W' Wires BC.
-!!$     !!                The density is supposed to be periodic in z direction, 
+!!$     !!                The density is supposed to be periodic in z direction,
 !!$     !!                which has to be compatible with the FFT.
 !!$     !!          - 'H' Helmholtz Equation Solver
 !!$!     character(len=1) :: geocode
@@ -187,9 +187,9 @@ module PStypes
 !!$     !!          - 'VAC' Poisson Equation in vacuum. Default case.
 !!$     !!          - 'PCG' Generalized Poisson Equation, Preconditioned Conjugate Gradient
 !!$     !!          - 'PI'  Generalized Poisson Equation, Polarization Iteration method
-!!$     !character(len=3) :: method 
+!!$     !character(len=3) :: method
 !!$     !! this represents the information for the equation and the algorithm to be solved
-!!$     !! this enumerator contains the algorithm and has the attribute associated to the 
+!!$     !! this enumerator contains the algorithm and has the attribute associated to the
 !!$     !! type of cavity to be used
      type(f_enumerator) :: method
      type(cell) :: mesh !< structure which includes all cell informations
@@ -510,6 +510,7 @@ contains
     use psolver_environment
     use box, only: cell_new
     use f_input_file, only: input_file_dump
+    use at_domain
     implicit none
     integer, intent(in) :: iproc      !< Proc Id
     integer, intent(in) :: nproc      !< Number of processes
@@ -522,13 +523,19 @@ contains
     type(coulomb_operator) :: kernel
     !local variables
     integer :: nthreads,group_size,taskgroup_size
+    type(domain) :: dom
     !$ integer :: omp_get_max_threads
 
     !nullification
     kernel=pkernel_null()
 
     !mesh initialization
-    kernel%mesh=cell_new(geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab)
+    !kernel%mesh=cell_new(geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab)
+    dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+              alpha_bc=alpha_bc,beta_ac=beta_ac,gamma_ab=gamma_ab,acell=ndims*hgrids)
+
+
+    kernel%mesh=cell_new(dom,ndims,hgrids)
 
     !new treatment for the kernel input variables
     kernel%method=PS_VAC_ENUM
@@ -1079,8 +1086,8 @@ contains
   !! treatment. It generate the dielectric cavity epsilon(r) and all working
   !! arrays needed by the PCG or SC solver of the generalized Poisson equation.
   !! There are several methods to do that:
-  !! 1. In case of the soft-sphere model we need just to pass some informations 
-  !!    of our atomistic system like the total number of atoms (nat), their positions 
+  !! 1. In case of the soft-sphere model we need just to pass some informations
+  !!    of our atomistic system like the total number of atoms (nat), their positions
   !!    (rxyz(1:3,nat)) and their radii.
   !!      call pkernel_set_epsilon(pkernel,nat=nat,rxyz=rxyz,radii=radii)
   !! 2. If you have a given cavity epsilon(r) (on the same real space grid of the input
@@ -1242,7 +1249,7 @@ contains
                    i23=i2+(i3-i3s)*mesh%ndims(2)
                    do i1=1,mesh%ndims(1)
                       v(1)=cell_r(mesh,i1,dim=1)
-                      call rigid_cavity_arrays(kernel%cavity,mesh,v,&
+                      call rigid_cavity_arrays(kernel%cavity,mesh%dom,v,&
                            kernel%w%nat,kernel%w%rxyz,kernel%w%radii,ep,depsr,dleps,cc,kk)
                       kernel%w%eps(i1,i23)=ep
                       kernel%w%corr(i1,i23)=cc
@@ -1251,8 +1258,13 @@ contains
                    end do
                 end do
              end do
-             kernel%IntVol=kernel%IntVol*hh/epsm1
-             kernel%IntSur=kernel%IntSur*hh/epsm1
+             if (epsm1 /= 0.0_dp) then
+                kernel%IntVol=kernel%IntVol*hh/epsm1
+                kernel%IntSur=kernel%IntSur*hh/epsm1
+             else
+                kernel%IntVol=0.0_dp
+                kernel%IntSur=0.0_dp
+             end if
           else
              call f_err_throw('For method "PCG" the arrays corr or epsilon should be present')
           end if
@@ -1327,7 +1339,7 @@ contains
                    i23=i2+(i3-i3s)*mesh%ndims(2)
                    do i1=1,mesh%ndims(1)
                       v(1)=cell_r(mesh,i1,dim=1)
-                      call rigid_cavity_arrays(kernel%cavity,mesh,v,kernel%w%nat,&
+                      call rigid_cavity_arrays(kernel%cavity,mesh%dom,v,kernel%w%nat,&
                            kernel%w%rxyz,kernel%w%radii,ep,depsr,dleps,cc,kk)
                       if (i23 <= n23 .and. i23 >=1) then
                          kernel%w%eps(i1,i23)=ep
@@ -1405,7 +1417,7 @@ contains
              tt=kernel%w%oneoeps(i1,i23) !nablapot2(r)
              v(1)=cell_r(mesh,i1,dim=1)
              !this is done to obtain the depsilon
-             call rigid_cavity_arrays(kernel%cavity,mesh,v,kernel%w%nat,&
+             call rigid_cavity_arrays(kernel%cavity,mesh%dom,v,kernel%w%nat,&
                   kernel%w%rxyz,kernel%w%radii,epr,depsr,dleps,cc,kk)
              if (abs(epr-vacuum_eps) < thr) cycle
              deps=dleps*epr
@@ -1760,7 +1772,8 @@ contains
        !loop on atoms
        tt=1.0_dp
        do iat=1,nat
-          d=distance(bit%mesh,rxyz(1,iat),bit%rxyz)
+          !d=distance(bit%mesh,rxyz(1,iat),bit%rxyz)
+          d=box_iter_distance(bit,rxyz(1,iat))
           tt=tt*epsl(d,radii(iat),delta)
        end do
        pkernel%w%epsinnersccs(bit%i,bit%i23+1)=1.0_dp-tt

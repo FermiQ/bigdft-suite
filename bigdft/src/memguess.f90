@@ -217,7 +217,7 @@ program memguess
       output_grid=0
       loop_getargs: do
          call get_command_argument(i_arg, value = tatonam, status = istat)
- 
+
          if(istat > 0) exit loop_getargs
 
          !first restructuring in view of better behaviour
@@ -978,7 +978,7 @@ program memguess
 !!!       iproc=mpirank()
 !!!       nproc=mpisize()
 !!!
-!!!       !Read coefficients       
+!!!       !Read coefficients
 !!!       iunit01=98
 !!!       call f_open_file(iunit01, file=trim(coeff_file), binary=.false.)
 !!!       call read_linear_coefficients(trim(coeff_file), nspin, ntmb, norbks, coeff_ptr, &
@@ -1073,7 +1073,7 @@ program memguess
 !!!
 !!!       call write_gaussian_peaks(norbks,fe,eigenv,sigma,npts,output_dos)
 !!!       call yaml_map('written output file',trim(output_dos))
-!!!       
+!!!
 !!!       stop
 !!!
    end if
@@ -2439,7 +2439,7 @@ subroutine take_proj_from_file(filename, hx, hy, hz, nl, at, rxyz, &
   use public_enums, only: WF_FORMAT_PLAIN, WF_FORMAT_BINARY, WF_FORMAT_ETSF
   use module_input_keys, only: wave_format_from_filename
   use bounds, only: ext_buffers_coarse
-  use box, only: bc_periodic_dims,geocode_to_bc
+  use at_domain, only: bc_periodic_dims,geocode_to_bc
   implicit none
   real(gp), intent(in) :: hx,hy,hz
   integer, intent(inout) :: ikpt, iat, iproj, icplx
@@ -2521,7 +2521,7 @@ subroutine take_psi_from_file(filename,in_frag,hgrids,lr,at,rxyz,orbs,psi,iorbp,
    use public_enums
    use bounds, only: ext_buffers_coarse
    use locregs
-   use box, only: bc_periodic_dims,geocode_to_bc
+   use at_domain, only: bc_periodic_dims,geocode_to_bc
    implicit none
    integer, intent(inout) :: iorbp, ispinor
    real(gp), dimension(3), intent(in) :: hgrids
@@ -2672,7 +2672,7 @@ subroutine take_psi_from_file(filename,in_frag,hgrids,lr,at,rxyz,orbs,psi,iorbp,
 END SUBROUTINE take_psi_from_file
 
 
-!> 
+!>
 subroutine write_gaussian_peaks(norb,coeff,energy,sigma,npts,filename)
 
    use module_base
@@ -2716,8 +2716,8 @@ subroutine write_gaussian_peaks(norb,coeff,energy,sigma,npts,filename)
    !close output file
    call f_close(iunit)
 
-   
-   
+
+
 end subroutine write_gaussian_peaks
 
 

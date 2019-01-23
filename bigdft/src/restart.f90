@@ -70,8 +70,10 @@ subroutine reformatmywaves(iproc,orbs,at,&
   use module_types
   use yaml_output
   use box
+  use at_domain
   use bounds, only: ext_buffers_coarse
   use compression
+  use numerics, only: onehalf,pi
   implicit none
   integer, intent(in) :: iproc,n1_old,n2_old,n3_old,n1,n2,n3
   real(gp), intent(in) :: hx_old,hy_old,hz_old,hx,hy,hz
@@ -87,17 +89,22 @@ subroutine reformatmywaves(iproc,orbs,at,&
   integer :: iat,iorb,j,jj,j0,j1,ii,i0,i1,i2,i3,i,iseg,nb1,nb2,nb3,nvctrcj,n1p1,np,i0jj
   real(gp) :: tx,ty,tz,displ
   type(cell) :: mesh
+  type(domain) :: dom
   real(wp), dimension(:,:,:), allocatable :: psifscf
   real(wp), dimension(:,:,:,:,:,:), allocatable :: psigold
   logical, dimension(3) :: peri
 
 
-  mesh=cell_new(at%astruct%geocode,[n1+1,n2+1,n3+1],[hx,hy,hz])
+  !mesh=cell_new(at%astruct%geocode,[n1+1,n2+1,n3+1],[hx,hy,hz])
+  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1+1,n2+1,n3+1]*[hx,hy,hz])
+  mesh=cell_new(dom,[n1+1,n2+1,n3+1],[hx,hy,hz])
+
   !conditions for periodicity in the three directions
 !!$  perx=(at%astruct%geocode /= 'F')
 !!$  pery=(at%astruct%geocode == 'P')
 !!$  perz=(at%astruct%geocode /= 'F')
-  peri=cell_periodic_dims(mesh)
+  peri=domain_periodic_dims(mesh%dom)
   perx=peri(1)
   pery=peri(2)
   perz=peri(3)
@@ -115,7 +122,7 @@ subroutine reformatmywaves(iproc,orbs,at,&
   tz=0.0_gp
 displ=0.0_gp
   do iat=1,at%astruct%nat
-    displ=displ+distance(mesh,rxyz(:,iat),rxyz_old(:,iat))**2
+    displ=displ+distance(mesh%dom,rxyz(:,iat),rxyz_old(:,iat))**2
     !  tx=tx+mindist(perx,at%astruct%cell_dim(1),rxyz(1,iat),rxyz_old(1,iat))**2
     !  ty=ty+mindist(pery,at%astruct%cell_dim(2),rxyz(2,iat),rxyz_old(2,iat))**2
     !  tz=tz+mindist(perz,at%astruct%cell_dim(3),rxyz(3,iat),rxyz_old(3,iat))**2
@@ -324,7 +331,7 @@ subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old
   use bounds, only: ext_buffers_coarse
   use compression
   use m_pawrhoij
-  use box, only: bc_periodic_dims,geocode_to_bc
+  use at_domain, only: bc_periodic_dims,geocode_to_bc
   implicit none
   integer, intent(in) :: iproc,n1,n2,n3, iformat
   real(gp), intent(in) :: hx,hy,hz
@@ -2318,7 +2325,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   use rototranslations
   use reformatting
   use locregs, only: lr_box,reset_lr
-  use box, only: cell_new,cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iproc, nproc
   integer, intent(in) :: iformat
@@ -2483,7 +2490,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
                    
               !call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids)!,nbox,.false.)
 !!$              call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,tmb%lzd%glr%geocode)
-              call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,cell_geocode(tmb%lzd%glr%mesh))
+              call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,domain_geocode(tmb%lzd%glr%mesh%dom))
 
               ! DEBUG: print*,iproc,iorb,iorb+orbs%isorb,iorb_old,iorb_out
 
@@ -2970,7 +2977,7 @@ END SUBROUTINE readmywaves_linear_new
       use module_atoms, only: deallocate_atomic_structure, nullify_atomic_structure, set_astruct_from_file
       use io, only: dist_and_shift
       use rototranslations
-      use box, only: bc_periodic_dims,geocode_to_bc
+      use at_domain, only: bc_periodic_dims,geocode_to_bc
       implicit none
       integer, intent(in) :: isfat
       type(atoms_data), intent(in) :: at
@@ -3737,7 +3744,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
   use rototranslations
   use reformatting
   use locregs, only: lr_box
-  use box, only: bc_periodic_dims,geocode_to_bc
+  use at_domain, only: bc_periodic_dims,geocode_to_bc
   implicit none
   integer, intent(in) :: iproc,nproc
   integer, intent(in) :: ndim_old

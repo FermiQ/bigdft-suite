@@ -4,248 +4,94 @@ This file contains some low-level useful functions
 
 from __future__ import print_function
 
-from matplotlib.widgets import AxesWidget
-import six
-
 def write(*args,**kwargs):
     """
     Wrapper for print function or print to ensure compatibility with python 2
-    The arguments are used similarly as the print_function 
+    The arguments are used similarly as the print_function
     They can also be generalized to python 2 cases
     """
     return print(*args,**kwargs)
 
-def show_image(imgfile,title=None):
+def push_path(inp,*keys):
     """
-    Show image file using matplotlib imgread. Useful to bypass the 
-    Jupyter bug for converting a notebook into a pdf file
+    Follow in the dictionary inp the path indicated by the keys.
+    If this path does not exists creates it.
+
+    Args:
+       inp (dict): dictionary
+       keys (str): keys of the path to follow
+
+    Returns:
+       (``branch``,``key``) tuple, where
+
+       * ``branch`` (dict): the dictionary of the second-last item of the path
+       * ``key`` (str): the last item of the path
     """
-    import matplotlib.pyplot as plt
-    import matplotlib.image as mpimg
-    my_image = mpimg.imread(imgfile)
-    fig = plt.figure()
-    ax1 = fig.add_subplot(1,1,1)
-    ax1.set_axis_off()
-    ax1.imshow(my_image)
-    if title: plt.title(title)
-    plt.show()
+    tmp=inp
+    for i,key in enumerate(keys):
+        k=key
+        if i==len(keys)-1: break
+        if key not in tmp: tmp[key]={}
+        tmp=tmp[key]
+    return tmp,k
 
-#interesting slider for vertical matplotlib
-#taken from https://stackoverflow.com/questions/25934279/add-a-vertical-slider-with-matplotlib
-class VertSlider(AxesWidget):
+
+def dict_set(inp,*subfields):
+    """Ensure the provided fields and set the value
+
+    Provide a entry point to the dictionary.
+    Useful to define a key in a dictionary that may not have the
+    previous keys already defined.
+
+    Arguments:
+       inp (dict): the top-level dictionary
+       subfields (str,object): keys, ordered by level, that have to be retrieved from topmost level of ``inp``.
+          The last item correspond to the value to be set .
+
+    Example:
+
+       >>> inp={}
+       >>> dict_set(inp,'dft','nspin','mpol',2)
+       >>> print (inp)
+       {'dft': {'nspin': {'mpol': 2}}}
+
     """
-    A slider representing a floating point range.
+    if len(subfields) <= 1:
+        raise ValueError('invalid subfields')
+    keys=subfields[:-1]
+    tmp,key=push_path(inp,*keys)
+    #tmp=inp
+    #for i,key in enumerate(subfields):
+    #    k=key
+    #    if i==len(subfields)-2: break
+    #    tmp[key]={}
+    #    tmp=tmp[key]
+    tmp[key]=subfields[-1]
 
-    For the slider to remain responsive you must maintain a
-    reference to it.
 
-    The following attributes are defined
-      *ax*        : the slider :class:`matplotlib.axes.Axes` instance
+def dict_merge(dest, src):
+    """ Recursive dict merge. Inspired by :meth:`dict.update`, instead of
+    updating only top-level keys, dict_merge recurses down into dicts nested
+    to an arbitrary depth, updating keys. The ``src`` is merged into
+    ``dest``.  From :ref:`angstwad/dict-merge.py <https://gist.github.com/angstwad/bf22d1822c38a92ec0a9>`
 
-      *val*       : the current slider value
+    Arguments:
+       dest (dict): dict onto which the merge is executed
+       src (dict): dict merged into dest
 
-      *hline*     : a :class:`matplotlib.lines.Line2D` instance
-                     representing the initial value of the slider
-
-      *poly*      : A :class:`matplotlib.patches.Polygon` instance
-                     which is the slider knob
-
-      *valfmt*    : the format string for formatting the slider text
-
-      *label*     : a :class:`matplotlib.text.Text` instance
-                     for the slider label
-
-      *closedmin* : whether the slider is closed on the minimum
-
-      *closedmax* : whether the slider is closed on the maximum
-
-      *slidermin* : another slider - if not *None*, this slider must be
-                     greater than *slidermin*
-
-      *slidermax* : another slider - if not *None*, this slider must be
-                     less than *slidermax*
-
-      *dragging*  : allow for mouse dragging on slider
-
-    Call :meth:`on_changed` to connect to the slider event
     """
-    def __init__(self, ax, label, valmin, valmax, valinit=0.5, valfmt='%1.2f',
-                 closedmin=True, closedmax=True, slidermin=None,
-                 slidermax=None, dragging=True, **kwargs):
-        """
-        Create a slider from *valmin* to *valmax* in axes *ax*.
-
-        Additional kwargs are passed on to ``self.poly`` which is the
-        :class:`matplotlib.patches.Rectangle` which draws the slider
-        knob.  See the :class:`matplotlib.patches.Rectangle` documentation
-        valid property names (e.g., *facecolor*, *edgecolor*, *alpha*, ...).
-
-        Parameters
-        ----------
-        ax : Axes
-            The Axes to put the slider in
-
-        label : str
-            Slider label
-
-        valmin : float
-            The minimum value of the slider
-
-        valmax : float
-            The maximum value of the slider
-
-        valinit : float
-            The slider initial position
-
-        label : str
-            The slider label
-
-        valfmt : str
-            Used to format the slider value, fprint format string
-
-        closedmin : bool
-            Indicate whether the slider interval is closed on the bottom
-
-        closedmax : bool
-            Indicate whether the slider interval is closed on the top
-
-        slidermin : Slider or None
-            Do not allow the current slider to have a value less than
-            `slidermin`
-
-        slidermax : Slider or None
-            Do not allow the current slider to have a value greater than
-            `slidermax`
-
-
-        dragging : bool
-            if the slider can be dragged by the mouse
-
-        """
-        AxesWidget.__init__(self, ax)
-
-        self.valmin = valmin
-        self.valmax = valmax
-        self.val = valinit
-        self.valinit = valinit
-        self.poly = ax.axhspan(valmin, valinit, 0, 1, **kwargs)
-
-        self.hline = ax.axhline(valinit, 0, 1, color='r', lw=1)
-
-        self.valfmt = valfmt
-        ax.set_xticks([])
-        ax.set_ylim((valmin, valmax))
-        ax.set_yticks([])
-        ax.set_navigate(False)
-
-        self.connect_event('button_press_event', self._update)
-        self.connect_event('button_release_event', self._update)
-        if dragging:
-            self.connect_event('motion_notify_event', self._update)
-        self.label = ax.text(0.5, 1.03, label, transform=ax.transAxes,
-                             verticalalignment='center',
-                             horizontalalignment='center')
-
-        self.valtext = ax.text(0.5, -0.03, valfmt % valinit,
-                               transform=ax.transAxes,
-                               verticalalignment='center',
-                               horizontalalignment='center')
-
-        self.cnt = 0
-        self.observers = {}
-
-        self.closedmin = closedmin
-        self.closedmax = closedmax
-        self.slidermin = slidermin
-        self.slidermax = slidermax
-        self.drag_active = False
-
-    def _update(self, event):
-        """update the slider position"""
-        if self.ignore(event):
-            return
-
-        if event.button != 1:
-            return
-
-        if event.name == 'button_press_event' and event.inaxes == self.ax:
-            self.drag_active = True
-            event.canvas.grab_mouse(self.ax)
-
-        if not self.drag_active:
-            return
-
-        elif ((event.name == 'button_release_event') or
-              (event.name == 'button_press_event' and
-               event.inaxes != self.ax)):
-            self.drag_active = False
-            event.canvas.release_mouse(self.ax)
-            return
-
-        val = event.ydata
-        if val <= self.valmin:
-            if not self.closedmin:
-                return
-            val = self.valmin
-        elif val >= self.valmax:
-            if not self.closedmax:
-                return
-            val = self.valmax
-
-        if self.slidermin is not None and val <= self.slidermin.val:
-            if not self.closedmin:
-                return
-            val = self.slidermin.val
-
-        if self.slidermax is not None and val >= self.slidermax.val:
-            if not self.closedmax:
-                return
-            val = self.slidermax.val
-
-        self.set_val(val)
-
-    def set_val(self, val):
-        xy = self.poly.xy
-        xy[1] = 0, val
-        xy[2] = 1, val
-        self.poly.xy = xy
-        self.valtext.set_text(self.valfmt % val)
-        if self.drawon:
-            self.ax.figure.canvas.draw_idle()
-        self.val = val
-        if not self.eventson:
-            return
-        for cid, func in six.iteritems(self.observers):
-            func(val)
-
-    def on_changed(self, func):
-        """
-        When the slider value is changed, call *func* with the new
-        slider position
-
-        A connection id is returned which can be used to disconnect
-        """
-        cid = self.cnt
-        self.observers[cid] = func
-        self.cnt += 1
-        return cid
-
-    def disconnect(self, cid):
-        """remove the observer with connection id *cid*"""
-        try:
-            del self.observers[cid]
-        except KeyError:
-            pass
-
-    def reset(self):
-        """reset the slider to the initial value if needed"""
-        if (self.val != self.valinit):
-            self.set_val(self.valinit)
+    import collections
+    for k, v in src.iteritems():
+        if (k in dest and isinstance(dest[k], dict)
+                and isinstance(src[k], collections.Mapping)):
+            dict_merge(dest[k], src[k])
+        else:
+            dest[k] = src[k]
 
 def file_time(filename):
     """
     Gives the date of the creation of the file, if exists.
-    
+
     :param str filename: name of the file
     :returns: if the file exists, the date of the filename as per os.path.getmtime.
      Otherwise it returns 0
@@ -256,18 +102,126 @@ def file_time(filename):
     else:
         return 0
 
+def make_dict(inp):
+    """
+    Transform the instance ``inp`` into a python dictionary. If inp is already a dictionary, it perfroms a copy.
+
+    Args:
+       inp (dict): a instance of a Class which inherits from dict
+
+    Returns:
+       dict: the copy of the class, converted as a dictionary
+    """
+    import copy
+    local_tmp=copy.deepcopy(inp)
+    local_input={}
+    local_input.update(local_tmp)
+    return local_input
+
+def function_signature_regenerator(target_kwargs_function,fun_name='',fun_docstring='',**kwargs):
+    '''
+    Generate the function of the name provided by `fun_name`, with signature provided by the
+    kwargs dictionary.
+
+    Args:
+       target_kwargs_function (func): keyword arguments function that will be used for the generated function.
+       fun_name (str): name of the regenerated function. If empty it will be the ``target_kwargs_functon.__name__`` prefixed by ``regenerated``, which will be copied in the docstring of the regenerated function.
+       fun_docstring (str): docstring of the generated function, if empty it will take the docstring from ``target_kwargs_function``.
+       **kwargs: keyword arguments which will represent the signature of the generated function.
+
+    Example:
+        >>> def write_kwargs(**kwargs):
+        >>>     """
+        >>>     Convert keyword arguments into a string
+        >>>     """
+        >>>     return str(kwargs)
+        >>> write_opts=function_signature_regenerator(write_kwargs,fun_name='write_opts',opt1='default1',opt2='default2')
+        >>> help(write_opts)
+        >>> print (write_opts())
+        Help on function write_opts:
+
+        write_opts(opt1='default1', opt2='default2')
+              Convert keyword arguments into a string
+
+        {'opt1': 'default1', 'opt2': 'default2'}
+
+    '''
+    signature=option_line_generator(',',**kwargs).lstrip(',')
+    docstring=target_kwargs_function.__doc__ if not fun_docstring else fun_docstring
+    if docstring is None: docstring="Automatically generated function from the target function '"+target_kwargs_function.__name__+"'"
+    docstring='   """\n'+docstring+'\n   """'
+    fname="regenerated_"+target_kwargs_function.__name__ if  not fun_name else fun_name
+    function="def %s(%s):\n%s\n   return target_function(**locals())" % (fname,signature,docstring)
+    gen_locals={}
+    gen_object=compile(function,'generated_fun','exec')
+    eval(gen_object,{'target_function':target_kwargs_function},gen_locals)
+    return gen_locals[fname]
+
+def option_line_generator(separator='--',**kwargs):
+    """
+    Associate to each of the keyword arguments a command line argument.
+
+    Args:
+       separator (str): The string needed to separate the options.
+       Might be '--' for command-line arguments, but also ',' for function signatures.
+
+    Warning:
+        The separator comes **before** the first argument therefore pay attention to
+        lstrip it in case you want to use it as a function signature string.
+
+    Example:
+        >>> option_line_generator(arg1='val1',arg2='val2')
+        '--arg1=val1 --arg2=val2'
+    """
+    command=''
+    for option,value in kwargs.items():
+        command+=separator+option+'="'+str(value)+'" '
+    return command
+
+def option_line_generator(separator='--',**kwargs):
+    """
+    Associate to each of the keyword arguments a command line argument.
+
+    Args:
+       separator (str): The string needed to separate the options.
+       Might be '--' for command-line arguments, but also ',' for function signatures.
+
+    Warning:
+        The separator comes **before** the first argument therefore pay attention to
+        lstrip it in case you want to use it as a function signature string.
+
+    Example:
+        >>> option_line_generator(arg1='val1',arg2='val2')
+        '--arg1=val1 --arg2=val2'
+    """
+    command=''
+    for option,value in kwargs.items():
+        command+=separator+option+'="'+str(value)+'" '
+    return command
+
+def kw_pop(*args,**kwargs):
+    """
+    Treatment of kwargs. Eliminate from kwargs the tuple in args.
+    """
+    arg=kwargs.copy()
+    key,default=args
+    if key in arg:
+        return arg,arg.pop(key)
+    else:
+        return arg,default
+
 
 def find_files(regexp, archive=None):
     """
     Returns a list of the paths to the files that follow the regular expression
-    regexp. They are searched from the current working directory or from an archive 
+    regexp. They are searched from the current working directory or from an archive
     given as optional argument.
 
 
     :param regexp: A regular expression
     :type regexp: string
     :param archive: an opened tarfile archive (optional)
-    :type archive: 
+    :type archive:
     :returns: a list of all the paths that agree with the regexp
     :rtype: list of strings
     :raises: ValueError if the regexp does not find a single path.
@@ -276,10 +230,10 @@ def find_files(regexp, archive=None):
     Example::
 
         #Find all python files in the current working directory
-        find_files('*py') 
+        find_files('*py')
 
         #An exmple outside of the current working directory
-        find_files('*/log-*.yaml') 
+        find_files('*/log-*.yaml')
 
         #Example using a tarfile
         import tarfile
@@ -290,7 +244,7 @@ def find_files(regexp, archive=None):
 
     #Get a list of all paths to files satisfying the regexp
     if archive is not None:
-        paths = _find_files_from_archive(regexp, archive) 
+        paths = _find_files_from_archive(regexp, archive)
     else:
         paths = os.popen('ls '+regexp).read().splitlines()
 
@@ -304,25 +258,55 @@ def find_files(regexp, archive=None):
 
 def _find_files_from_archive(re, archive):
     """
-    This function retrieves the list of Logfiles instances 
-    from the file archived satisfying a regular expression.   
-    #function to identify an archive out of its regexp, 
+    This function retrieves the list of Logfiles instances
+    from the file archived satisfying a regular expression.
+    #function to identify an archive out of its regexp,
     #solves the bug in re for '*' (solved in Python 2.7.6)
     """
-    import tarfile    
+    import tarfile
 
     #Open the archive
     with tarfile.open(archive, 'r') as arch:
     #Return paths to logfiles satisfying the regexp
-        return [f for f in arch.getnames() 
+        return [f for f in arch.getnames()
                 if all(pattern in f for pattern in re.split('*'))]
 
+def ensure_copy(src,dest):
+    """Copy src into dest.
+
+    Guarantees that the file indicated by ``dest`` is a copy of the file ``src``
+
+    Args:
+      src (str): path of the source file. Should be valid.
+      dest (src): path of the destination file
+
+    Returns:
+      bool: ``True`` if the file needed to be copied, ``False`` if ``src`` and ``dest`` are identical
+    """
+    import shutil,os
+    copied=False
+    if (os.path.isfile(dest) and os.stat(dest) != os.stat(src)) or not os.path.isfile(dest):
+        shutil.copy2(src,os.path.dirname(dest))
+        copied=True
+    return copied
+
 def ensure_dir(file_path):
-    """ Guarantees the existance on the directory given by the (relative) file_path """
+    """
+    Guarantees the existance on the directory given by the (relative) file_path
+
+    Args:
+       file_path (str): path of thh directory to be created
+
+    Returns:
+       bool: True if the directory needed to be created, False if it existed already
+    """
     import os
     directory = file_path
+    created=False
     if not os.path.exists(directory):
         os.makedirs(directory)
+        created=True
+    return created
 
 if __name__ == '__main__':
     import os
@@ -337,7 +321,7 @@ if __name__ == '__main__':
     print("Test finding the Utils.py file in this directory")
     print(find_files("Utils.py"))
     print()
- 
+
     #
     print("Test raising a ValueError because the regexp leads to no files")
     try:

@@ -19,6 +19,7 @@ subroutine local_partial_densityLinear(nproc,rsflag,nscatterarr,&
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use locreg_operations
   use box
+  use at_domain, only: domain_geocode,domain_periodic_dims
   implicit none
   logical, intent(in) :: rsflag
   integer, intent(in) :: nproc
@@ -82,7 +83,7 @@ subroutine local_partial_densityLinear(nproc,rsflag,nscatterarr,&
      rho_p = f_malloc0(Lzd%Llr(ilr)%d%n1i*Lzd%Llr(ilr)%d%n2i*Lzd%Llr(ilr)%d%n3i*nspinn,id='rho_p')
      psir = f_malloc((/ Lzd%Llr(ilr)%d%n1i*Lzd%Llr(ilr)%d%n2i*Lzd%Llr(ilr)%d%n3i, npsir /),id='psir')
   
-     if (cell_geocode(Lzd%Llr(ilr)%mesh) == 'F') then
+     if (domain_geocode(Lzd%Llr(ilr)%mesh%dom) == 'F') then
         call f_zero(psir)
      end if
  
@@ -109,7 +110,7 @@ subroutine local_partial_densityLinear(nproc,rsflag,nscatterarr,&
            end do
            
 
-           if (cell_geocode(Lzd%Llr(ilr)%mesh) == 'F') then
+           if (domain_geocode(Lzd%Llr(ilr)%mesh%dom) == 'F') then
 
               !write(*,*) 'WARNING: MODIFIED CALLING SEQUENCE OF partial_density_free!!!!'
               call partial_density_free((rsflag .and. .not. Lzd%linear),nproc,Lzd%Llr(ilr)%d%n1i,&
@@ -126,7 +127,7 @@ subroutine local_partial_densityLinear(nproc,rsflag,nscatterarr,&
 
            ! Copy rho_p to the correct place in rho
 !----- Start new loop giuseppe ----------------------------------------------------------------------------------------
-           peri=cell_periodic_dims(Lzd%Glr%mesh)
+           peri=domain_periodic_dims(Lzd%Glr%mesh%dom)
            bit=box_iter(Lzd%Llr(ilr)%mesh)
            do ispin=1,nspinn
                do while(box_next_z(bit))

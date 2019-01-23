@@ -16,8 +16,8 @@ class DiracSuperposition():
     def __init__(self,dos,wgts=[1.0]):
         """
         Parameters:
-        dos: array containing the density of states per eack k-point. Should be of shape 2
-        wgts: containts the weights of each of the k-points
+           dos: array containing the density of states per eack k-point. Should be of shape 2
+           wgts: contains the weights of each of the k-points
         """
         import numpy as np
         self.dos=dos 
@@ -224,7 +224,7 @@ class DoS():
         for i,e in enumerate(self.range):
             safe_print(e,' '.join(map(str,[d[i] for d in data])))
     
-    def plot(self,sigma=None,legend=True):
+    def plot(self,sigma=None,legend=True,xlmin=None,xlmax=None,ylmin=None,ylmax=None):
         import matplotlib.pyplot as plt
         from matplotlib.widgets import Slider#, Button, RadioButtons
         import numpy
@@ -235,6 +235,14 @@ class DoS():
             #self.plotl.append(self.ax1.plot(self.range,self.curve(dos,norm=self.norms[i],sigma=sigma),label=self.labels[i]))
             self.plotl.append(self.ax1.plot(
                 *dos['dos'].curve(self.range,sigma=sigma),label=self.labels[i]))
+        if xlmax is not None:
+            plt.xlim(xmax = xlmax)
+        if xlmin is not None:
+            plt.xlim(xmin = xlmin)
+        if ylmax is not None:
+            plt.ylim(ymax = ylmax)
+        if ylmin is not None:
+            plt.ylim(ymin = ylmin)
         plt.xlabel('Energy [eV]', fontsize=18)
         plt.ylabel('DoS', fontsize=18)
         if self.ef is not None:
@@ -245,7 +253,11 @@ class DoS():
             #)
         if len(self.labels) > 1 and legend: plt.legend(loc='best')
         axcolor = 'lightgoldenrodyellow'
-        axsigma = plt.axes([0.2, 0.93, 0.65, 0.03], facecolor=axcolor)
+        try:
+            axsigma = plt.axes([0.2, 0.93, 0.65, 0.03], facecolor=axcolor)
+        except:
+            axsigma = plt.axes([0.2, 0.93, 0.65, 0.03], axisbg=axcolor)
+
         self.ssig = Slider(axsigma, 'Smearing', 0.0, 0.4, valinit=sigma)
         self.ssig.on_changed(self.update)
         if hasattr(self,'sdos') and self.sdos:
@@ -323,7 +335,7 @@ class DoS():
     def _set_sdos_sliders(self,cmin,cmax):
         import matplotlib.pyplot as plt
         from matplotlib.widgets import Slider#, Button, RadioButtons
-        from futile.Utils import VertSlider
+        from futile.Figures import VertSlider
         if hasattr(self,'ssdos'):
             self.ssdos[0].ax.clear()
             self.ssdos[0].__init__(self.ssdos[0].ax, 'SDos', cmin, cmax, valinit=cmin)

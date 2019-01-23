@@ -273,7 +273,7 @@ subroutine plot_wf(units_provided,orbname,nexpo,at,factor,lr,hgrids,rxyz,psi, &
   use module_types, only: atoms_data
   use locreg_operations
   use IObox, only: dump_field
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   !Arguments
   logical,intent(in) :: units_provided
@@ -329,7 +329,7 @@ subroutine plot_wf(units_provided,orbname,nexpo,at,factor,lr,hgrids,rxyz,psi, &
   psir = f_malloc(lr%d%n1i*lr%d%n2i*lr%d%n3i,id='psir')
   !initialisation
 !!$  if (lr%geocode == 'F') call f_zero(psir)
-  if (cell_geocode(lr%mesh) == 'F') call f_zero(psir)
+  if (domain_geocode(lr%mesh%dom) == 'F') call f_zero(psir)
 
   call daub_to_isf(lr,w,psi,psir)
 

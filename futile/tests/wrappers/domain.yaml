@@ -1,0 +1,88 @@
+---
+cell: [.inf, .inf, .inf]
+alpha                             : 90.0
+beta                              : 90.0
+gamma                             : 90.0
+units                             : bohr
+---
+cell: [.inf, .inf, 70.0]
+alpha                             : 90.0
+beta                              : 90.0
+gamma                             : 90.0
+units                             : bohr
+---
+cell: [70.0, .inf, 70.0]
+alpha                             : 90.0
+beta                              : 90.0
+gamma                             : 90.0
+units                             : bohr
+---
+cell: [70.0, 70.0, 70.0]
+alpha                             : 90.0
+beta                              : 90.0
+gamma                             : 90.0
+units                             : bohr
+---
+cell: [70.0, 70.0, 70.0]
+alpha                             : 90.0
+beta                              : 90.0
+gamma                             : 74.0
+units                             : bohr
+---
+cell: [70.0, 70.0, 70.0]
+alpha                             : 90.0
+beta                              : 64.0
+gamma                             : 90.0
+units                             : bohr
+---
+cell: [70.0, 70.0, 70.0]
+alpha                             : 43.0
+beta                              : 90.0
+gamma                             : 90.0
+units                             : bohr
+---
+cell: [70.0, 70.0, 70.0]
+alpha                             : 90.0
+beta                              : 85.0
+gamma                             : 52.0
+units                             : bohr
+---
+cell: [70.0, 70.0, 70.0]
+alpha                             : 49.0
+beta                              : 90.0
+gamma                             : 67.0
+units                             : bohr
+---
+cell: [70.0, 70.0, 70.0]
+alpha                             : 45.0
+beta                              : 85.0
+gamma                             : 90.0
+units                             : bohr
+---
+cell: [70.0, 70.0, 70.0]
+alpha                             : 120.0
+beta                              : 80.0
+gamma                             : 55.0
+units                             : bohr
+---
+cell: [70.0, .inf , 70.0]
+alpha                             : 90.0
+beta                              : 64.0
+gamma                             : 90.0
+units                             : bohr
+---
+###cell: [5.46872796, 5.46872796, 5.468727960000001]
+###alpha                             : 90.0
+###beta                              : 70.0
+###gamma                             : 40.00000000000001
+abc:
+-  [5.46872796, 0.0, 0.0]
+-  [4.189288664687385, 3.515230573434344, 0.0]
+-  [1.870415120688292, -2.229073939722805, 4.630309076944543]
+units                             : angstroem
+---
+cell: [5.46872796, 5.46872796, 5.468727960000001]
+alpha                             : 90.0
+beta                              : 70.0
+gamma                             : 40.00000000000001
+units                             : angstroem

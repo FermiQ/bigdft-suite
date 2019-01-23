@@ -416,7 +416,7 @@ module sparsematrix_wrappers
     subroutine determine_sparsity_pattern_distance(orbs, lzd, astruct, cutoff, nnonzero, nonzero, smat_ref)
       use module_types
       use sparsematrix_init, only: matrixindex_in_compressed
-      use box, only: cell_periodic_dims
+      use at_domain, only: domain_periodic_dims
       implicit none
 
       ! Calling arguments
@@ -447,7 +447,7 @@ module sparsematrix_wrappers
 !!$      perx=(lzd%glr%geocode /= 'F')
 !!$      pery=(lzd%glr%geocode == 'P')
 !!$      perz=(lzd%glr%geocode /= 'F')
-      peri=cell_periodic_dims(lzd%glr%mesh)
+      peri=domain_periodic_dims(lzd%glr%mesh%dom)
       ! For periodic boundary conditions, one has to check also in the neighboring
       ! cells (see in the loop below)
       if (peri(1)) then

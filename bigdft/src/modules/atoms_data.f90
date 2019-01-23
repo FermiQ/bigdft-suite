@@ -815,7 +815,7 @@ contains
     end if
   end subroutine get_matrix_from_dict
 
-  
+
   !> Initialize atomic data from the dict (key='ig_occupation')
   subroutine atomic_data_set_from_dict(dict, key, atoms, nspin)
     use module_defs, only: gp
@@ -1087,14 +1087,14 @@ contains
 
     !if the file does not exists we have to check if babel is able to read it
     if (f_err_raise(.not.file_exists, &
-         "Atomic input file not found. Files looked for were: "//&
+         "Atomic input file not found. We looked for files as "//&
          trim(files) //"but none matched.", &
          err_id=BIGDFT_INPUT_FILE_ERROR)) return
 
     !We found a file
     select case (astruct%inputfile_format)
     case("xyz")
-       call f_open_file(unit=iunit,file=trim(filename),status='old')
+       call f_open_file(unit=iunit,file=trim(filename),status='old',action='read')
        !read atomic positions
        if (.not.archive) then
           call read_xyz_positions(iunit,filename,astruct,comment_,energy_,fxyz_,directGetLine,disableTrans)
@@ -1103,7 +1103,7 @@ contains
        end if
 
     case("ascii")
-       call f_open_file(unit=iunit,file=trim(filename),status='old')
+       call f_open_file(unit=iunit,file=trim(filename),status='old',action='read')
        !read atomic positions
        if (.not.archive) then
           call read_ascii_positions(iunit,filename,astruct,comment_,energy_,fxyz_,directGetLine,disableTrans)
@@ -1112,7 +1112,7 @@ contains
        end if
 
     case("int")
-       call f_open_file(unit=iunit,file=trim(filename),status='old')
+       call f_open_file(unit=iunit,file=trim(filename),status='old',action='read')
        !read atomic positions
        if (.not.archive) then
           call read_int_positions(iproc,iunit,astruct,comment_,energy_,fxyz_,directGetLine,disableTrans)
@@ -1140,13 +1140,13 @@ contains
        !get atomic extension
        l=index(filename,'.',back=.true.)+1
        call f_strcpy(src=filename(l:),dest=astruct%inputfile_format)
-     
+
     case default
        call f_err_throw(err_msg="The specified format '" // trim(astruct%inputfile_format) // "' is not recognised."// &
             & " The format should be 'yaml', 'int', 'ascii' or 'xyz'.",err_id=BIGDFT_INPUT_FILE_ERROR)
 
     end select
-    !if an error has been produced return
+    !if an error or both (f_open_file and read) have been produced return
     if (f_err_check()) return
 
     !Check the number of atoms (should be more a f_assert that a error raise)
@@ -1173,7 +1173,8 @@ contains
        write(comment, "(A)") comment_
     end if
     if (present(fxyz)) then
-       if (associated(fxyz_)) then
+
+      if (associated(fxyz_)) then
           !fxyz = f_malloc_ptr(src = fxyz_, id = "fxyz") not needed anymore
           fxyz => fxyz_
        else
@@ -1186,75 +1187,18 @@ contains
 
   END SUBROUTINE set_astruct_from_file
 
-
   subroutine set_astruct_from_openbabel(astruct, obfile)
-    use dictionaries
-    use yaml_strings, only: f_char_ptr
-    use yaml_output
-    use f_utils
     implicit none
     type(atomic_structure), intent(out) :: astruct
     character(len = *), intent(in) :: obfile
 
-    type(dictionary), pointer :: dict,indict,outdict
-
-    interface
-       subroutine openbabel_load(d, f)!,ln)
-         use dictionaries
-         implicit none
-         type(dictionary), pointer :: d
-         !character(len = *), intent(in) :: f
-         character, dimension(*), intent(in) :: f
-         !integer, intent(in) :: ln
-       end subroutine openbabel_load
-       subroutine openbabel_formats(indict,outdict)
-         use dictionaries, only: dictionary
-         implicit none
-         type(dictionary), pointer :: indict,outdict
-       end subroutine openbabel_formats
-    end interface
-
-    call dict_init(dict)
-    call openbabel_load(dict,f_char_ptr(trim(obfile)))!,len(obfile))
-    call openbabel_formats(indict,outdict)
-
-    call yaml_map('Supported input formats',indict)
-    call yaml_map('Supported output formats',outdict)
-    call dict_free(indict,outdict)
-
-      call yaml_map('Parsed posinp dict from openbabel',dict)
-
+      call load_dict_from_openbabel(dict,obfile)
     ! giuseppe line
     !call analyse_posinp_dict(dict)
 
     call astruct_set_from_dict(dict, astruct)
     call dict_free(dict)
   end subroutine set_astruct_from_openbabel
-
-
-  subroutine dump_dict_with_openbabel(dict,dict_types,fout)
-    use dictionaries
-    use yaml_strings, only: f_char_ptr
-    implicit none
-    type(dictionary), pointer :: dict,dict_types
-    character(len=*), intent(in) :: fout
-    !local variables
-
-    interface
-       subroutine openbabel_dump(d, dt, f)!,ln)
-         use dictionaries
-         implicit none
-         type(dictionary), pointer :: d,dt
-         !character(len = *), intent(in) :: f
-         character, dimension(*), intent(in) :: f
-         !integer, intent(in) :: ln
-       end subroutine openbabel_dump
-    end interface
-
-    call openbabel_dump(dict,dict_types,f_char_ptr(trim(fout)))! fout,len_trim(fout))
-
-  end subroutine dump_dict_with_openbabel
-
 
   subroutine analyse_posinp_dict(dict)
     use dictionaries
@@ -1279,7 +1223,7 @@ contains
 
     !put clean values in the dictionary
 
-    !loop on the atomic positions and 
+    !loop on the atomic positions and
     !remove duplicated atoms
     nullify(iter)
     dict_atoms => dict// ASTRUCT_POSITIONS
@@ -1294,7 +1238,7 @@ contains
        end do
        if (boundary) then
        end if
-      
+
     end do
 
     !then put the correct units (for example from openbabel put the angstroem keyword)
@@ -1435,17 +1379,17 @@ contains
     use numerics, only: Bohr_Ang
     use dictionaries
     use yaml_strings
-    use box, only: geocode_to_bc,bc_periodic_dims
+    use at_domain, only: geocode_to_bc,bc_periodic_dims
     use ao_inguess, only: charge_and_spol
     use yaml_output !tmp
-    
+
     implicit none
     type(dictionary), pointer :: dict
     type(atomic_structure), intent(in) :: astruct
     real(gp), dimension(3, astruct%nat), intent(in) :: rxyz
     character(len=*), intent(in), optional :: comment
     !local variables
-    type(dictionary), pointer :: pos, at, last
+    type(dictionary), pointer :: pos, at, last, tmp
     integer :: iat,ichg,ispol,i
     real(gp) :: factor(3)
     logical, dimension(3) :: peri
@@ -1462,8 +1406,9 @@ contains
     case('angstroem','angstroemd0')
        call set(dict // ASTRUCT_UNITS, 'angstroem')
        factor=Bohr_Ang
-    case('reduced') ! Old way to store reduced positions.
-       call set(dict // ASTRUCT_UNITS, 'reduced')
+    case('reduced')
+      ! Old way to store reduced positions.
+      ! call set(dict // ASTRUCT_UNITS, 'reduced')
        reduced = .true.
     case('atomic','atomicd0','bohr','bohrd0')
        ! Default, store nothing
@@ -1475,9 +1420,9 @@ contains
 
     peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
     do i=1,3
-       if (peri(i)) then         
+       if (peri(i)) then
           call set(dict // ASTRUCT_CELL // (i-1), yaml_toa(astruct%cell_dim(i)*factor(i)))
-          if (reduced) factor(i) = 1._gp / astruct%cell_dim(i)
+          !if (reduced) factor(i) = 1._gp / astruct%cell_dim(i)
        else
           call set(dict // ASTRUCT_CELL // (i-1), '.inf')
        end if
@@ -1537,7 +1482,11 @@ contains
     end if
 
     if (len_trim(astruct%inputfile_format) > 0) &
-         & call set(dict // ASTRUCT_PROPERTIES // "format", astruct%inputfile_format)
+         call set(dict // ASTRUCT_PROPERTIES // "format", astruct%inputfile_format)
+
+    if (reduced) &
+         call set(dict // ASTRUCT_PROPERTIES // ASTRUCT_REDUCED,&
+                  reduced)
 
     call f_release_routine()
 
@@ -1829,6 +1778,7 @@ contains
         & BIGDFT_INPUT_FILE_ERROR,f_free_ptr
     use public_keys, only: POSINP,GOUT_FORCES,GOUT_ENERGY,POSINP_SOURCE
     use yaml_strings
+    use yaml_output, only: yaml_map
     use dictionaries
     use module_input_dicts, only: dict_get_run_properties
     implicit none
@@ -1841,10 +1791,10 @@ contains
     type(atomic_structure) :: astruct
     !type(DFT_global_output) :: outs
     character(len=max_field_length) :: msg,radical
-    integer :: ierr,iat
+    integer :: ierr,iat,ie
     real(gp) :: energy
     real(gp), dimension(:,:), pointer :: fxyz
-    type(dictionary), pointer :: dict_tmp,pos
+    type(dictionary), pointer :: dict_tmp,pos,list_msg
 
     call f_routine(id='astruct_file_merge_to_dict')
 
@@ -1861,10 +1811,32 @@ contains
     !       energy = energy, fxyz = fxyz)
     !end if
     !print *,'test2',associated(fxyz)
-    !Check if BIGDFT_INPUT_FILE_ERROR
-    ierr = f_get_last_error(msg)
+
+    !Collect only two erros INPUT_OUTPUT_ERROR or BIGDFT_INPUT_FILE_ERROR
+    !Check if INPUT_OUTPUT_ERROR (collect all errors)
+    call dict_init(list_msg)
+    ierr=f_err_pop(err_name='INPUT_OUTPUT_ERROR',add_msg=msg)
+    if (ierr /= 0) then
+      !Found a file but error when opening the file: collect all same errors
+      do
+        call add(list_msg,msg)
+        ie = f_err_pop(err_name='INPUT_OUTPUT_ERROR',add_msg=msg)
+        if (ie == 0) exit
+      end do
+    else
+      !Check if input file is correct
+      ierr = f_err_pop(err_id=BIGDFT_INPUT_FILE_ERROR,add_msg=msg)
+      do
+        call add(list_msg,msg)
+        ie = f_err_pop(err_id=BIGDFT_INPUT_FILE_ERROR,add_msg=msg)
+        if (ie == 0) exit
+      end do
+    end if
+
+    !ierr = f_get_last_error(msg)
     call f_err_close_try()
 
+    !Check errors and actions
     if (ierr == 0) then
       dict_tmp => dict // key
       !No errors: we have all information in astruct and put into dict
@@ -1884,19 +1856,26 @@ contains
       !call global_output_merge_to_dict(dict // key, outs, astruct)
       call deallocate_atomic_structure(astruct)
 
-    else if (ierr == BIGDFT_INPUT_FILE_ERROR) then
-      !Found no file, raise an error
-      call f_strcpy(src='input',dest=radical)
-      !modify the radical name if it exists
-      call dict_get_run_properties(dict, input_id = radical)
-      msg = "No section 'posinp' for the atomic positions in the file '"//&
-            & trim(radical) // ".yaml'. " // trim(msg)
-      call f_err_throw(err_msg=msg,err_id=ierr)
     else
       ! Raise an error
+      call yaml_map('Found errors',list_msg)
+
+      if (ierr == BIGDFT_INPUT_FILE_ERROR) then
+        !Found no file, raise an error
+        call f_strcpy(src='input',dest=radical)
+        !modify the radical name if it exists
+        call dict_get_run_properties(dict, input_id = radical)
+        msg = "No section 'posinp' for the atomic positions in the file '"//&
+              & trim(radical) // ".yaml'. "
+
+      else
+        msg='Error when opening the input file'
+      end if
       call f_err_throw(err_msg=msg,err_id=ierr)
+
     end if
 
+    call dict_free(list_msg)
     call f_free_ptr(fxyz)
     call f_release_routine()
 
@@ -1953,7 +1932,7 @@ contains
          astruct%inputfile_format='yaml'
     end if
 
-      call domain_set_from_dict(dict,astruct%dom)    
+      call domain_set_from_dict(dict,astruct%dom)
 
       ! Temporary assignation before removal - WARNING, reduced coordinates have to be still defined
       units = astruct%dom%units

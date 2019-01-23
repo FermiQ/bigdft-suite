@@ -144,7 +144,7 @@ contains
     use dynamic_memory
     use f_utils
     use module_base, only: f_err_throw
-    use box, only: bc_periodic_dims,geocode_to_bc
+    use at_domain, only: bc_periodic_dims,geocode_to_bc
 
     implicit none
 

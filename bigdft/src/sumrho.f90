@@ -381,7 +381,7 @@ subroutine local_partial_density(nproc,rsflag,nscatterarr,&
    use module_interfaces, only: partial_density_free
    use locreg_operations
    use locregs
-   use box, only: cell_geocode
+   use at_domain, only: domain_geocode
    implicit none
    logical, intent(in) :: rsflag
    integer, intent(in) :: nproc,nrhotot
@@ -417,7 +417,7 @@ subroutine local_partial_density(nproc,rsflag,nscatterarr,&
    psir = f_malloc((/ lr%d%n1i*lr%d%n2i*lr%d%n3i, npsir /),id='psir')
    !initialisation
    !print *,iproc,'there'
-   if (cell_geocode(lr%mesh) == 'F') call f_zero(psir)
+   if (domain_geocode(lr%mesh%dom) == 'F') call f_zero(psir)
 
    do iorb=1,orbs%norbp
       !print *,'norbp',orbs%norbp,orbs%norb,orbs%nkpts,orbs%kwgts,orbs%iokpt,orbs%occup
@@ -439,7 +439,7 @@ subroutine local_partial_density(nproc,rsflag,nscatterarr,&
             !print *,'iorb,nrm',iorb,npsir,&
             !     nrm2(lr%d%n1i*lr%d%n2i*lr%d%n3i*npsir,psir(1,1),1)
 
-            if (cell_geocode(lr%mesh) == 'F') then
+            if (domain_geocode(lr%mesh%dom) == 'F') then
 
                call partial_density_free(rsflag,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
                   &   npsir,nspinn,nrhotot,&
@@ -701,7 +701,8 @@ subroutine symmetrise_density(iproc,nproc,mesh,n1i,n2i,n3i,nspin,rho,& !n(c) nsc
   use module_types
   use m_ab6_symmetry
   use yaml_output, only: yaml_warning
-  use box, only: cell,cell_geocode
+  use box, only: cell
+  use at_domain, only: domain_geocode
   implicit none
   !Arguments
   integer, intent(in) :: iproc,nproc,nspin, n1i, n2i, n3i
@@ -726,7 +727,7 @@ subroutine symmetrise_density(iproc,nproc,mesh,n1i,n2i,n3i,nspin,rho,& !n(c) nsc
   call symmetry_get_matrices_p(sym%symObj, nSym, symRel, transNon, symAfm, errno = errno)
   if (nSym == 1) return
 !!$  if (geocode == 'F') then
-  if (cell_geocode(mesh) == 'F') then
+  if (domain_geocode(mesh%dom) == 'F') then
      !call yaml_warning('The symmetrization of the density is not implemented for the isolated systems')
      return
   end if
@@ -736,7 +737,7 @@ subroutine symmetrise_density(iproc,nproc,mesh,n1i,n2i,n3i,nspin,rho,& !n(c) nsc
 !!$  call dimensions_fft(n1,n2,n3,nd1,nd2,nd3,n1f,n3f,n1b,n3b,nd1f,nd3f,nd1b,nd3b)
   n2i_eff = n2i
 !!$  if (geocode == "S") then
-  if (cell_geocode(mesh) == "S") then
+  if (domain_geocode(mesh%dom) == "S") then
      n2i_eff = 1
      zw = f_malloc((/ 2, ncache/4, 2 /),id='zw')
      !use this check also for the magnetic density orientation
@@ -782,7 +783,7 @@ subroutine symmetrise_density(iproc,nproc,mesh,n1i,n2i,n3i,nspin,rho,& !n(c) nsc
         isign=-1
 
 !!$        if (geocode /= "S") then
-        if (cell_geocode(mesh) /= "S") then
+        if (domain_geocode(mesh%dom) /= "S") then
            call fft(n1i,n2i_eff,n3i,n1i+1,n2i_eff+1,n3i+1,rhog,isign,inzee)
         else
            call fft2d(n1i,n3i,n1i+1,n3i+1,rhog,isign,inzee,zw,ncache)
@@ -897,7 +898,7 @@ subroutine symmetrise_density(iproc,nproc,mesh,n1i,n2i,n3i,nspin,rho,& !n(c) nsc
 
         isign=1
 !!$        if (geocode /= "S") then
-        if (cell_geocode(mesh) /= "S") then
+        if (domain_geocode(mesh%dom) /= "S") then
            call fft(n1i,n2i_eff,n3i,n1i+1,n2i_eff+1,n3i+1,rhog,isign,inzee)
         else
            call fft2d(n1i,n3i,n1i+1,n3i+1,rhog,isign,inzee,zw,ncache)
@@ -920,7 +921,7 @@ subroutine symmetrise_density(iproc,nproc,mesh,n1i,n2i,n3i,nspin,rho,& !n(c) nsc
 
   call f_free(rhog)
 !!$  if (geocode == "S") then
-  if (cell_geocode(mesh) == "S") then
+  if (domain_geocode(mesh%dom) == "S") then
      call f_free(zw)
   end if
 
@@ -1430,7 +1431,7 @@ END SUBROUTINE rho_segkey
 
 
 subroutine gridcorrection(nbx,nby,nbz,nl1,nl2,nl3,geocode)
-   use box
+   use at_domain, only: bc_periodic_dims, geocode_to_bc
    implicit none
    character(len=1),intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
    integer,intent(out) :: nbx,nby,nbz,nl1,nl2,nl3

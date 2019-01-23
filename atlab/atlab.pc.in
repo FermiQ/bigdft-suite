@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libATlab
+Description: library for ATomic related operations
+Requires: @GLIB_PKG@
+Version: @VERSION@
+Libs: -L${libdir} @LIB_ATLAB_LIBS@
+Cflags: -I${includedir}

@@ -86,8 +86,8 @@ program small_things
   call yaml_map('Test energies',eval)
   call yaml_map('Electronic temperature',kT)
 
-  call eval_to_occ(0,1,norbud(1),norbud(2),sum(norbud), nkpt, wgts, &
-       eval, occup, .false., .true., kT, occopt, efermi, eTS, &
+  call eval_to_occ(0,norbud(1),norbud(2),sum(norbud), nkpt, wgts, &
+       eval, occup, .true., kT, occopt, efermi, eTS, &
        norbud(1),norbud(2))
 
   call yaml_map('Fermi level',efermi)

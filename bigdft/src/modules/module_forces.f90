@@ -144,7 +144,7 @@ subroutine clean_forces_dft(iproc,astruct,rxyz,fxyz,fnoise)
   use module_base
   use module_atoms
   use yaml_output
-  use box, only: bc_periodic_dims,geocode_to_bc
+  use at_domain, only: bc_periodic_dims,geocode_to_bc
   implicit none
   !Arguments
   integer, intent(in) :: iproc

@@ -53,7 +53,7 @@ AC_FC_WRAPPERS()
 AX_FC_DEFS()
 AX_FC_OPENMP()
 
-dnl Set if the module name are capitalized or not with the FC compiler. 
+dnl Set if the module name are capitalized or not with the FC compiler.
 AX_FC_MOD()
 AM_CONDITIONAL(CAPITALIZE, test "$ax_fc_mod_capitalize" = "yes")
 AC_SUBST(MODULE_EXT, $ax_fc_mod_ext)
@@ -95,7 +95,7 @@ AC_MSG_CHECKING([for CheSS binaries build])
 AC_MSG_RESULT([$ac_build_bin_utilities])
 
 
-AX_FLIB()
+AX_ATLAB()
 
 dnl Produce dynamic excecutables.
 AX_DYNAMIC_LIBRARIES([], [f_lib_initialize], [$LIB_FUTILE_LIBS])
@@ -126,10 +126,9 @@ fi
 AM_CONDITIONAL(HAVE_MINPACK, test $ax_have_minpack = "yes")
 
 AX_LINALG()
-AX_ETSF_IO()
 
 dnl Agregate all the optional libs.
-LIB_CHESS_DEPS="$LIBETSFIO_LIBS $LIB_FUTILE_LIBS $PEXSI_LINKLINE"
+LIB_CHESS_DEPS="$LIB_ATLAB_LIBS $PEXSI_LINKLINE"
 dnl if the futile libraries are dynamic add the dependencies
 if test $ax_FUTILE_static != "yes" ; then
   LIB_CHESS_DEPS="$LIB_CHESS_DEPS $LIBCUDA_LIBS $LINALG_LIBS $MPI_LDFLAGS $MPI_LIBS"

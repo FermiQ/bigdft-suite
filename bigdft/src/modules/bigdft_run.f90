@@ -1082,7 +1082,7 @@ contains
     end if
 
     call f_release_routine()
-    
+
   END SUBROUTINE set_run_objects
 
   !> @todo make this routine private by reacting on a change to main coordinates.
@@ -1346,7 +1346,7 @@ contains
     call f_release_routine()
 
   END SUBROUTINE run_objects_init
-  
+
   subroutine run_objects_update(runObj, dict)
     use module_base, only: bigdft_mpi
     use dictionaries!, only: dictionary, dict_update,dict_copy,dict_free,dict_iter,dict_next
@@ -1981,7 +1981,7 @@ contains
             'energies and forces is unknown: '+ enum_int(runObj%run_mode)//&
             '('+f_str(runObj%run_mode)+')',err_name='BIGDFT_RUNTIME_ERROR')
     end select
-    
+
     if (runObj%add_coulomb_force)&
          call coulomb_energyandforces(nat, rxyz_ptr, outs%fxyz, outs%energy)
 !!         anoise=2.d-5
@@ -2325,7 +2325,7 @@ contains
     use module_atoms, only: move_this_coordinate
     use module_forces
     use module_input_keys, only: inputpsiid_set_policy
-    use box, only: bc_periodic_dims,geocode_to_bc
+    use at_domain, only: bc_periodic_dims,geocode_to_bc
     implicit none
     integer, intent(in) :: iproc,nproc
     integer, intent(inout) :: infocode

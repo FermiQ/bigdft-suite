@@ -114,6 +114,7 @@ contains
     use numerics
     use box
     use multipole_preserving
+    use at_domain, only: square_gd,rxyz_ortho
     implicit none
     real(gp), dimension(3), intent(in) :: rxyz
     type(gaussian_real_space), intent(in) :: g
@@ -153,18 +154,18 @@ contains
        !r2=g%exponent*r**2
        !bit%tmp=bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
        bit%tmp=bit%rxyz_nbox-rxyz
-       r2=square_gd(bit%mesh,bit%tmp)
+       r2=square_gd(bit%mesh%dom,bit%tmp)
        !bit%tmp=closest_r(bit%mesh,bit%rxyz,rxyz)
        !r2=square_gd(bit%mesh,bit%tmp)*g%exponent
        fe=safe_exp(-r2*g%exponent,underflow=1.e-120_f_double)
        !rclosest = closest_r(bit%mesh,bit%rxyz,rxyz)
-       vect=rxyz_ortho(bit%mesh,bit%tmp)
+       vect=rxyz_ortho(bit%mesh%dom,bit%tmp)
        ! ATTENTION: Thanks to the projector test Giuseppe detected a segmentation fault when g%pows /= 0 and the size of
        !g%lxyz(:,i). nterms maybe not the same for g%lxyz(:,i) and g%pows.
        ! The implemented approach does not work for mixed conditions, when both
        ! g%lxyz(:,i) and g%pows are /= 0 .
        tt=0.0_gp
-       if (sum(abs(g%pows(:))) == 0) then  
+       if (sum(abs(g%pows(:))) == 0) then
           do i=1,g%nterms
              !this should be in absolute coordinates
              val=product(vect**g%lxyz(:,i))
@@ -199,8 +200,8 @@ contains
 !!$          print *,'other',sum(closest_r(bit%mesh,bit%rxyz,rxyz)**2)
 !!$          stop
 !!$       end if
-
-       f=get_mp_exps_product(g%nterms,bit%inext-1,g%factors)
+       itmp=bit%inext-1
+       f=get_mp_exps_product(g%nterms,itmp,g%factors)
 !!$       do i=1,g%nterms
           !here the distance is calculated in a way that might be better handled
 !!$          bit%tmp(3)=mp_exp(bit%mesh%hgrids(3),rxyz(3),g%exponent,itmp(3),g%lxyz(3,i),domp)
@@ -217,13 +218,14 @@ contains
 
   end function gaussian_radial_value
 
-  !> Calculate the value of the gaussian described by a sum of spherical harmonics of s-channel with 
+  !> Calculate the value of the gaussian described by a sum of spherical harmonics of s-channel with
   !! principal quantum number increased with a given exponent.
   !! the principal quantum numbers admitted are from 1 to 4
   function spherical_times_gaussian(g,rxyz,bit,rhoc,ider) result(f)
     use numerics
     use box
     use multipole_preserving
+    use at_domain, only: square_gd
     implicit none
     type(gaussian_real_space), intent(in) :: g
     real(gp), dimension(3), intent(in) :: rxyz
@@ -234,13 +236,13 @@ contains
     !local variables
     real(gp) :: r2,fe
     integer :: ider_
-    
+
     ider_=0 ! Trigger the first derivative wrt r2
     if (present(ider)) ider_=ider
 
     !bit%tmp = bit%mesh%hgrids*(bit%inext-2)-rxyz-bit%oxyz
     bit%tmp = bit%rxyz_nbox-rxyz
-    r2 = square_gd(bit%mesh,bit%tmp)
+    r2 = square_gd(bit%mesh%dom,bit%tmp)
     fe = gaussian_radial_value(g,rxyz(1),bit)
     f = (rhoc(1)+r2*rhoc(2)+r2**2*rhoc(3)+r2**3*rhoc(4))*fe
     if (ider ==1) then !first derivative with respect to r2
@@ -494,6 +496,7 @@ contains
     use box
     use locregs
     use locreg_operations
+    use at_domain, only: domain_geocode
     implicit none
     type(gaussian_basis_new), intent(in) :: G
     type(gaussian_basis_iter), intent(inout) :: iter
@@ -513,14 +516,14 @@ contains
 
     ! Loop on contraction, treat the first gaussian separately for performance reasons.
     if (gaussian_iter_next_gaussian(G, iter, coeff, expo)) &
-         call gaussian_projector(cell_geocode(mesh), ider, iter%l, iter%n, coeff, expo, &
+         call gaussian_projector(domain_geocode(mesh%dom), ider, iter%l, iter%n, coeff, expo, &
          distance_cutoff, rxyz,mesh%ndims, mesh%hgrids,kpoint, ncplx_p,G%ncplx, &
-         lr%wfd, wpr,psi) 
+         lr%wfd, wpr,psi)
     do
        if (.not. gaussian_iter_next_gaussian(G, iter, coeff, expo)) exit
-         call gaussian_projector(cell_geocode(mesh), ider, iter%l, iter%n, coeff, expo, &
+         call gaussian_projector(domain_geocode(mesh%dom), ider, iter%l, iter%n, coeff, expo, &
          distance_cutoff, rxyz,mesh%ndims, mesh%hgrids,kpoint, ncplx_p,G%ncplx, &
-         lr%wfd, wpr,proj_tmp) 
+         lr%wfd, wpr,proj_tmp)
          call axpy((lr%wfd%nvctr_c+7*lr%wfd%nvctr_f)*ncplx_p*(2*iter%l-1), &
               & 1._wp, proj_tmp(1,1,1), 1, psi(1,1,1), 1)
     end do
@@ -551,7 +554,7 @@ contains
 
     type(ylm_coefficients) :: ylm
     type(gaussian_real_space) :: g
-    
+
     call ylm_coefficients_new(ylm, i, l - 1)
 
     if (ncplx_g > 1) then
@@ -655,13 +658,13 @@ contains
                & cell_r(lr%mesh, lr%nsi3 + 1, 3)]
           bit = lr%bit !use here the real space mesh of the projector locreg
           call three_dimensional_density(bit, grs, sqrt(lr%mesh%volume_element), &
-               & rxyz - oxyz, projector_real)
+               & rxyz - oxyz - bit%oxyz, projector_real)
        end do
        call isf_to_daub(lr, w, projector_real, psi(1,1,ylm%m))
        !print *,'testRS:',sum(projector_real**2),sum(psi(:,:,ylm%m)**2)
     end do
   end subroutine gaussian_iter_to_wavelets_collocation
-  
+
   !> Nullify the pointers of the structure gaussian_basis
   pure subroutine nullify_gaussian_basis(G)
 
@@ -755,7 +758,7 @@ contains
 
     integer :: jat, i, j, ishell, iexpo
     real(gp), dimension(:,:), pointer :: sd
-    
+
     if (f_err_raise(iat <= 0 .or. iat > G%nat, 'Atom index out of bounds', &
          & err_name='BIGDFT_RUNTIME_ERROR')) return
     if (f_err_raise(cplx /= G%ncplx, 'Complex mismatch', &
@@ -2363,7 +2366,8 @@ contains
     real(gp), dimension(3) :: vect
 
     !this should be in absolute coordinates
-    vect = rxyz_ortho(boxit%mesh, closest_r(boxit%mesh, boxit%rxyz, rxyz))
+    !vect = rxyz_ortho(boxit%mesh%dom, closest_r(boxit%mesh%dom, boxit%rxyz, rxyz))
+    vect = box_iter_closest_r(boxit,rxyz,orthorhombic=.true.)
     r = sqrt(vect(1) * vect(1) + vect(2) * vect(2) + vect(3) * vect(3))!distance(boxit%mesh, boxit%rxyz, rxyz)
     tt = 0._gp
     offset = sum(ylm%ntpd(1:ylm%m - 1))
@@ -2379,7 +2383,7 @@ contains
     type(ylm_coefficients), intent(in) :: ylm
     real(gp), intent(in) :: expo, coeff
     integer, intent(in) :: idir, mp_isf_order
-    
+
     !local variables
     real(gp) :: fgamma, fpi, fder
     integer :: offset, nC, nterms_tmp, iterm, der(3), sder(3), ider
@@ -2402,7 +2406,7 @@ contains
     fgamma=2.0_gp*fpi/(sqrt(g%sigma)**(2*ylm%l+4*ylm%n-1))*coeff
     fgamma = fgamma * 2. ** (0.5_gp * ylm%l + ylm%n - 1)
     select case(ylm%l)
-    case(0) 
+    case(0)
        fgamma = fgamma / 1._gp
        fgamma = fgamma / sqrt(real(np0(ylm%n), gp))
     case(1)
@@ -2441,7 +2445,7 @@ contains
        g%lxyz(:,1:g%nterms)=ylm%pow(:, offset + 1:offset + g%nterms)
        g%pows(1:g%nterms)=0
     case(MULTIPOLE_PRESERVING_COLLOCATION)
-       !here the pow is not allowed (yet) therefore combine the powers 
+       !here the pow is not allowed (yet) therefore combine the powers
        !into separable terms. Assume that the powers here are all even
        g%nterms=0
        do iterm=1,ylm%ntpd(ylm%m)

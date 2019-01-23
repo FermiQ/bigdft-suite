@@ -105,7 +105,7 @@ subroutine scfloop_main(acell, epot, fcart, grad, itime, me, natom, rprimd, xred
   use yaml_output
   use module_input_keys, only: inputpsiid_set_policy
   use public_enums, only: ENUM_MEMORY
-  use box, only: bc_periodic_dims,geocode_to_bc
+  use at_domain, only: bc_periodic_dims,geocode_to_bc
   implicit none
 
   integer, intent(in) :: natom, itime, me

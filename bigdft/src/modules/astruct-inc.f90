@@ -14,7 +14,7 @@
       use module_defs, only: gp,UNINITIALIZED, BIGDFT_INPUT_VARIABLES_ERROR
       use dictionaries, dict_set => set
       use dynamic_memory
-      use box, only: geocode_to_bc,bc_periodic_dims
+      use at_domain, only: geocode_to_bc,bc_periodic_dims
       use numerics, only: Bohr_Ang
       use module_base, only: bigdft_mpi
       use yaml_parse, only: yaml_parse_from_string
@@ -31,11 +31,11 @@
       character(len = 1024), intent(out) :: comment
       logical, intent(in), optional :: disableTrans_
       interface
-         subroutine getline(line,ifile,eof)
+         subroutine getLine(line,ifile,eof)
            integer, intent(in) :: ifile
            character(len=256), intent(out) :: line
            logical, intent(out) :: eof
-         END SUBROUTINE getline
+         END SUBROUTINE getLine
       end interface
       !local variables
       character(len=*), parameter :: subname='read_atomic_positions'
@@ -376,12 +376,12 @@ subroutine assign_iatype(iat,ntyp,tatonam,atomnames,iatype)
 end subroutine assign_iatype
 
 !> Read atomic positions of ascii files.
-subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getline,disableTrans_)
+subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLine,disableTrans_)
   use module_base
   use dictionaries, dict_set=>set
   use yaml_parse
   use yaml_output
-  use box, only: geocode_to_bc,bc_periodic_dims
+  use at_domain, only: geocode_to_bc,bc_periodic_dims
   use public_keys, only: ASTRUCT_REDUCED
   implicit none
   integer, intent(in) :: ifile
@@ -392,11 +392,11 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
   character(len = 1024), intent(out) :: comment
   logical, intent(in), optional :: disableTrans_
   interface
-     subroutine getline(line,ifile,eof)
+     subroutine getLine(line,ifile,eof)
        integer, intent(in) :: ifile
        character(len=256), intent(out) :: line
        logical, intent(out) :: eof
-     END SUBROUTINE getline
+     END SUBROUTINE getLine
   end interface
   !local variables
   character(len=*), parameter :: subname='read_ascii_positions'
@@ -428,7 +428,7 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getli
   ! First pass to store the file in a string buffer.
   nlines = 1
   do
-     call getline(lines(nlines), ifile, eof)
+     call getLine(lines(nlines), ifile, eof)
      if (eof) then
         exit
      end if
@@ -684,7 +684,7 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
   use dynamic_memory
   use numerics, only: Bohr_Ang,Radian_Degree
   use yaml_strings, only: yaml_toa
-  use box, only: geocode_to_bc,bc_periodic_dims
+  use at_domain, only: geocode_to_bc,bc_periodic_dims
   implicit none
   integer, intent(in) :: iproc,ifile
   type(atomic_structure), intent(inout) :: astruct
@@ -693,11 +693,11 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
   character(len = 1024), intent(out) :: comment
   logical, intent(in), optional :: disableTrans_
   interface
-     subroutine getline(line,ifile,eof)
+     subroutine getLine(line,ifile,eof)
        integer, intent(in) :: ifile
        character(len=256), intent(out) :: line
        logical, intent(out) :: eof
-     END SUBROUTINE getline
+     END SUBROUTINE getLine
   end interface
   !local variables
   character(len=*), parameter :: subname='read_atomic_positions'
@@ -999,7 +999,7 @@ END SUBROUTINE archiveGetLine
 subroutine rxyz_inside_box(astruct,rxyz)
   use module_defs, only: gp
   use dynamic_memory, only: f_memcpy, f_routine, f_release_routine
-  use box, only: geocode_to_bc,bc_periodic_dims
+  use at_domain, only: geocode_to_bc,bc_periodic_dims
   implicit none
   !> description of the atomic structure
   type(atomic_structure), intent(inout) :: astruct

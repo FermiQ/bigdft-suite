@@ -264,7 +264,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
                 call yaml_map('Moments in',denspot%cfd%m_at_ref,fmt='(f12.6)')
 !!$             if(iproc==0) print *, 'Calling ASD! moments_in:'
 !!$             if(iproc==0) print '(3f12.6)', denspot%cfd%m_at_ref
-                !if(iproc==0) 
+                !if(iproc==0)
                 call asd_wrapper(asd,denspot%cfd%m_at_ref,denspot%cfd%B_at,denspot%cfd%nat)
              end if
              call fmpi_bcast(denspot%cfd%m_at_ref,root=0,comm=bigdft_mpi%mpi_comm)!,check=.true.)
@@ -272,7 +272,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
                 call yaml_map('Moments out',denspot%cfd%m_at_ref,fmt='(f12.6)')
                 call yaml_mapping_close()
              end if
-!!$             if(iproc==0) print *, 'ASD called... moments_out' 
+!!$             if(iproc==0) print *, 'ASD called... moments_out'
 !!$             if(iproc==0) print '(3f12.6)', denspot%cfd%m_at_ref
           end if
      end if
@@ -395,6 +395,8 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
         call paw_compute_dij(wfn%paw, atoms, denspot, denspot%V_XC, &
              & energs%epaw, energs%epawdc, compch_sph)
      end if
+
+
   end if !if (scf)
 
   !debug
@@ -418,9 +420,9 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
 
   ! self-consistent case or not: rhov should be the total potential
   if (denspot%rhov_is /= KS_POTENTIAL) &
-       call f_err_throw('psitohpsi: KS_potential not available, control the operations on rhov',&
+       call f_err_throw('psitohpsi: KS_POTENTIAL not available, control the operations on rhov',&
        err_name='BIGDFT_RUNTIME_ERROR')
-  
+
 
   !temporary, to be corrected with comms structure
   if (wfn%exctxpar == 'OP2P') energs%eexctX = UNINITIALIZED(1.0_gp)
@@ -2163,9 +2165,10 @@ subroutine calc_moments(iproc,nproc,norb,norb_par,nvctr,nspinor,psi,mom_vec)
          do jproc=1,nproc-1
             norb_displ(jproc)=norb_displ(jproc-1)+norb_par(jproc-1)
          end do
+         norb_displ=4*norb_displ
 
          call MPI_GATHERV(mom_vec(1,1,2),4*norb_par(iproc),mpidtypw,&
-            &   mom_vec(1,1,1),4*norb_par,4*norb_displ,mpidtypw,&
+            &   mom_vec(1,1,1),4*norb_par,norb_displ,mpidtypw,&
          0,bigdft_mpi%mpi_comm,ierr)
 
          call f_free(norb_displ)
@@ -2885,7 +2888,7 @@ subroutine integral_equation(iproc,nproc,atoms,wfn,ngatherarr,local_potential,GP
   use yaml_output
   use yaml_parse, only: yaml_load
   use locreg_operations
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iproc,nproc
   type(atoms_data), intent(in) :: atoms
@@ -2954,7 +2957,7 @@ subroutine integral_equation(iproc,nproc,atoms,wfn,ngatherarr,local_potential,GP
 
      dict => yaml_load('{kernel: {screening:'//sqrt(2.0_gp*abs(eks))//'},'//&
           'setup : { verbose: No}}')
-     G_Helmholtz=pkernel_init(0,1,dict,cell_geocode(wfn%Lzd%Llr(ilr)%mesh),&
+     G_Helmholtz=pkernel_init(0,1,dict,domain_geocode(wfn%Lzd%Llr(ilr)%mesh%dom),&
           (/wfn%Lzd%Llr(ilr)%d%n1i,wfn%Lzd%Llr(ilr)%d%n2i,wfn%Lzd%Llr(ilr)%d%n3i/),&
           0.5_gp*wfn%Lzd%hgrids)
      call dict_free(dict)

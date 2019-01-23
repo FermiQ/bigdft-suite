@@ -1,0 +1,14 @@
+---
+Default tolerances:
+ Epsilon: 1.1e-11
+ 
+Keys to ignore:
+ - Groups per proc
+ - Memory* 
+ - Orbital repartition*
+ - Walltime since initialization
+ - Max No. of dictionaries used
+ - Number of omp threads
+numerics_check:
+  Patterns to ignore:
+    - Normal loop

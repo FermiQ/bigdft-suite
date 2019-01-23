@@ -16,7 +16,11 @@ dist_bin_SCRIPTS = bigdftvars.sh bigdft_environment.sh
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = bigdft.pc
 
-SUBDIRS = src plugins
+SUBDIRS = src
+
+if BUILD_DYNAMIC_LIBS
+SUBDIRS += plugins
+endif
 
 # Tests subdir is included only if binaries are compiled.
 if BUILD_BINARIES
