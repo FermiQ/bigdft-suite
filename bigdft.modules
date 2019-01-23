@@ -263,11 +263,14 @@
     <dependencies>
       <dep package="v_sim-dev"/>
       <dep package="openbabel"/>
-      <dep package="libxc"/> 
+      <dep package="libxc"/>
       <dep package="PyYAML"/>
     </dependencies>
   </metamodule>
 
+  <systemmodule id="intltool">
+    <branch repo="system"/>
+    <systemdependencies>
       <dep type="path" name="intltool-extract"/>
     </systemdependencies>
   </systemmodule>
