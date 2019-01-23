@@ -197,7 +197,7 @@ contains
        call angrad_and_acell_to_abc(dom%angrad,dom%acell,dom%abc)
     end if
     do i=1,3
-       dom%uabc(:,i)=dom%abc(:,i)/dom%acell(i)
+       if (dom%acell(i) /= 0.0_gp) dom%uabc(:,i)=dom%abc(:,i)/dom%acell(i)
     end do
 
     call f_assert(all(dom%angrad > 0.0_gp),'Domain inconsistency: some of the angles are not positive')
