@@ -777,7 +777,7 @@ subroutine determine_wfdSphere(ilr,nlr,Glr,hx,hy,hz,Llr)!,outofzone)
 
   use module_base
   use locregs, only: allocate_wfd,locreg_descriptors
-  use box, only: cell_periodic_dims
+  use at_domain, only: domain_periodic_dims
   implicit none
 
   ! Subroutine Scalar Arguments
@@ -805,7 +805,7 @@ subroutine determine_wfdSphere(ilr,nlr,Glr,hx,hy,hz,Llr)!,outofzone)
 !!$  pery=(glr%geocode == 'P')
 !!$  perz=(glr%geocode /= 'F')
 
-  peri=cell_periodic_dims(glr%mesh)
+  peri=domain_periodic_dims(glr%mesh%dom)
   perx=peri(1)
   pery=peri(2)
   perz=peri(3)
@@ -1517,7 +1517,7 @@ subroutine transform_keyglob_to_keygloc(gmesh,Llr,nseg,keyglob,keygloc)
 
   call f_routine(id='transform_keyglob_to_keygloc')
 
-  if (all(Llr%mesh%bc == 0)) then
+  if (all(Llr%mesh%dom%bc == 0)) then
      n1p1=gmesh%ndims(1)
      np=n1p1*gmesh%ndims(2)
      do j = 1, nseg
@@ -1531,9 +1531,9 @@ subroutine transform_keyglob_to_keygloc(gmesh,Llr,nseg,keyglob,keygloc)
         ix = ii-iy*n1p1
 
         ! Apply periodicity
-        call withPer(ix, Llr%ns1, Llr%d%n1, gmesh%ndims(1), gmesh%bc(1) == 1)
-        call withPer(iy, Llr%ns2, Llr%d%n2, gmesh%ndims(2), gmesh%bc(2) == 1)
-        call withPer(iz, Llr%ns3, Llr%d%n3, gmesh%ndims(3), gmesh%bc(3) == 1)
+        call withPer(ix, Llr%ns1, Llr%d%n1, gmesh%ndims(1), gmesh%dom%bc(1) == 1)
+        call withPer(iy, Llr%ns2, Llr%d%n2, gmesh%ndims(2), gmesh%dom%bc(2) == 1)
+        call withPer(iz, Llr%ns3, Llr%d%n3, gmesh%ndims(3), gmesh%dom%bc(3) == 1)
         ! Checking consistency
         if(iz < Llr%ns3 .or. iy < Llr%ns2 .or. ix < Llr%ns1) &
              & stop 'transform_keyglob_to_keygloc : minimum overflow'
@@ -1691,6 +1691,7 @@ subroutine fill_logrid(mesh,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
   use module_base
   use sparsematrix_init, only: distribute_on_tasks
   use box
+  use at_domain, only: domain_geocode
   implicit none
   !Arguments
   type(cell), intent(in) :: mesh
@@ -1723,13 +1724,13 @@ subroutine fill_logrid(mesh,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
   nbox_limit(START_,3)=nl3
   nbox_limit(END_,3)=nu3
 
-  if (any(mesh%bc /= 0) .and. nbuf /=0) then
+  if (any(mesh%dom%bc /= 0) .and. nbuf /=0) then
         call f_err_throw('ERROR: a nonzero value of nbuf is allowed only for Free BC (tails)',&
              err_name='BIGDFT_RUNTIME_ERROR')
         return
   end if
 
-  if (all(mesh%bc == 0)) then
+  if (all(mesh%dom%bc == 0)) then
      !$omp parallel default(none) &
      !$omp shared(nl3, nu3, nl2, nu2, nl1, nu1, logrid) &
      !$omp private(i3, i2, i1)
@@ -1794,7 +1795,7 @@ subroutine fill_logrid(mesh,nl1,nu1,nl2,nu2,nl3,nu3,nbuf,nat,  &
      rad=radii(iatype(iiat))*rmult+(real(nbuf,gp)+eps_mach)*maxval(mesh%hgrids)
      nbox=box_nbox_from_cutoff(mesh,rxyz(:,iiat),rad)
 
-     if (cell_geocode(mesh) == 'F') then
+     if (domain_geocode(mesh%dom) == 'F') then
         if (any( (nbox(START_,:) < nbox_limit(START_,:)) .or. (nbox(END_,:) > nbox_limit(END_,:)) )) then
            call f_err_throw('The box of the atom '//trim(yaml_toa(iat))//' is outside the limit; '//&
                 trim(yaml_toa(reshape(nbox,[6])))//', '//trim(yaml_toa(reshape(nbox_limit,[6]))),&
@@ -1943,6 +1944,7 @@ END SUBROUTINE fill_logrid
 subroutine fill_logrid_with_spheres(bit,rxyz0,rad,logrid)
   use module_defs, only: gp
   use box
+  use at_domain, only: square_gd
   implicit none
   type(box_iterator) :: bit
   real(gp), dimension(3), intent(in) :: rxyz0
@@ -1958,7 +1960,7 @@ subroutine fill_logrid_with_spheres(bit,rxyz0,rad,logrid)
 !!$        print *,bit%i,bit%j,bit%k
 !!$        print *,bit%nbox
 !!$     end if
-     if (square_gd(bit%mesh,bit%tmp) <= rad**2) then
+     if (square_gd(bit%mesh%dom,bit%tmp) <= rad**2) then
         logrid(bit%i,bit%j,bit%k)=.true.
      end if
   end do

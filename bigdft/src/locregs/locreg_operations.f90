@@ -269,7 +269,7 @@ module locreg_operations
 
     !> Initialize work arrays for local hamiltonian
     subroutine initialize_work_arrays_locham_nlr(nlr,lr,nspinor,allocate_arrays,w)
-      use box, only: cell_periodic_dims,cell_geocode
+      use at_domain, only: domain_periodic_dims,domain_geocode
       implicit none
       integer, intent(in) :: nlr, nspinor
       type(locreg_descriptors), dimension(nlr), intent(in) :: lr
@@ -313,7 +313,7 @@ module locreg_operations
          nfu2=max(nfu2,lr(ilr)%d%nfu2)
          nfu3=max(nfu3,lr(ilr)%d%nfu3)
 !!$         if (lr(ilr)%geocode /= geo) stop 'lr(ilr)%geocode/=geo'
-         if (any(cell_periodic_dims(lr(ilr)%mesh) .neqv. cell_periodic_dims(lr(1)%mesh))) &
+         if (any(domain_periodic_dims(lr(ilr)%mesh%dom) .neqv. domain_periodic_dims(lr(1)%mesh%dom))) &
              call f_err_throw('The lrs do not have same BC',err_name='BIGDFT_RUNTIME_ERROR')
          if (lr(ilr)%hybrid_on .neqv. hyb) stop 'lr(ilr)%hybrid_on .neqv. hyb'
       end do
@@ -336,7 +336,7 @@ module locreg_operations
 
 
 !!$      select case(geo)
-      select case(cell_geocode(lr(1)%mesh))
+      select case(domain_geocode(lr(1)%mesh%dom))
       case('F')
          !dimensions of work arrays
          ! shrink convention: nw1>nw2
@@ -470,7 +470,7 @@ module locreg_operations
 
     !> Initialize work arrays for local hamiltonian
     subroutine initialize_work_arrays_locham_llr(lr,nspinor,allocate_arrays,w)
-      use box, only: cell_geocode
+      use at_domain, only: domain_geocode
       implicit none
       integer, intent(in) ::  nspinor
       type(locreg_descriptors), intent(in) :: lr
@@ -515,7 +515,7 @@ module locreg_operations
 
 
 !!$      select case(lr%geocode)
-      select case(cell_geocode(lr%mesh))
+      select case(domain_geocode(lr%mesh%dom))
       case('F')
          !dimensions of work arrays
          ! shrink convention: nw1>nw2
@@ -648,7 +648,7 @@ module locreg_operations
 
 
     subroutine memspace_work_arrays_locham(lr,memwork) !n(c) nspinor (arg:2)
-      use box, only: cell_geocode
+      use at_domain, only: domain_geocode
       implicit none
       type(locreg_descriptors), intent(in) :: lr
       integer(kind=8), intent(out) :: memwork
@@ -670,7 +670,7 @@ module locreg_operations
       nfu3=lr%d%nfu3
 
 !!$      select case(lr%geocode) 
-      select case(cell_geocode(lr%mesh)) 
+      select case(domain_geocode(lr%mesh%dom)) 
       case('F')
          !dimensions of work arrays
          ! shrink convention: nw1>nw2
@@ -760,7 +760,7 @@ module locreg_operations
 
     !> Set to zero the work arrays for local hamiltonian
     subroutine zero_work_arrays_locham(lr,nspinor,w)
-      use box, only: cell_geocode
+      use at_domain, only: domain_geocode
       implicit none
       integer, intent(in) :: nspinor
       type(locreg_descriptors), intent(in) :: lr
@@ -779,7 +779,7 @@ module locreg_operations
       nfu3=lr%d%nfu3
 
 !!$      select case(lr%geocode)
-      select case(cell_geocode(lr%mesh)) 
+      select case(domain_geocode(lr%mesh%dom)) 
 
       case('F')
 
@@ -830,7 +830,7 @@ module locreg_operations
 
 
     subroutine initialize_work_arrays_sumrho_nlr(nlr,lr,allocate_arrays,w)
-      use box, only: cell_periodic_dims,cell_geocode
+      use at_domain, only: domain_periodic_dims,domain_geocode
       implicit none
       integer, intent(in) :: nlr
       type(locreg_descriptors), dimension(nlr), intent(in) :: lr
@@ -874,7 +874,7 @@ module locreg_operations
 !!$            write(*,*) 'lr(ilr)%geocode, geo', lr(ilr)%geocode, geo
 !!$            stop 'lr(ilr)%geocode/=geo'
 !!$         end if
-         if (any(cell_periodic_dims(lr(ilr)%mesh) .neqv. cell_periodic_dims(lr(1)%mesh))) &
+         if (any(domain_periodic_dims(lr(ilr)%mesh%dom) .neqv. domain_periodic_dims(lr(1)%mesh%dom))) &
              call f_err_throw('The lrs do not have same BC',err_name='BIGDFT_RUNTIME_ERROR')
          if (lr(ilr)%hybrid_on .neqv. hyb) stop 'lr(ilr)%hybrid_on .neqv. hyb'
       end do
@@ -887,7 +887,7 @@ module locreg_operations
       end if
 
 !!$      select case(geo)
-      select case(cell_geocode(lr(1)%mesh))
+      select case(domain_geocode(lr(1)%mesh%dom))
       case('F')
          !dimension of the work arrays
          ! shrink convention: nw1>nw2
@@ -943,7 +943,7 @@ module locreg_operations
       end if
 
 
-      if (cell_geocode(lr(1)%mesh) == 'F') then
+      if (domain_geocode(lr(1)%mesh%dom) == 'F') then
          call f_zero(w%x_c)
          call f_zero(w%x_f)
       end if
@@ -954,7 +954,7 @@ module locreg_operations
 
 
     subroutine initialize_work_arrays_sumrho_llr(lr,allocate_arrays,w)
-      use box, only: cell_geocode
+      use at_domain, only: domain_geocode
       implicit none
       type(locreg_descriptors), intent(in) :: lr
       logical, intent(in) :: allocate_arrays
@@ -988,7 +988,7 @@ module locreg_operations
       end if
 
 !!$      select case(lr%geocode)
-      select case(cell_geocode(lr%mesh))
+      select case(domain_geocode(lr%mesh%dom))
       case('F')
          !dimension of the work arrays
          ! shrink convention: nw1>nw2
@@ -1045,7 +1045,7 @@ module locreg_operations
 
 
 !!$      if (lr%geocode == 'F') then
-      if (cell_geocode(lr%mesh) == 'F') then
+      if (domain_geocode(lr%mesh%dom) == 'F') then
          call f_zero(w%x_c)
          call f_zero(w%x_f)
       end if
@@ -1064,7 +1064,7 @@ module locreg_operations
     end subroutine nullify_work_arrays_sumrho
 
     subroutine memspace_work_arrays_sumrho(lr,memwork)
-      use box, only: cell_geocode
+      use at_domain, only: domain_geocode
       implicit none
       type(locreg_descriptors), intent(in) :: lr
       integer(kind=8), intent(out) :: memwork
@@ -1083,7 +1083,7 @@ module locreg_operations
       nfu3=lr%d%nfu3
 
 !!$      select case(lr%geocode)
-      select case(cell_geocode(lr%mesh))
+      select case(domain_geocode(lr%mesh%dom))
       case('F')
          !dimension of the work arrays
          ! shrink convention: nw1>nw2
@@ -1154,7 +1154,8 @@ module locreg_operations
 
 !!$    subroutine allocate_work_arrays(geocode,hybrid_on,ncplx,d,w)
     subroutine allocate_work_arrays(mesh,hybrid_on,ncplx,d,w)
-      use box, only: cell,cell_geocode
+      use box, only: cell
+      use at_domain, only: domain_geocode
       implicit none
 !!$      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
       type(cell), intent(in) :: mesh
@@ -1169,7 +1170,7 @@ module locreg_operations
       integer :: n1f,n3f,n1b,n3b,nd1f,nd3f,nd1b,nd3b
       integer :: nf
 
-      select case(cell_geocode(mesh))
+      select case(domain_geocode(mesh%dom))
       case('F')
 !!$      if (geocode == 'F') then
          !if (cell_geocode(mesh) == 'F') then
@@ -1327,7 +1328,8 @@ module locreg_operations
 
 !!$    subroutine deallocate_work_arrays(geocode,hybrid_on,ncplx,w)
     subroutine deallocate_work_arrays(mesh,hybrid_on,ncplx,w)
-      use box, only: cell,cell_geocode
+      use box, only: cell
+      use at_domain, only: domain_geocode
       implicit none
 !!$      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
       type(cell), intent(in) :: mesh
@@ -1338,7 +1340,7 @@ module locreg_operations
       character(len=*), parameter :: subname='deallocate_work_arrays'
 
 !!$      if (geocode == 'F') then
-      if (cell_geocode(mesh) == 'F') then
+      if (domain_geocode(mesh%dom) == 'F') then
 
          call f_free_ptr(w%xpsig_c)
          call f_free_ptr(w%ypsig_c)
@@ -1349,12 +1351,12 @@ module locreg_operations
          call f_free_ptr(w%x_f3)
 
 !!$      else if ((geocode == 'P' .and. .not. hybrid_on) .or. geocode == 'S') then
-      else if ((cell_geocode(mesh) == 'P' .and. .not. hybrid_on) .or. cell_geocode(mesh) == 'S') then
+      else if ((domain_geocode(mesh%dom) == 'P' .and. .not. hybrid_on) .or. domain_geocode(mesh%dom) == 'S') then
 
          if (ncplx == 1) then
             call f_free_ptr(w%modul1)
 !!$            if (geocode /= 'S') then
-            if (cell_geocode(mesh) /= 'S') then
+            if (domain_geocode(mesh%dom) /= 'S') then
                call f_free_ptr(w%modul2)
             end if
             call f_free_ptr(w%modul3)
@@ -1368,7 +1370,7 @@ module locreg_operations
          call f_free_ptr(w%ww)
 
 !!$      else if (geocode == 'P' .and. hybrid_on) then
-      else if (cell_geocode(mesh) == 'P' .and. hybrid_on) then
+      else if (domain_geocode(mesh%dom) == 'P' .and. hybrid_on) then
 
          call f_free_ptr(w%z1)
          call f_free_ptr(w%z3)
@@ -1383,7 +1385,7 @@ module locreg_operations
          call f_free_ptr(w%y_f)
          call f_free_ptr(w%ypsig_c)
 
-      else if (cell_geocode(mesh) == 'W') then
+      else if (domain_geocode(mesh%dom) == 'W') then
 
          if (ncplx == 1) then
             call f_free_ptr(w%modul3)
@@ -1968,7 +1970,7 @@ module locreg_operations
     END SUBROUTINE global_to_local_parallel
 
     function boundary_weight(hgrids,glr,lr,rad,psi) result(weight_normalized)
-      use box, only: cell_periodic_dims
+      use at_domain, only: domain_periodic_dims
       implicit none
       real(gp), intent(in) :: rad
       real(gp), dimension(3) :: hgrids
@@ -1992,7 +1994,7 @@ module locreg_operations
 !!$      perx=(glr%geocode /= 'F')
 !!$      pery=(glr%geocode == 'P')
 !!$      perz=(glr%geocode /= 'F')
-      peri=cell_periodic_dims(glr%mesh)
+      peri=domain_periodic_dims(glr%mesh%dom)
       perx=peri(1)
       pery=peri(2)
       perz=peri(3)
@@ -2317,7 +2319,7 @@ module locreg_operations
     !!   This routine supposes that the region Blr is contained in the region Alr.
     !!   This should always be the case, if we concentrate on the overlap between two regions.
     subroutine shift_locreg_indexes(Alr,Blr,keymask,nseg)
-     use box, only: cell_geocode
+     use at_domain, only: domain_geocode
      implicit none
     
     ! Arguments
@@ -2335,7 +2337,7 @@ module locreg_operations
     
      ! This routine is only intended for conversions between locregs with the same boundary conditions.
 !!$     if (blr%geocode/='F') then
-     if (cell_geocode(blr%mesh) /= 'F') then
+     if (domain_geocode(blr%mesh%dom) /= 'F') then
          call f_err_throw('shift_locreg_indexes can only be used for locregs with free boundary conditions', &
               err_name='BIGDFT_RUNTIME_ERROR')
      end if
@@ -2386,7 +2388,7 @@ module locreg_operations
     !> Projects a quantity stored with the global indexes (i1,i2,i3) within the localisation region.
     !! @warning: The quantity must not be stored in a compressed form.
     subroutine global_to_local(Glr,Llr,nspin,size_rho,size_Lrho,rho,Lrho)
-     use box, only: cell_geocode
+     use at_domain, only: domain_geocode
  
      implicit none
     
@@ -2409,7 +2411,7 @@ module locreg_operations
     ! store it in a local region (Lrho).
     
 !!$     if(Glr%geocode == 'F') then
-     if(cell_geocode(Glr%mesh) == 'F') then
+     if(domain_geocode(Glr%mesh%dom) == 'F') then
          ! Use loop unrolling here
          indSmall=0
          indSpin=0
@@ -2499,7 +2501,7 @@ module locreg_operations
     !> apply the potential to the psir wavefunction and calculate potential energy
     subroutine psir_to_vpsi(npot,nspinor,lr,pot,vpsir,epot,confdata,vpsir_noconf,econf)
       use dynamic_memory
-      use box, only: cell_geocode
+      use at_domain, only: domain_geocode
       implicit none
       integer, intent(in) :: npot,nspinor
       type(locreg_descriptors), intent(in) :: lr !< localization region of the wavefunction
@@ -2524,7 +2526,7 @@ module locreg_operations
 
       if (confining) then
 !!$         if (lr%geocode == 'F') then
-         if (cell_geocode(lr%mesh) == 'F') then
+         if (domain_geocode(lr%mesh%dom) == 'F') then
             if (present(vpsir_noconf)) then
                if (.not.present(econf)) stop 'ERROR: econf must be present when vpsir_noconf is present!'
                !call apply_potential_lr(lr%d%n1i,lr%d%n2i,lr%d%n3i,&
@@ -2566,7 +2568,7 @@ module locreg_operations
       else
 
 !!$         if (lr%geocode == 'F') then
-         if (cell_geocode(lr%mesh) == 'F') then
+         if (domain_geocode(lr%mesh%dom) == 'F') then
             !call apply_potential_lr(lr%d%n1i,lr%d%n2i,lr%d%n3i,&
             call apply_potential_lr_bounds(lr%d%n1i,lr%d%n2i,lr%d%n3i,&
                  lr%d%n1i,lr%d%n2i,lr%d%n3i,&
@@ -2588,7 +2590,7 @@ module locreg_operations
     end subroutine psir_to_vpsi
    
     subroutine isf_to_daub_kinetic(hx,hy,hz,kx,ky,kz,nspinor,lr,w,psir,hpsi,ekin,k_strten)
-      use box, only: cell_geocode
+      use at_domain, only: domain_geocode
       implicit none
       integer, intent(in) :: nspinor
       real(gp), intent(in) :: hx,hy,hz,kx,ky,kz
@@ -2630,7 +2632,7 @@ module locreg_operations
 
       kstrten=0.0_wp
 !!$      select case(lr%geocode)
-      select case(cell_geocode(lr%mesh))
+      select case(domain_geocode(lr%mesh%dom))
       case('F')
 
          !here kpoints cannot be used (for the moment, to be activated for the 

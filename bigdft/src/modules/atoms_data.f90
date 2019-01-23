@@ -1379,7 +1379,7 @@ contains
     use numerics, only: Bohr_Ang
     use dictionaries
     use yaml_strings
-    use box, only: geocode_to_bc,bc_periodic_dims
+    use at_domain, only: geocode_to_bc,bc_periodic_dims
     use ao_inguess, only: charge_and_spol
     use yaml_output !tmp
 
@@ -1406,8 +1406,9 @@ contains
     case('angstroem','angstroemd0')
        call set(dict // ASTRUCT_UNITS, 'angstroem')
        factor=Bohr_Ang
-    case('reduced') ! Old way to store reduced positions.
-       call set(dict // ASTRUCT_UNITS, 'reduced')
+    case('reduced')
+      ! Old way to store reduced positions.
+      ! call set(dict // ASTRUCT_UNITS, 'reduced')
        reduced = .true.
     case('atomic','atomicd0','bohr','bohrd0')
        ! Default, store nothing
@@ -1421,7 +1422,7 @@ contains
     do i=1,3
        if (peri(i)) then
           call set(dict // ASTRUCT_CELL // (i-1), yaml_toa(astruct%cell_dim(i)*factor(i)))
-          if (reduced) factor(i) = 1._gp / astruct%cell_dim(i)
+          !if (reduced) factor(i) = 1._gp / astruct%cell_dim(i)
        else
           call set(dict // ASTRUCT_CELL // (i-1), '.inf')
        end if
@@ -1481,7 +1482,11 @@ contains
     end if
 
     if (len_trim(astruct%inputfile_format) > 0) &
-         & call set(dict // ASTRUCT_PROPERTIES // "format", astruct%inputfile_format)
+         call set(dict // ASTRUCT_PROPERTIES // "format", astruct%inputfile_format)
+
+    if (reduced) &
+         call set(dict // ASTRUCT_PROPERTIES // ASTRUCT_REDUCED,&
+                  reduced)
 
     call f_release_routine()
 

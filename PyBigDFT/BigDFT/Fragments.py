@@ -297,10 +297,8 @@ class Fragment():
     # def __str__(self):
     #    import yaml
     #    return yaml.dump({'positions': self.atoms,'Properties': {'name': self.id}})
-
-    def set_id(self, id):
-        self.id = id
-
+    def set_id(self,id):
+        self.id=id
     def set_purity_indicator(self, pi):
         self.purity_indicator = pi
 
@@ -331,10 +329,10 @@ class Fragment():
         "Transform the fragment information into a dictionary ready to be put as external potential"
         lat = []
         for at in self.atoms:
-            dat = at.copy()
-            dat['r'] = list(at[GetSymbol(at)])
-            dat['sym'] = self.element(at)
-            # assume that the provided charge is always the net charge
+            dat=at.copy()
+            dat['r']=list(at[GetSymbol(at)])
+            dat['sym']=self.element(at)
+            #assume that the provided charge is always the net charge
             if 'nzion' in dat:
                 dat.pop('nzion')  # for the modification of the conventions
             for k in MULTIPOLE_ANALYSIS_KEYS:
@@ -695,7 +693,12 @@ class System():
                     iat = 0
                 elif len(pos) > 0:
                     # we should break the fragment, alternative strategy
-                    nat_ref=nat_reference if nat_reference is not None else len(fragmentation[ifrag][1])
+                    if nat_reference is not None:
+                        nat_ref = nat_reference
+                    elif fragmentation is not None:
+                        nat_ref = len(fragmentation[ifrag][1])
+                    else:
+                        nat_ref = -1
                     if iat == nat_ref:
                         if frag is not None:
                             self.append(frag)

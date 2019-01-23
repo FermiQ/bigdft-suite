@@ -76,11 +76,14 @@ program numeric_check
 !!$  boxit = box_iter(mesh,origin=rxyz,cutoff=cutoff)
 !!$  call finalize_real_space_conversion()
 
+  call test_domain()
+
   call test_f_functions()
 
   call dict_free(options)
   !here some tests about the box usage
   call test_box_functions()
+
 
   call f_lib_finalize()
 
@@ -123,18 +126,28 @@ end subroutine test_f_functions
 subroutine test_box_functions()
   use futile, gp=>f_double
   use box
-  use numerics, only: pi
+  use numerics, only: onehalf,pi
+  use at_domain
   implicit none
   !local variables
   integer(f_long) :: tomp,tseq
+  type(domain) :: dom_ortho,dom_noortho
   type(cell) :: mesh_ortho,mesh_noortho
   integer, dimension(3) :: ndims
   real(gp), dimension(:,:,:,:), allocatable :: v1,v2
   real(gp), dimension(3) :: angrad
+  real(gp), dimension(3) :: acell
 
   ndims=[300,300,300]
 
-  mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  angrad(1) = 90.0_gp/180.0_gp*pi
+  angrad(2) = 90.0_gp/180.0_gp*pi
+  angrad(3) = 90.0_gp/180.0_gp*pi
+
+!!$  mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  dom_ortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,FREE_BC,PERIODIC_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
+  mesh_ortho=cell_new(dom_ortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
 
   v1=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v1')
   v2=f_malloc([3,ndims(1),ndims(2),ndims(3)],id='v2')
@@ -156,28 +169,55 @@ subroutine test_box_functions()
 
   ndims=70
 
+!!$  mesh_ortho=cell_null()
+!!$  mesh_ortho=cell_new('F',ndims,[1.0_gp,1.0_gp,1.0_gp])
+
+  dom_ortho=domain_null()
+  dom_ortho = domain_new(ATOMIC_UNITS,[FREE_BC,FREE_BC,FREE_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
+
   mesh_ortho=cell_null()
-  mesh_ortho=cell_new('F',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  mesh_ortho = cell_new(dom_ortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
   call loop_box_function('distance',mesh_ortho)
   call loop_box_function('box_cutoff',mesh_ortho)
    
+!!$  mesh_ortho=cell_null()
+!!$  mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
+
+  dom_ortho=domain_null()
+  dom_ortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,FREE_BC,PERIODIC_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
   mesh_ortho=cell_null()
-  mesh_ortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  mesh_ortho = cell_new(dom_ortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
   call loop_box_function('distance',mesh_ortho)
   call loop_box_function('box_cutoff',mesh_ortho)
 
+!!$  mesh_ortho=cell_null()
+!!$  mesh_ortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp])
+
+  dom_ortho=domain_null()
+  dom_ortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,PERIODIC_BC,PERIODIC_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
   mesh_ortho=cell_null()
-  mesh_ortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp])
+  mesh_ortho = cell_new(dom_ortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
   call loop_box_function('distance',mesh_ortho)
   call loop_box_function('box_cutoff',mesh_ortho)
   call loop_box_function('consistency_check',mesh_ortho)
-  call loop_box_function('box_folding',mesh_ortho)
+!  call loop_box_function('box_folding',mesh_ortho)
 
   angrad(1) = 90.0_gp/180.0_gp*pi
   angrad(2) = 70.0_gp/180.0_gp*pi
   angrad(3) = 90.0_gp/180.0_gp*pi
   
-  mesh_noortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+!!$  mesh_noortho=cell_new('S',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+
+  dom_noortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,FREE_BC,PERIODIC_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
+  mesh_noortho = cell_new(dom_noortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
   call loop_box_function('distance',mesh_noortho)
   call loop_box_function('box_cutoff',mesh_noortho)
 
@@ -185,8 +225,15 @@ subroutine test_box_functions()
   angrad(2) = 80.0_gp/180.0_gp*pi
   angrad(3) = 80.0_gp/180.0_gp*pi
   
+!!$  mesh_noortho=cell_null()
+!!$  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+
+  dom_noortho=domain_null()
+  dom_noortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,PERIODIC_BC,PERIODIC_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
   mesh_noortho=cell_null()
-  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+  mesh_noortho = cell_new(dom_noortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
   call loop_box_function('distance',mesh_noortho)
   call loop_box_function('box_cutoff',mesh_noortho)
 
@@ -194,21 +241,35 @@ subroutine test_box_functions()
   angrad(2) = 50.0_gp/180.0_gp*pi
   angrad(3) = 90.0_gp/180.0_gp*pi
   
+!!$  mesh_noortho=cell_null()
+!!$  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+
+  dom_noortho=domain_null()
+  dom_noortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,PERIODIC_BC,PERIODIC_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
   mesh_noortho=cell_null()
-  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+  mesh_noortho = cell_new(dom_noortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
   call loop_box_function('distance',mesh_noortho)
   call loop_box_function('box_cutoff',mesh_noortho)
   call loop_box_function('consistency_check',mesh_noortho)
 
-! to be set 2oo to have the sphere inside the whole box
+! to be set 200 to have the sphere inside the whole box
   ndims=150
   !ndims=200
   angrad(1) = 20.0_gp/180.0_gp*pi
   angrad(2) = 25.0_gp/180.0_gp*pi
   angrad(3) = 30.0_gp/180.0_gp*pi
   
+!!$  mesh_noortho=cell_null()
+!!$  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+
+  dom_noortho=domain_null()
+  dom_noortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,PERIODIC_BC,PERIODIC_BC],&
+              alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
   mesh_noortho=cell_null()
-  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+  mesh_noortho = cell_new(dom_noortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
   call loop_box_function('distance',mesh_noortho)
   call loop_box_function('box_cutoff',mesh_noortho)
 
@@ -216,6 +277,72 @@ subroutine test_box_functions()
   call f_free(v2)
 
 end subroutine test_box_functions
+
+subroutine test_domain()
+  use futile, gp=>f_double
+  use box
+  use numerics, only: pi
+  use yaml_parse, only: yaml_parse_from_file
+  use at_domain
+  use f_utils
+  use dictionaries
+  implicit none
+  !local variables
+  type(dictionary), pointer :: yaml_file_dict
+  character(len=64) :: mainfile
+  integer, parameter :: file_number=14
+  character(len=64), dimension(file_number) :: filenames
+  type(domain) :: dom
+  logical :: exists
+  integer :: i
+  
+filenames =['domain_ortho_fbc.yaml','domain_ortho_wbc.yaml','domain_ortho_sbc.yaml',&
+'domain_ortho_pbc.yaml','domain_noortho_90_90_74.yaml','domain_noortho_90_64_90.yaml',&
+'domain_noortho_43_90_90.yaml','domain_noortho_90_85_52.yaml','domain_noortho_49_90_67.yaml',&
+'domain_noortho_49_85_90.yaml','domain_noortho_120_80_55.yaml','domain_noortho_surface.yaml',&
+'domain_abc.yaml','domain_abc_from_ang_ace.yaml']
+
+  call f_strcpy(src='domain.yaml',dest=mainfile)
+  call f_file_exists(trim(mainfile),exists)
+  call yaml_mapping_open('Check of domain')
+  if (exists) then
+      call yaml_map('File exist',mainfile)
+      call yaml_parse_from_file(yaml_file_dict,trim(mainfile))
+      !call yaml_dict_dump(yaml_file_dict)
+      do i=0,file_number-1
+       call domain_set_from_dict(yaml_file_dict//i,dom)
+       call print_domain(filenames(i+1),dom)
+      end do
+  else
+      call yaml_map('File does not exist',mainfile)
+  end if
+  call yaml_mapping_close()
+  call dict_free(yaml_file_dict)
+
+end subroutine test_domain
+
+subroutine print_domain(filename,dom)
+  use at_domain
+  use futile
+  implicit none
+  character(len=64), intent(in) :: filename
+  type(domain), intent(in) :: dom
+
+  call yaml_mapping_open('Domain')
+  call yaml_map('filename',filename)
+  call yaml_map('units',dom%units)
+  call yaml_map('orthorhombic',dom%orthorhombic)
+  call yaml_map('bc',dom%bc)
+  call yaml_map('angrad',dom%angrad)
+  call yaml_map('abc',dom%abc)
+  call yaml_map('uabc',dom%uabc)
+  call yaml_map('acell',dom%acell)
+  call yaml_map('gd',dom%gd)
+  call yaml_map('gu',dom%gu)
+  call yaml_map('detgd',dom%detgd)
+  call yaml_mapping_close()
+
+end subroutine print_domain
 
 subroutine loop_box_function(fcheck,mesh)
   use futile
@@ -225,6 +352,7 @@ subroutine loop_box_function(fcheck,mesh)
   use yaml_strings
   use wrapper_MPI
   use numerics, only:pi
+  use at_domain
   implicit none
   character(len=*), intent(in) :: fcheck
   type(cell), intent(in) :: mesh
@@ -240,7 +368,7 @@ subroutine loop_box_function(fcheck,mesh)
   integer, parameter :: START_=1,END_=2
   logical :: enter
 
-  angdeg = mesh%angrad*180.0_f_double/pi
+  angdeg = mesh%dom%angrad*180.0_f_double/pi
   select case(trim(fcheck))
   case('distance')
      bit=box_iter(mesh)
@@ -250,17 +378,17 @@ subroutine loop_box_function(fcheck,mesh)
      ! rxyz_ortho, distance, r_wrap, closest_r, 
      ! square_gu, square_gd, dotp_gu, dotp_gd.
      call yaml_mapping_open('Check of functions distance, closest_r, rxyz_ortho')
-     call yaml_map('Cell orthorhombic',mesh%orthorhombic)
+     call yaml_map('Cell orthorhombic',mesh%dom%orthorhombic)
      call yaml_map('Cell ndims',mesh%ndims)
      call yaml_map('Cell hgrids',mesh%hgrids)
      call yaml_map('Cell angles deg',angdeg)
-     call yaml_map('Cell angles rad',mesh%angrad)
-     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%bc)
+     call yaml_map('Cell angles rad',mesh%dom%angrad)
+     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%dom%bc)
      call yaml_map('Volume element',mesh%volume_element)
-     call yaml_map('Contravariant matrix',mesh%gu)
-     call yaml_map('Covariant matrix',mesh%gd)
-     call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
-     call yaml_map('uabc matrix',mesh%uabc)
+     call yaml_map('Contravariant matrix',mesh%dom%gu)
+     call yaml_map('Covariant matrix',mesh%dom%gd)
+     call yaml_map('Product of the two',matmul(mesh%dom%gu,mesh%dom%gd))
+     call yaml_map('uabc matrix',mesh%dom%uabc)
      call yaml_map('Sphere radius or cube side',r)
      do i=1,3
         totvolS=0.0_f_double
@@ -272,17 +400,20 @@ subroutine loop_box_function(fcheck,mesh)
         if (i==2) cen=mesh%ndims(1)*0.5_f_double
         if (i==3) cen=mesh%ndims(1)*1.5_f_double
         rxyz0=[cen,cen,cen]
-        if (mesh%bc(1)==0) rxyz0(1)=mesh%ndims(1)*0.5_f_double
-        if (mesh%bc(2)==0) rxyz0(2)=mesh%ndims(2)*0.5_f_double
-        if (mesh%bc(3)==0) rxyz0(3)=mesh%ndims(3)*0.5_f_double
+        if (mesh%dom%bc(1)==0) rxyz0(1)=mesh%ndims(1)*0.5_f_double
+        if (mesh%dom%bc(2)==0) rxyz0(2)=mesh%ndims(2)*0.5_f_double
+        if (mesh%dom%bc(3)==0) rxyz0(3)=mesh%ndims(3)*0.5_f_double
         do while(box_next_point(bit))
            ! Sphere volume integral with distance
-           if (distance(bit%mesh,bit%rxyz,rxyz0) .le. r) then
+           !if (distance(bit%mesh,bit%rxyz,rxyz0) .le. r) then
+           if (box_iter_distance(bit,rxyz0) .le. r) then
               totvolS=totvolS+1.0_f_double
            end if
            ! Sphere volume integral with rxyz_ortho
-           rd=closest_r(bit%mesh,bit%rxyz,rxyz0)
-           rv=rxyz_ortho(bit%mesh,rd)
+           !rd=closest_r(bit%mesh,bit%rxyz,rxyz0)
+           rd=box_iter_closest_r(bit,rxyz0)
+           !rv=rxyz_ortho(bit%mesh,rd)
+           rv=box_iter_closest_r(bit,rxyz0,orthorhombic=.true.)
            d2=0.0_f_double
            do ii=1,3
               d2=d2+rv(ii)**2
@@ -291,7 +422,8 @@ subroutine loop_box_function(fcheck,mesh)
            if (dist1 .le. r) then
               totvolS1=totvolS1+1.0_f_double
            end if
-           d2=square_gd(mesh,rd)
+           !d2=square_gd(mesh,rd)
+           d2=square_gd(mesh%dom,rd)
            dist2=sqrt(d2)
            ! Sphere volume integral with rxyz_ortho
            if (dist2 .le. r) then
@@ -349,17 +481,17 @@ subroutine loop_box_function(fcheck,mesh)
      ! To check the functions box_nbox_from_cutoff and 
      ! cell_cutoff_extremao of box.f90.
      call yaml_mapping_open('Check of box cutoff')
-     call yaml_map('Cell orthorhombic',mesh%orthorhombic)
+     call yaml_map('Cell orthorhombic',mesh%dom%orthorhombic)
      call yaml_map('Cell ndims',mesh%ndims)
      call yaml_map('Cell hgrids',mesh%hgrids)
      call yaml_map('Cell angles deg',angdeg)
-     call yaml_map('Cell angles rad',mesh%angrad)
-     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%bc)
+     call yaml_map('Cell angles rad',mesh%dom%angrad)
+     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%dom%bc)
      call yaml_map('Volume element',mesh%volume_element)
-     call yaml_map('Contravariant matrix',mesh%gu)
-     call yaml_map('Covariant matrix',mesh%gd)
-     call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
-     call yaml_map('uabc matrix',mesh%uabc)
+     call yaml_map('Contravariant matrix',mesh%dom%gu)
+     call yaml_map('Covariant matrix',mesh%dom%gd)
+     call yaml_map('Product of the two',matmul(mesh%dom%gu,mesh%dom%gd))
+     call yaml_map('uabc matrix',mesh%dom%uabc)
      call yaml_map('Sphere radius or cube side',r)
      call yaml_map('Box cube cutoff',cutoff)
      do i=2,2
@@ -371,9 +503,9 @@ subroutine loop_box_function(fcheck,mesh)
         if (i==2) cen=mesh%ndims(1)*0.5_f_double
         if (i==3) cen=mesh%ndims(1)*1.5_f_double
         rxyz0=[cen,cen,cen]
-        if (mesh%bc(1)==0) rxyz0(1)=mesh%ndims(1)*0.5_f_double
-        if (mesh%bc(2)==0) rxyz0(2)=mesh%ndims(2)*0.5_f_double
-        if (mesh%bc(3)==0) rxyz0(3)=mesh%ndims(3)*0.5_f_double
+        if (mesh%dom%bc(1)==0) rxyz0(1)=mesh%ndims(1)*0.5_f_double
+        if (mesh%dom%bc(2)==0) rxyz0(2)=mesh%ndims(2)*0.5_f_double
+        if (mesh%dom%bc(3)==0) rxyz0(3)=mesh%ndims(3)*0.5_f_double
         call yaml_map('Sphere or cube center',rxyz0)
         bit=box_iter(mesh)
         call yaml_map('bit%nbox whole box',bit%nbox)
@@ -385,7 +517,8 @@ subroutine loop_box_function(fcheck,mesh)
         do while(box_next_point(bit))
 
            ! Sphere volume integral with distance
-           if (distance(bit%mesh,bit%rxyz,rxyz0) .le. r) then
+           !if (distance(bit%mesh,bit%rxyz,rxyz0) .le. r) then
+           if (box_iter_distance(bit,rxyz0) .le. r) then
              nbox_ref(START_,1)=min(bit%i,nbox_ref(START_,1))
              nbox_ref(END_,1)=max(bit%i,nbox_ref(END_,1))
              nbox_ref(START_,2)=min(bit%j,nbox_ref(START_,2))
@@ -401,14 +534,17 @@ subroutine loop_box_function(fcheck,mesh)
 !            print*, bit%i,bit%j,bit%k
 !           end if
 
-           rd=closest_r(bit%mesh,bit%rxyz,rxyz0)
-           rv=rxyz_ortho(bit%mesh,rd)
+           !rd=closest_r(bit%mesh,bit%rxyz,rxyz0)
+           rd=box_iter_closest_r(bit,rxyz0)
+           !rv=rxyz_ortho(bit%mesh,rd)
+           rv=box_iter_closest_r(bit,rxyz0,orthorhombic=.true.)
+
            d2=0.0_f_double
            do ii=1,3
               d2=d2+rv(ii)**2
            end do
            dist1=sqrt(d2)
-           d2=square_gd(mesh,rd)
+           d2=square_gd(mesh%dom,rd)
            dist2=sqrt(d2)
            diff_old=abs(dist2-dist1)
            if (diff_old.gt.diff) then
@@ -476,23 +612,23 @@ subroutine loop_box_function(fcheck,mesh)
      call yaml_mapping_close()
   case('consistency_check')
      call yaml_mapping_open('Check of consistency of cell data')
-     call yaml_map('Cell orthorhombic',mesh%orthorhombic)
+     call yaml_map('Cell orthorhombic',mesh%dom%orthorhombic)
      call yaml_map('Cell ndims',mesh%ndims)
      call yaml_map('Cell hgrids',mesh%hgrids)
      call yaml_map('Cell angles deg',angdeg)
-     call yaml_map('Cell angles rad',mesh%angrad)
-     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%bc)
+     call yaml_map('Cell angles rad',mesh%dom%angrad)
+     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%dom%bc)
      call yaml_map('Volume element',mesh%volume_element)
-     call yaml_map('Contravariant matrix',mesh%gu)
-     call yaml_map('Covariant matrix',mesh%gd)
-     call yaml_map('Product of the two',matmul(mesh%gu,mesh%gd))
-     call yaml_map('uabc matrix',mesh%uabc)
+     call yaml_map('Contravariant matrix',mesh%dom%gu)
+     call yaml_map('Covariant matrix',mesh%dom%gd)
+     call yaml_map('Product of the two',matmul(mesh%dom%gu,mesh%dom%gd))
+     call yaml_map('uabc matrix',mesh%dom%uabc)
 
-     abc = mesh%uabc
+     abc = mesh%dom%uabc
 
-     alpha=mesh%angrad(1)
-     beta=mesh%angrad(2)
-     gamma=mesh%angrad(3)
+     alpha=mesh%dom%angrad(1)
+     beta=mesh%dom%angrad(2)
+     gamma=mesh%dom%angrad(3)
      ths1 = 1.0d-15
 
      ! check if vectors are normalized. In this case vectors are given by column
@@ -521,9 +657,9 @@ subroutine loop_box_function(fcheck,mesh)
         ang(i) = dot_product(abc(:,i1),abc(:,i2))
      end do
      call yaml_map('Cell angles cosine from abc',ang)
-     call yaml_map('Cell angles cosine input',cos(mesh%angrad))
+     call yaml_map('Cell angles cosine input',cos(mesh%dom%angrad))
      call yaml_mapping_close()
-     if (any(abs(ang - cos(mesh%angrad)) >= ths2)) call yaml_map('Inconsistency between angles and primitive cell vectors','')
+     if (any(abs(ang - cos(mesh%dom%angrad)) >= ths2)) call yaml_map('Inconsistency between angles and primitive cell vectors','')
      call yaml_mapping_close()
   case('box_folding')
      call yaml_mapping_open('Check box folding in iterator')
@@ -538,7 +674,7 @@ subroutine loop_box_function(fcheck,mesh)
         totvol_Bcutoff=totvol_Bcutoff+1._f_double
      end do
      call yaml_map('check counted points', int(totvol_Bcutoff) == product(nbox(2, :) - nbox(1, :) + 1))
-     call yaml_map('check folding', (int(IntaS) == 2 ** sum(mesh%bc)))
+     call yaml_map('check folding', (int(IntaS) == 2 ** sum(mesh%dom%bc)))
      call yaml_mapping_close()
   case('other')
   end select
@@ -551,6 +687,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
   use f_utils
   use yaml_strings
   use wrapper_MPI
+  use at_domain
   implicit none
   character(len=*), intent(in) :: strategy
   type(cell), intent(in) :: mesh
@@ -585,7 +722,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      do i3=1,mesh%ndims(3)
         do i2=1,mesh%ndims(2)
            do i1=1,mesh%ndims(1)
-              res=dotp_gd(mesh,v1(1,i1,i2,i3),v2(1,i1,i2,i3))
+              res=dotp_gd(mesh%dom,v1(1,i1,i2,i3),v2(1,i1,i2,i3))
               res=res/20.0_f_double
               totdot=totdot+res
               v2(:,i1,i2,i3)=res
@@ -602,7 +739,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      do i3=1,mesh%ndims(3)
         do i2=1,mesh%ndims(2)
            do i1=1,mesh%ndims(1)
-              res=dotp_gd(mesh,v1(1,i1,i2,i3),v2(1,i1,i2,i3))
+              res=dotp_gd(mesh%dom,v1(1,i1,i2,i3),v2(1,i1,i2,i3))
               res=res/20.0_f_double
               totdot=totdot+res
               v2(:,i1,i2,i3)=res
@@ -616,7 +753,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      totdot=0.0_f_double
      t0=f_time()
      do while(box_next_point(bit))
-        res=dotp_gd(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(1,bit%i,bit%j,bit%k))
+        res=dotp_gd(bit%mesh%dom,v1(1,bit%i,bit%j,bit%k),v2(1,bit%i,bit%j,bit%k))
         res=res/20.0_f_double
         totdot=totdot+res
         v2(:,bit%i,bit%j,bit%k)=res
@@ -636,7 +773,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      !$ nthread=omp_get_num_threads()
      call box_iter_split(bit,nthread,ithread)
      do while(box_next_point(bit))
-        res=dotp_gd(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(1,bit%i,bit%j,bit%k))
+        res=dotp_gd(bit%mesh%dom,v1(1,bit%i,bit%j,bit%k),v2(1,bit%i,bit%j,bit%k))
         res=res/20.0_f_double
         totdot=totdot+res
         v2(:,bit%i,bit%j,bit%k)=res
@@ -656,7 +793,7 @@ subroutine loop_dotp(strategy,mesh,v1,v2,time)
      totdot=0.0_f_double
      t0=f_time()
      do while(box_next_point(bit))
-        res=dotp_gd(bit%mesh,v1(1,bit%i,bit%j,bit%k),v2(1,bit%i,bit%j,bit%k))
+        res=dotp_gd(bit%mesh%dom,v1(1,bit%i,bit%j,bit%k),v2(1,bit%i,bit%j,bit%k))
         res=res/20.0_f_double
         totdot=totdot+res
         v2(:,bit%i,bit%j,bit%k)=res

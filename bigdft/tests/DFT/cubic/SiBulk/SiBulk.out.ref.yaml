@@ -889,12 +889,12 @@
    BC                                  : Periodic
    Box                                 :  [  48,  48,  48 ]
    MPI tasks                           :  2
- Multipole analysis origin             :  [  1.282607E+00,  1.282607E+00,  1.282607E+00 ]
+ Multipole analysis origin             :  [  6.413034E+00,  6.413034E+00,  6.413034E+00 ]
  Electric Dipole Moment (AU):
-   P vector                            :  [ -3.7893E+00, -3.7893E+00, -3.7893E+00 ]
+   P vector                            :  [ 3.7893E+00, 3.7893E+00, 3.7893E+00 ]
    norm(P)                             :  6.563340E+00
  Electric Dipole Moment (Debye):
-   P vector                            :  [ -9.6316E+00, -9.6316E+00, -9.6316E+00 ]
+   P vector                            :  [ 9.6316E+00, 9.6316E+00, 9.6316E+00 ]
    norm(P)                             :  1.668234E+01
  Quadrupole Moment (AU):
    Q matrix:

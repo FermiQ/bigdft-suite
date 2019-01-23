@@ -14,8 +14,10 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
   use module_base
   use module_types
   use box
+  use at_domain
   use bounds, only: ext_buffers_coarse
   use compression
+  use numerics, only: onehalf,pi
   implicit none
   integer, intent(in) :: n1_old,n2_old,n3_old,n1,n2,n3  !n(c) iproc
   real(gp), intent(in) :: hx,hy,hz,displ,hx_old,hy_old,hz_old
@@ -39,6 +41,7 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
   real(wp), dimension(:,:,:), allocatable :: psifscfold
   real(gp), dimension(3) :: rd
   type(cell) :: mesh
+  type(domain) :: dom
   logical, dimension(3) :: peri
   !real(kind=4) :: t0, t1
   !real(kind=8) :: time
@@ -46,12 +49,16 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
   call f_routine(id='reformatonewave')
 
 
-  mesh=cell_new(at%astruct%geocode,[n1,n2,n3],[hx,hy,hz])
+  !mesh=cell_new(at%astruct%geocode,[n1,n2,n3],[hx,hy,hz])
+  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1,n2,n3]*[hx,hy,hz])
+  mesh=cell_new(dom,[n1,n2,n3],[hx,hy,hz])
+
   !conditions for periodicity in the three directions
 !!$  perx=(at%astruct%geocode /= 'F')
 !!$  pery=(at%astruct%geocode == 'P')
 !!$  perz=(at%astruct%geocode /= 'F')
-  peri=cell_periodic_dims(mesh)
+  peri=domain_periodic_dims(mesh%dom)
   perx=peri(1)
   pery=peri(2)
   perz=peri(3)
@@ -98,7 +105,7 @@ subroutine reformatonewave(displ,wfd,at,hx_old,hy_old,hz_old,n1_old,n2_old,n3_ol
 
     rd=0.0_gp
      do iat=1,at%astruct%nat
-       rd=rd+closest_r(mesh,rxyz(:,iat),center=rxyz_old(:,iat))
+       rd=rd+closest_r(mesh%dom,rxyz(:,iat),center=rxyz_old(:,iat))
      end do
      rd=rd/real(at%astruct%nat,gp)
      dx=rd(1)
@@ -294,7 +301,9 @@ subroutine readonewave(unitwf,useFormattedInput,iorb,iproc,n1,n2,n3,&
   use io, only: io_read_descr, io_error, read_psi_compress
   use yaml_output
   use box
+  use at_domain
   use compression
+  use numerics, only: onehalf,pi
   implicit none
   logical, intent(in) :: useFormattedInput
   integer, intent(in) :: unitwf,iorb,iproc,n1,n2,n3
@@ -315,10 +324,14 @@ subroutine readonewave(unitwf,useFormattedInput,iorb,iproc,n1,n2,n3,&
   real(gp) :: tx,ty,tz,displ,hx_old,hy_old,hz_old!,mindist
   real(wp), dimension(:,:,:,:,:,:), allocatable :: psigold
   type(cell) :: mesh
+  type(domain) :: dom
 
   call f_routine(id=subname)
 
-  mesh=cell_new(at%astruct%geocode,[n1,n2,n3],[hx,hy,hz])
+  !mesh=cell_new(at%astruct%geocode,[n1,n2,n3],[hx,hy,hz])
+  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1,n2,n3]*[hx,hy,hz])
+  mesh=cell_new(dom,[n1,n2,n3],[hx,hy,hz])
 
   !write(*,*) 'INSIDE readonewave'
   call io_read_descr(unitwf, useFormattedInput, iorb_old, eval, n1_old, n2_old, n3_old, &
@@ -330,7 +343,7 @@ subroutine readonewave(unitwf,useFormattedInput,iorb,iproc,n1,n2,n3,&
   
   displ=0.0_gp
   do iat=1,at%astruct%nat
-    displ=displ+distance(mesh,rxyz(:,iat),rxyz_old(:,iat))**2
+    displ=displ+distance(mesh%dom,rxyz(:,iat),rxyz_old(:,iat))**2
   enddo
   displ=sqrt(displ)
 

@@ -13,6 +13,7 @@ module IObox
   use f_precisions, only: dp =>f_double, gp => f_double
   use box
   use f_enums
+  use at_domain
   implicit none
 
   integer, parameter :: UNKNOWN=0
@@ -768,8 +769,8 @@ module IObox
          nl=1
          nc=mesh%ndims
       else
-         call startend_buffers(cell_geocode(mesh),nl(1),nl(2),nl(3),nbx,nby,nbz)
-         call cube_dimensions(cell_geocode(mesh),mesh%ndims,nc(1),nc(2),nc(3))
+         call startend_buffers(domain_geocode(mesh%dom),nl(1),nl(2),nl(3),nbx,nby,nbz)
+         call cube_dimensions(domain_geocode(mesh%dom),mesh%ndims,nc(1),nc(2),nc(3))
       end if
     end subroutine dimensions_from_format
 
@@ -892,6 +893,7 @@ module IObox
       use IOboxETSF, only: write_etsf_density
       use yaml_strings
       use f_harmonics
+      use at_domain, only: domain_geocode
       implicit none
       !integer,intent(in) :: fileunit0,fileunitx,fileunity,fileunitz
       integer, intent(in) :: nspin
@@ -934,7 +936,7 @@ module IObox
 
       call get_format_enum(filename,form,isuffix)
 
-      geocode=cell_geocode(mesh)
+      geocode=domain_geocode(mesh%dom)
       ndims=mesh%ndims
       hgrids=mesh%hgrids
       nat=0

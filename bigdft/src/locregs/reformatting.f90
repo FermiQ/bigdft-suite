@@ -103,6 +103,7 @@ contains
     use rototranslations
     use locregs
     use box
+    use at_domain, only: closest_r
     implicit none
     type(rototranslation), intent(in) :: rt
     type(cell), intent(in) :: mesh_glr_src,mesh_glr_dest
@@ -120,8 +121,8 @@ contains
     oxyz_src=true_origin(mesh_glr_src,llr_src)
     oxyz_dest=true_origin(mesh_glr_dest,llr_dest)
 
-    centre_src=closest_r(mesh_glr_src,rt%rot_center_src,oxyz_src)
-    centre_dest=closest_r(mesh_glr_dest,rt%rot_center_dest,oxyz_dest)
+    centre_src=closest_r(mesh_glr_src%dom,rt%rot_center_src,oxyz_src)
+    centre_dest=closest_r(mesh_glr_dest%dom,rt%rot_center_dest,oxyz_dest)
 
     da = centre_dest-centre_src-&
          (llr_src%mesh_coarse%hgrids-llr_dest%mesh_coarse%hgrids)*0.5_gp
@@ -152,6 +153,7 @@ contains
     use locregs
     use dictionaries, dict_set=>set
     use box
+    use at_domain, only: domain_periodic_dims,square_gd
     implicit none
     real(gp), intent(in) :: tol ! tolerance for rotations and shifts
     type(locreg_descriptors), intent(in) :: dest_llr, src_llr
@@ -173,7 +175,7 @@ contains
          src_llr,dest_llr,&
          centre_src,centre_dest,da)
 
-    displ=square_gd(dest_llr%mesh_coarse,da)
+    displ=square_gd(dest_llr%mesh_coarse%dom,da)
 
     call dict_set(info // DISPL_KEY ,sqrt(displ))
     info_reformat => info // REASONS_KEY
@@ -264,7 +266,7 @@ contains
       logical :: yes
       !local variables
       logical, dimension(3) :: per
-      per=cell_periodic_dims(glr_mesh)
+      per=domain_periodic_dims(glr_mesh%dom)
       yes=.false.
       select case(idim)
       case(1)
@@ -372,6 +374,7 @@ contains
     use locreg_operations
     use bounds, only: ext_buffers_coarse,locreg_mesh_coarse_origin
     use box
+    use at_domain, only: domain_geocode
     implicit none
     integer, dimension(3), intent(in) :: n,n_old
 !    real(gp), dimension(3), intent(in) :: hgrids,hgrids_old
@@ -404,7 +407,7 @@ contains
 
     call f_routine(id=subname)
 
-    geocode=cell_geocode(llr%mesh)
+    geocode=domain_geocode(llr%mesh%dom)
     
     ! old reformatting, otherwise in ISF (routines below should be incapsulated in a s1s0 method (libconv)
     if (.not. present(psirold)) then
@@ -574,6 +577,7 @@ contains
        centre_src,centre_dest,da)
     use box
     use rototranslations
+    use at_domain, only: closest_r
     implicit none
     type(rototranslation), intent(in) :: rt
     type(cell), intent(in) :: mesh_src,mesh_dest
@@ -583,8 +587,8 @@ contains
     !here for periodic BC we should check the correctness of the centre definition
     !in particular it appears weird that mesh_dest is always used for closest r
     !as well as the shift of hgrid/2 that have to be imposed for the detection of da array
-    centre_src=closest_r(mesh_dest,rt%rot_center_src,oxyz_src)
-    centre_dest=closest_r(mesh_dest,rt%rot_center_dest,oxyz_dest)
+    centre_src=closest_r(mesh_dest%dom,rt%rot_center_src,oxyz_src)
+    centre_dest=closest_r(mesh_dest%dom,rt%rot_center_dest,oxyz_dest)
 
     da = centre_dest-centre_src-(mesh_src%hgrids-mesh_dest%hgrids)*0.5_gp
     

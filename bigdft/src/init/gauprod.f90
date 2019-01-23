@@ -1108,6 +1108,7 @@ subroutine dual_gaussian_coefficients(bcell,norbp,G,coeffs)
   use gaussians
   use dynamic_memory
   use box
+  use at_domain, only: domain_periodic_dims
   implicit none
   type(cell), intent(in) :: bcell
   integer, intent(in) :: norbp
@@ -1124,7 +1125,7 @@ subroutine dual_gaussian_coefficients(bcell,norbp,G,coeffs)
   ovrlp = f_malloc0(G%ncoeff*G%ncoeff,id='ovrlp')
   work = f_malloc(G%ncoeff*G%ncoeff,id='work')
   ! Crude periodicity handling.
-  peri = cell_periodic_dims(bcell)
+  peri = domain_periodic_dims(bcell%dom)
   ni = 0
   if (peri(1)) ni = -1
   pi = 0
@@ -1293,7 +1294,7 @@ subroutine wavetogau(lr,n1,n2,n3,nterm,ntp,lx,ly,lz,fac_arr,xp,psiat,rx,ry,rz,hx
      nseg_c,mvctr_c,keyg_c,keyv_c,nseg_f,mvctr_f,keyg_f,keyv_f,psi_c,psi_f,overlap)
   use module_base
   use locregs
-  use box, only: cell_periodic_dims
+  use at_domain, only: domain_periodic_dims
   implicit none
 !!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   type(locreg_descriptors), intent(in) :: lr
@@ -1324,7 +1325,7 @@ subroutine wavetogau(lr,n1,n2,n3,nterm,ntp,lx,ly,lz,fac_arr,xp,psiat,rx,ry,rz,hx
 !!$  perx=(geocode /= 'F')
 !!$  pery=(geocode == 'P')
 !!$  perz=(geocode /= 'F')
-  peri=cell_periodic_dims(lr%mesh)
+  peri=domain_periodic_dims(lr%mesh%dom)
   perx=peri(1)
   pery=peri(2)
   perz=peri(3)

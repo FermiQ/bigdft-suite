@@ -285,6 +285,7 @@ subroutine Surfaces_Kernel(iproc,nproc,mpi_comm,inplane_comm,n1,n2,n3,m3,nker1,n
   use module_fft_sg, only: p_index
   use box
   use numerics, only: twopi
+  use at_domain, only: square_gu
   implicit none
   include 'perfdata.inc'
 
@@ -583,7 +584,7 @@ subroutine Surfaces_Kernel(iproc,nproc,mpi_comm,inplane_comm,n1,n2,n3,m3,nker1,n
         !acerioni
         !new3:
         p=[ponx/h1,mu0_screening/twopi,pony/h2]
-        mu1=h3*twopi*sqrt(square_gu(mesh,p))
+        mu1=h3*twopi*sqrt(square_gu(mesh%dom,p))
 
         call calculates_green_opt(n_range,n_scf,itype_scf,ipolyord,x_scf,y_scf,&
              cpol(1,ipolyord),mu1,dx,kernel_scf)
