@@ -1,10 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-EXTRA_DIST = \
-	fldiff_yaml.py.in \
-	report.py.in \
-	yaml_hl.cfg yaml_hl_remarks.cfg	\
-	README
+EXTRA_DIST = fldiff_yaml.py.in report.py.in README
 
 SUBDIRS = \
 	flib \
@@ -31,6 +27,8 @@ mpirun_message = mpirun
 else
 mpirun_message =
 endif
+
+BUILT_SOURCES = fldiff_yaml.py report.py
 
 fldiff_yaml.py: fldiff_yaml.py.in
 	@$(SED)							\
@@ -71,11 +69,11 @@ oclrun: head_message $(mpirun_message)
 	@echo "     and the environment variable ocl_devices"
 	@echo "         ex: export ocl_devices='K20'"
 
-CLEANFILES =  report.py fldiff_yaml.py
+CLEANFILES = report.py fldiff_yaml.py
 
 all: head_message foot_message
 
 check: report
 
 report: report.py
-	@if test $(MAKELEVEL) = 0 ; then python $(pythondir)/report.py ; fi
+	@if test $(MAKELEVEL) = 0 ; then python ./report.py ; fi

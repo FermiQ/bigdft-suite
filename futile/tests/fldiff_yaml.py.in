@@ -414,7 +414,7 @@ class Pouet:
         self.input = input
         self.output = None
         self.style = "ascii"
-        self.config = os.path.join(path, config)
+        self.config = os.path.join(os.path.dirname(yaml_hl.__file__), config)
 
 # Color options: one for the general text
 options = Pouet()

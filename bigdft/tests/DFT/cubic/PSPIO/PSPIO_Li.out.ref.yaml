@@ -440,8 +440,8 @@
     #WARNING: PSP generated with a different XC. Input XC is "XC: Teter 93"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Positions:
+   units                               : bohr
+   positions:
    - Li: [ 10.80000000,  10.80000000,  10.80000000] # [  27.00,  27.00,  27.00 ] 0001
    Rigid Shift Applied (AU)            :  [  10.800,  10.800,  10.800 ]
   #------------------------------------------------------------------------- Grid properties
