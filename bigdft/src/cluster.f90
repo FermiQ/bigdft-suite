@@ -705,10 +705,12 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
           inputpsi,input_wf_format,norbv,lzd_old,psi_old,rxyz_old,tmb_old,ref_frags,cdft,&
           locregcenters)
       call f_free_ptr(locregcenters)
+      
   else
+
       call input_wf(iproc,nproc,in,GPU,atoms,rxyz,denspot,denspot0,nlpsp,KSwfn,tmb,energs,&
            inputpsi,input_wf_format,norbv,lzd_old,psi_old,rxyz_old,tmb_old,ref_frags,cdft)
-   end if
+  end if
 
   nvirt=min(in%nvirt,norbv)
 
@@ -1054,7 +1056,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
            ! Calculate all projectors, or allocate array for on-the-fly calculation
            call timing(iproc,'CrtProjectors ','ON')
            call orbital_basis_associate(ob,orbs=VTwfn%orbs,Lzd=KSwfn%Lzd)
-           call createProjectorsArrays(iproc,nproc,KSwfn%Lzd%Glr,rxyz,atoms,ob%orbs,&
+           call createProjectorsArrays(KSwfn%Lzd%Glr,rxyz,atoms,ob%orbs,&
                 in%frmult,in%frmult,&
                 in%projection,.false.,nlpsp,.true.)
            call orbital_basis_release(ob)
@@ -1181,7 +1183,6 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
 
         !start the Casida's treatment
         !if (in%tddft_approach=='TDA') then
-        
         if (in%tddft_approach /= 'NONE') then
 
            !does it make sense to use GPU only for a one-shot sumrho?
@@ -1239,7 +1240,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
                 denspot%rhov,energs%exc,energs%evxc,in%nspin,denspot%rho_C,&
                 denspot%rhohat,denspot%V_XC,xcstr,denspot%f_XC)
 
-!!$$!MM test 
+!!$$!MM test
 !!$$           if (iproc==0) open(unit=201,file='toplot0.dat')
 !!$$           if (iproc==2) open(unit=203,file='toplot2.dat')
 !!$$           n1m=KSwfn%Lzd%Glr%d%n1i
@@ -1265,12 +1266,12 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
 !!$$
 !!$$              do i3p=1,n3m
 !!$$                 if (iproc==0) write(201,'(i4,7(2x,E16.9E2))') i3p,&
-!!$$                                  denspot%rhov(i1+((i2-1)+(i3p-1)*n2m)*n1m),& 
+!!$$                                  denspot%rhov(i1+((i2-1)+(i3p-1)*n2m)*n1m),&
 !!$$                                  denspot%rhov(i1+((i2-1)+(i3p-1)*n2m)*n1m+n1m*n2m*n3m),&
 !!$$                                  denspot%V_XC(i1,i2,i3p,1), denspot%V_XC(i1,i2,i3p,2), &
 !!$$                                  denspot%f_XC(i1,i2,i3p,1), denspot%f_XC(i1,i2,i3p,2), denspot%f_XC(i1,i2,i3p,3)
 !!$$                 if (iproc==2) write(203,'(i4,7(2x,E16.9E2))') i3p,&
-!!$$                                  denspot%rhov(i1+((i2-1)+(i3p-1)*n2m)*n1m),& 
+!!$$                                  denspot%rhov(i1+((i2-1)+(i3p-1)*n2m)*n1m),&
 !!$$                                  denspot%rhov(i1+((i2-1)+(i3p-1)*n2m)*n1m+n1m*n2m*n3m),&
 !!$$                                  denspot%V_XC(i1,i2,i3p,1), denspot%V_XC(i1,i2,i3p,2), &
 !!$$                                  denspot%f_XC(i1,i2,i3p,1), denspot%f_XC(i1,i2,i3p,2), denspot%f_XC(i1,i2,i3p,3)
@@ -1280,16 +1281,16 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
 !!$$
 !!$$           if (iproc==0) close(unit=201)
 !!$$           if (iproc==2) close(unit=203)
-!!$$!MM end test 
+!!$$!MM end test
 
 
            call denspot_set_rhov_status(denspot, CHARGE_DENSITY, -1,iproc,nproc)
 
            !select the active space if needed
            exc_fac = 0.0
-           if (in%ixc==100) then 
+           if (in%ixc==100) then
               !call yaml_comment('HF detected',hfill='-')
-              exc_fac=1.0 !if HF, exc_fac=1.0 
+              exc_fac=1.0 !if HF, exc_fac=1.0
            end if
 
            call tddft_casida(iproc,nproc,trim(in%dir_output),atoms,rxyz,&
@@ -1378,7 +1379,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
            call f_free_ptr(denspot%pot_work)
         else
            nullify(denspot%pot_work)
-        end if       
+        end if
 !!$        call f_free(hpsi_tmp)
      end if
   end if
@@ -1513,7 +1514,7 @@ contains
     end if
     call f_free_ptr(denspot%rhohat)
     call cfd_free(denspot%cfd)
-       
+
     call f_free(denspot0)
 
     ! Free all remaining parts of KSwfn
@@ -2151,7 +2152,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
   end if
   hstrten=PSenergies%strten
 
-  !In principle symmetrization of the stress tensor is not needed since the density has been 
+  !In principle symmetrization of the stress tensor is not needed since the density has been
   !already symmetrized
   if (atoms%astruct%sym%symObj >= 0 .and. domain_geocode(denspot%pkernel%mesh%dom)=='P') &
        call symm_stress(hstrten,atoms%astruct%sym%symObj)
@@ -2214,7 +2215,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
         call f_err_throw('The coordinates of the point through which '//&
              'the potential shall be plotted must all be non-zero',&
              err_name='BIGDFT_RUNTIME_ERROR')
-     else 
+     else
         call plot_density(iproc,nproc,trim(dir_output)//'hartree_potential' // gridformat, &
              atoms,rxyz,denspot%pkernel,1,denspot%pot_work)
      end if
@@ -2261,7 +2262,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
      if (linear) then
         call orbital_basis_associate(ob,orbs=KSwfn%orbs,Lzd=KSwfn%Lzd)
      else
-        call orbital_basis_associate(ob,orbs=KSwfn%orbs,phis_wvl=KSwfn%psi,Lzd=KSwfn%Lzd)        
+        call orbital_basis_associate(ob,orbs=KSwfn%orbs,phis_wvl=KSwfn%psi,Lzd=KSwfn%Lzd)
      end if
   call calculate_forces(iproc,nproc,denspot%pkernel%mpi_env%nproc,KSwfn%Lzd%Glr,atoms,ob,nlpsp,rxyz,&
           KSwfn%Lzd%hgrids(1),KSwfn%Lzd%hgrids(2),KSwfn%Lzd%hgrids(3),&

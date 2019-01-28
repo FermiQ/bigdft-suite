@@ -43,6 +43,8 @@ Calculators to be used with BigDFT package to trigger runs of the code
 
 Organize runs and analyze output in a dataset
 
+.. toctree:: BigDFT.PostProcessing
+
 .. toctree:: datasets
 
 (Py)BigDFT Tutorial page

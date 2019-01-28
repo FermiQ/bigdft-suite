@@ -28,6 +28,7 @@ module constrained_dft
      character(len=100) :: method
      integer, dimension(2) :: ifrag_charged ! make it allocatable eventually to allow for more charged fragments
      integer :: nfrag_charged
+     integer :: nit ! number of iterations for loop over V_c - eventually we might always want to make this 1
   end type cdft_data
 
   public :: nullify_cdft_data, cdft_data_allocate, cdft_data_free, cdft_data_init
@@ -42,6 +43,7 @@ contains
     cdft%charge=0
     cdft%lag_mult=0.0_gp
     cdft%ndim_dens=0
+    cdft%nit=0
     nullify(cdft%weight_function)
     !call nullify_sparse_matrix(cdft%weight_matrix)
     cdft%weight_matrix = sparse_matrix_null()
@@ -81,12 +83,12 @@ contains
 
   end subroutine cdft_data_allocate
 
-  subroutine cdft_data_init(cdft,input_frag,ndimrho,transfer_int,cdft_lag_mult_init)
+  subroutine cdft_data_init(cdft,input_frag,ndimrho,transfer_int,cdft_lag_mult_init,nit)
    use fragment_base, only: fragmentInputParameters
     implicit none
     type(cdft_data), intent(inout) :: cdft
     type(fragmentInputParameters), intent(in) :: input_frag
-    integer, intent(in) :: ndimrho
+    integer, intent(in) :: ndimrho, nit
     logical, intent(in) :: transfer_int
     real(kind=8), intent(in) :: cdft_lag_mult_init
 
@@ -148,6 +150,8 @@ contains
 
     cdft%method='lowdin'
     !cdft%method='fragment_density'
+
+    cdft%nit=nit
 
   end subroutine cdft_data_init
 

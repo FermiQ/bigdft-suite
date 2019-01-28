@@ -22,7 +22,8 @@ module module_atoms
        & ASTRUCT_ATT_IGSPIN, ASTRUCT_ATT_IGCHRG, ASTRUCT_ATT_IXYZ_1, &
        & ASTRUCT_ATT_IXYZ_2, ASTRUCT_ATT_IXYZ_3, &
        & ASTRUCT_ATT_RXYZ_INT_1, ASTRUCT_ATT_RXYZ_INT_2, &
-       & ASTRUCT_ATT_RXYZ_INT_3, ASTRUCT_ATT_MODE, ASTRUCT_ATT_CAVRAD
+       & ASTRUCT_ATT_RXYZ_INT_3, ASTRUCT_ATT_MODE, ASTRUCT_ATT_CAVRAD, &
+       & ASTRUCT_REDUCED
   use dictionaries, only: dictionary
   use f_trees, only: f_tree
   use f_arrays
@@ -814,7 +815,7 @@ contains
     end if
   end subroutine get_matrix_from_dict
 
-  
+
   !> Initialize atomic data from the dict (key='ig_occupation')
   subroutine atomic_data_set_from_dict(dict, key, atoms, nspin)
     use module_defs, only: gp
@@ -1139,7 +1140,7 @@ contains
        !get atomic extension
        l=index(filename,'.',back=.true.)+1
        call f_strcpy(src=filename(l:),dest=astruct%inputfile_format)
-     
+
     case default
        call f_err_throw(err_msg="The specified format '" // trim(astruct%inputfile_format) // "' is not recognised."// &
             & " The format should be 'yaml', 'int', 'ascii' or 'xyz'.",err_id=BIGDFT_INPUT_FILE_ERROR)
@@ -1278,7 +1279,7 @@ contains
 
     !put clean values in the dictionary
 
-    !loop on the atomic positions and 
+    !loop on the atomic positions and
     !remove duplicated atoms
     nullify(iter)
     dict_atoms => dict// ASTRUCT_POSITIONS
@@ -1293,7 +1294,7 @@ contains
        end do
        if (boundary) then
        end if
-      
+
     end do
 
     !then put the correct units (for example from openbabel put the angstroem keyword)
@@ -1437,14 +1438,14 @@ contains
     use at_domain, only: geocode_to_bc,bc_periodic_dims
     use ao_inguess, only: charge_and_spol
     use yaml_output !tmp
-    
+
     implicit none
     type(dictionary), pointer :: dict
     type(atomic_structure), intent(in) :: astruct
     real(gp), dimension(3, astruct%nat), intent(in) :: rxyz
     character(len=*), intent(in), optional :: comment
     !local variables
-    type(dictionary), pointer :: pos, at, last
+    type(dictionary), pointer :: pos, at, last, tmp
     integer :: iat,ichg,ispol,i
     real(gp) :: factor(3)
     logical, dimension(3) :: peri
@@ -1461,16 +1462,20 @@ contains
     case('angstroem','angstroemd0')
        call set(dict // ASTRUCT_UNITS, 'angstroem')
        factor=Bohr_Ang
-    case('reduced')
+    case('reduced') ! Old way to store reduced positions.
        call set(dict // ASTRUCT_UNITS, 'reduced')
        reduced = .true.
     case('atomic','atomicd0','bohr','bohrd0')
        ! Default, store nothing
     end select Units
+    if (ASTRUCT_PROPERTIES .in. dict) call dict_remove(dict // ASTRUCT_PROPERTIES, ASTRUCT_REDUCED)
+    if (associated(astruct%properties)) then
+       reduced = astruct%properties .get. ASTRUCT_REDUCED
+    end if
 
     peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
     do i=1,3
-       if (peri(i)) then         
+       if (peri(i)) then
           call set(dict // ASTRUCT_CELL // (i-1), yaml_toa(astruct%cell_dim(i)*factor(i)))
           if (reduced) factor(i) = 1._gp / astruct%cell_dim(i)
        else
@@ -1869,7 +1874,7 @@ contains
         ie = f_err_pop(err_name='INPUT_OUTPUT_ERROR',add_msg=msg)
         if (ie == 0) exit
       end do
-    else 
+    else
       !Check if input file is correct
       ierr = f_err_pop(err_id=BIGDFT_INPUT_FILE_ERROR,add_msg=msg)
       do
@@ -1902,7 +1907,7 @@ contains
       !call global_output_merge_to_dict(dict // key, outs, astruct)
       call deallocate_atomic_structure(astruct)
 
-    else 
+    else
       ! Raise an error
       call yaml_map('Found errors',list_msg)
 
@@ -1978,7 +1983,7 @@ contains
          astruct%inputfile_format='yaml'
     end if
 
-      call domain_set_from_dict(dict,astruct%dom)    
+      call domain_set_from_dict(dict,astruct%dom)
 
       ! Temporary assignation before removal - WARNING, reduced coordinates have to be still defined
       units = astruct%dom%units

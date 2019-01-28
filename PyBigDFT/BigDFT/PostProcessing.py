@@ -3,23 +3,33 @@
 """
 
 
-def _system_command(command, options, outfile=None):
+def _system_command(command, options):
     """
     Run the command as ``os.system (command + options)``
 
     Todo:
        remove outfile, this should be controlled by the script.
     Args:
-       command (str):
-       options (str):
+       command (str): the actual command to run.
+       options (str): the options to pass to the command.
     """
-    from os import system
+    from subprocess import call
 
     command_str = command + " " + options
-    if outfile:
-        system(command_str + " > " + outfile)
-    else:
-        system(command_str)
+    call(command_str, shell=True)
+
+
+def _get_datadir(log):
+    """
+    Given a log file, this returns the path to the data directory.
+
+    Args:
+      log (Logfile): logfile from a BigDFT run.
+    Returns:
+      str: path to the data directory.
+    """
+    from os.path import join
+    return join(log.srcdir, log.data_directory)
 
 
 class BigDFTool(object):
@@ -42,7 +52,7 @@ class BigDFTool(object):
         executable.
     """
 
-    def __init__(self, omp=1, mpi_run=""):
+    def __init__(self, omp=1, mpi_run=None):
         from futile.YamlArgparse import get_python_function
         from futile import YamlIO
         from os import environ
@@ -51,10 +61,10 @@ class BigDFTool(object):
         from copy import deepcopy
 
         # Executables
-        self.bigdft_tool_command = join("$BIGDFT_ROOT", "bigdft-tool")
-        self.utilities_command = mpi_run + join("$BIGDFT_ROOT", "utilities")
-        self.memguess_command = join("$BIGDFT_ROOT", "memguess")
+        bigdftroot = environ['BIGDFT_ROOT']
         environ['OMP_NUM_THREADS'] = str(omp)
+        if not mpi_run:
+            mpi_run = environ["BIGDFT_MPIRUN"]
 
         # Load the dictionary that defines all the operations.
         # This path should be easier to specify if you use the python
@@ -67,32 +77,51 @@ class BigDFTool(object):
         for action, spec in db.items():
             naction = action.replace("_", "-")
             nspec = deepcopy(spec)
-            nspec["args"] = [
-                {"mpirun": {"default": "" + mpi_run + ""}}] + nspec["args"]
-            nspec["args"] = [
-                {"action": {"default": "" + naction + ""}}] + nspec["args"]
-            my_action = get_python_function(partial(self.__invoke_command,
-                                                    self.bigdft_tool_command),
+            cmd = join(bigdftroot, nspec["tool"])
+            if nspec["mpi"]:
+                cmd = mpi_run + " " + cmd
+            else:
+                nspec["args"]["mpirun"] = {"default": "" + mpi_run + ""}
+            nspec["args"]["action"] = {"default": "" + naction + ""}
+            my_action = get_python_function(partial(self._invoke_command, cmd),
                                             action, nspec)
             setattr(self, action, my_action)
 
-    def __invoke_command(self, command, **kwargs):
+    def _invoke_command(self, command, **kwargs):
         from futile.Utils import option_line_generator
-        _system_command(command, option_line_generator(**kwargs), self.outfile)
+        _system_command(command, option_line_generator(**kwargs))
 
     def _run_fragment_multipoles(self, log, system=None, orbitals=None):
-        from os.path import join
+        """
+        Performs the actual run of the fragment multipoles. This means we
+        process the default parameters, override the parameters if they are
+        specified, write all the necessary input files, and then run.
+
+        Returns:
+          (str): the name of the file containing the multipoles
+        """
+        from os.path import join, isfile
+        from os import remove
         from inspect import getargspec
-        import yaml
+        from yaml import dump
+        from futile.YamlIO import load
 
         # Convert the arguments of the function to a dictionary
         args, vargs, keywords, default = getargspec(self.fragment_multipoles)
         options = {a: d for a, d in zip(args, default)}
 
+        # Use the logfile to determine the right matrix format
+        format = log.log["lin_general"]["output_mat"]
+        if format == 4:
+            options["matrix_format"] = "parallel_mpi-native"
+            for key in options:
+                if ".txt" in options[key]:
+                    options[key] = options[key].replace(".txt", ".mpi")
+
         # Replace the default directory with the appropriate one if it is
         # available
         if log.log["radical"]:
-            data_dir = join(log.srcdir, "data-" + log.log["radical"])
+            data_dir = _get_datadir(log)
             for a, d in options.items():
                 if a == "mpirun" or a == "action" or a == "matrix_format":
                     continue
@@ -100,14 +129,18 @@ class BigDFTool(object):
 
         # Create the frag.yaml file from the provided system.
         if system:
-            system.write_fragfile(filename=options["fragment_file"])
+            system.write_fragfile(options["fragment_file"], log)
 
         # Create the orbitals.yaml file from the provided orbitals.
         if orbitals is None:
             with open(options["orbital_file"], "w") as ofile:
-                ofile.write(yaml.dump([-1]))
+                ofile.write(dump([-1]))
 
+        if isfile(options["log_file"]):
+            remove(options["log_file"])
         self.fragment_multipoles(**options)
+
+        return load(options["log_file"], doc_lists=False)
 
     def set_fragment_multipoles(self, system, log):
         """
@@ -122,18 +155,123 @@ class BigDFTool(object):
           log (Logfile): instance of a Logfile class
         """
         from os.path import join
-        from futile.YamlIO import load
+        from os import remove
 
-        self.outfile = join(log.srcdir, "mp.yaml")
-        self._run_fragment_multipoles(log, system)
+        mp_data = self._run_fragment_multipoles(log, system)
 
         # Update multipoles and purity values.
-        mp_data = load(self.outfile, doc_lists=False)
         mp_dict = mp_data["Orbital occupation"][0]["Fragment multipoles"]
 
-        for frag, fdata in zip(system.fragments, mp_dict):
-            frag.set_purity_indicator(float(fdata["Purity indicator"]))
-            q0 = [float(x) for x in fdata["q0"]]
-            q1 = [float(x) for x in fdata["q1"]]
-            q2 = [float(x) for x in fdata["q2"]]
-            frag.set_fragment_multipoles(q0, q1, q2)
+        for frag, fdata in zip(system.values(), mp_dict):
+            frag.purity_indicator = float(fdata["Purity indicator"])
+            frag.q0 = [float(x) for x in fdata["q0"]]
+            frag.q1 = [float(x) for x in fdata["q1"]]
+            frag.q2 = [float(x) for x in fdata["q2"]]
+
+    def run_compute_spillage(self, system, log, targetid):
+        """
+        Compute a measure of the spillage interaction between fragments.
+
+        Args:
+          system (System): instance of a System class, which defines the
+            fragments we will use.
+          log (Logfile): instance of a Logfile class
+          targetid (str): which fragment to compute the spillage of all other
+            fragments with. You can either set this or target.
+        Result:
+          (dict): for each fragment id, what the spillage value is.
+        """
+        from os.path import join, isfile
+        from os import environ
+        from Spillage import MatrixMetadata, compute_spillage_values
+        from Spillage import serial_compute_spillbase
+        from scipy.sparse import csc_matrix
+        from scipy.io import mmread
+
+        # Define the input files.
+        spillage_array = []
+        data_dir = _get_datadir(log)
+        sfile = join(data_dir, "overlap_sparse.txt")
+        hfile = join(data_dir, "hamiltonian_sparse.txt")
+
+        # Convert to text format if necessary
+        if log.log["lin_general"]["output_mat"] == 4:
+            for fname in ["overlap_sparse.txt", "hamiltonian_sparse.txt"]:
+                infile = join(data_dir, fname.replace(".txt", ".mpi"))
+                outfile = join(data_dir, fname)
+                self.convert_matrix_format(conversion="binary_to_bigdft",
+                                           infile=infile, outfile=outfile)
+        # Get the metadata
+        metadatafile = join(data_dir, "sparsematrix_metadata.dat")
+        metadata = MatrixMetadata(metadatafile)
+        frag_indices = metadata.get_frag_indices(system)
+
+        # Check whether to use python or bigpoly version
+        # And then perform the computation of the inverse etc
+        if isfile(join(environ['BIGDFT_ROOT'], "BigPoly")):
+            options = {}
+            options["action"] = "compute_spillage"
+            options["infile"] = hfile
+            options["infile2"] = sfile
+            options["outfile"] = join(data_dir, "sinvxhfile.mtx")
+            options["outfile2"] = join(data_dir, "sinvxh2file.mtx")
+
+            self.compute_spillage(**options)
+
+            # Read from file
+            sinvxh = csc_matrix(mmread(options["outfile"]))
+            sinvxh2 = csc_matrix(mmread(options["outfile2"]))
+        else:
+            # First convert to ccs matrix format
+            soutfile = join(data_dir, "overlap_sparse.ccs")
+            houtfile = join(data_dir, "hamiltonian_sparse.ccs")
+            self.convert_matrix_format(conversion="bigdft_to_ccs", infile=sfile,
+                                       outfile=soutfile)
+            self.convert_matrix_format(conversion="bigdft_to_ccs", infile=hfile,
+                                       outfile=houtfile)
+            # Then compute with python
+            sinvxh, sinvxh2 = serial_compute_spillbase(soutfile, houtfile)
+
+        # Compute the spillage array
+        spillage_array = compute_spillage_values(
+            sinvxh, sinvxh2, frag_indices, targetid)
+
+        return spillage_array
+
+    def plot_spillage(self, axs, spillvals, colors=None):
+        """
+        Plot the spillage values.
+
+        Args:
+          axs: the axs we we should plot on.
+          spillvals (dict): a dictionary mapping fragments to spillage values.
+          colors (dict): you can optionally pass a dictionary which sets
+            the colors of the plot. The keys are floating point numbers and
+            the values are colors, where all spillage values above that key
+            are colored with the value.
+        """
+        from Fragments import GetFragTuple
+        from numpy.ma import masked_less
+
+        axs.set_xlabel("Fragment", fontsize=12)
+        axs.set_ylabel("Spillage Values", fontsize=12)
+        axs.set_yscale("log")
+
+        svals = []
+        labels = []
+        for id, val in spillvals.items():
+            svals.append(val)
+            labels.append(id)
+
+        axs.set_xticks(range(len(labels)))
+        sorted_labels = sorted(labels, key=lambda x: int(GetFragTuple(x)[1]))
+        axs.set_xticklabels(sorted_labels, rotation=90)
+        sorted_values = [v for _, v in sorted(zip(labels, svals),
+                                              key=lambda x:
+                                              int(GetFragTuple(x[0])[1]))]
+        axs.plot(sorted_values, marker='o', color='black', linestyle='--')
+        if colors:
+            for thresh, col in sorted(colors.items()):
+                axs.plot(masked_less(sorted_values, thresh),
+                         color=col, marker='o', markersize=12, linestyle='--',
+                         markeredgewidth='1.5', markeredgecolor='black')

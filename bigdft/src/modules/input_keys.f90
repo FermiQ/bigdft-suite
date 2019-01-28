@@ -122,6 +122,7 @@ module module_input_keys
      real(kind=8) :: max_inversion_error
      real(kind=8) :: cdft_lag_mult_init !< Initial value for lagrange multiplier
      real(kind=8) :: cdft_conv_crit     !< Convergence threshold for cdft charge
+     integer :: cdft_nit     !< Number of iterations for loop over Vc in CDFT calculation
      logical :: calculate_onsite_overlap
      integer :: output_mat_format     !< Output Matrices format
      integer :: output_coeff_format   !< Output Coefficients format
@@ -143,6 +144,8 @@ module module_input_keys
      logical :: reset_DIIS_history !< reset the DIIS history when starting the loop which optimizes the support functions
      real(kind=8) :: delta_pnrm !<stop the kernel optimization if the density/potential difference has decreased by this factor
      logical :: consider_entropy !< Indicate whether the entropy contribution to the total energy shall be considered
+     logical :: extended_ig !< whether or not to do an extended SF input guess (always done for experimental_mode)
+     logical :: orthogonalize_sfs !< whether or not to orthogonalize SFs (not done for experimental_mode)
   end type linearInputParameters
 
   !> Structure controlling the nature of the accelerations (Convolutions, Poisson Solver)
@@ -865,6 +868,21 @@ contains
        call f_err_throw('Error in reading input variables from dictionary',&
             err_name='BIGDFT_INPUT_VARIABLES_ERROR')
     end if
+
+    ! override some linear input variables which are inter-dependent
+    ! set variables associated with experimental_mode
+    ! these should also now be able to be activated independently
+    ! but if the experimental_mode is set they are all set accordingly for backwards compatibility
+    ! eventually experimental_mode should be eliminated or turned into a profile
+    if (in%experimental_mode) then
+       in%lin%extended_ig = .true.
+       in%lin%orthogonalize_sfs = .false.
+    end if
+    ! no point in setting DIIS histories higher than the number of iterations
+    in%lin%dmin_hist_lowaccuracy = min(in%lin%dmin_hist_lowaccuracy, in%lin%nItdmin_lowaccuracy)
+    in%lin%dmin_hist_highaccuracy = min(in%lin%dmin_hist_highaccuracy, in%lin%nItdmin_highaccuracy)
+    in%lin%DIIS_hist_lowaccur=min(in%lin%DIIS_hist_lowaccur,in%lin%nItBasis_lowaccuracy)
+    in%lin%DIIS_hist_highaccur=min(in%lin%DIIS_hist_highaccur,in%lin%nItBasis_highaccuracy)
 
     ! not sure whether to actually make this an input variable or not so just set to false for now
     in%lin%diag_start=.false.
@@ -2230,6 +2248,8 @@ contains
           in%lin%cdft_lag_mult_init = val
        case (CDFT_CONV_CRIT)
           in%lin%cdft_conv_crit = val
+       case (CDFT_NIT)
+          in%lin%cdft_nit = val
        case (CALC_DIPOLE)
           in%lin%calc_dipole = val
        case (CALC_QUADRUPOLE)
@@ -2300,6 +2320,10 @@ contains
           in%lin%orthogonalize_ao = val
        case (RESET_DIIS_HISTORY)
           in%lin%reset_DIIS_history = val
+       case (EXTENDED_IG)
+          in%lin%extended_ig = val
+       case (ORTHOGONALIZE_SFS)
+          in%lin%orthogonalize_sfs = val
        case DEFAULT
           if (bigdft_mpi%iproc==0) &
                call yaml_warning("unknown input key '" // trim(level) // "/" // trim(dict_key(val)) // "'")

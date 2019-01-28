@@ -395,6 +395,8 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
         call paw_compute_dij(wfn%paw, atoms, denspot, denspot%V_XC, &
              & energs%epaw, energs%epawdc, compch_sph)
      end if
+
+
   end if !if (scf)
 
   !debug
@@ -418,7 +420,7 @@ subroutine psitohpsi(iproc,nproc,atoms,scf,denspot,itrp,itwfn,scf_mode,alphamix,
 
   ! self-consistent case or not: rhov should be the total potential
   if (denspot%rhov_is /= KS_POTENTIAL) &
-       call f_err_throw('psitohpsi: KS_potential not available, control the operations on rhov',&
+       call f_err_throw('psitohpsi: KS_POTENTIAL not available, control the operations on rhov',&
        err_name='BIGDFT_RUNTIME_ERROR')
 
 

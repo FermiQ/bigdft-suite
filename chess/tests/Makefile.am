@@ -31,7 +31,7 @@ AM_FCFLAGS = -I. -I$(top_srcdir)/src -I$(top_builddir)/src @LIB_FUTILE_CFLAGS@ @
 AM_LDFLAGS = -L$(top_builddir)/src
 if BUILD_DYNAMIC_LIBS
 AM_LDFLAGS += -Wl,-rpath=$(abs_top_builddir)/src -Wl,-rpath=$(DESTDIR)$(libdir)
-chess_library = $(top_builddir)/src/libCheSS-1.so.@CHESS_MINOR_VERSION@
+chess_library = $(top_builddir)/src/libCheSS-1.so.@CHESS_MINOR_VERSION@ @LIB_FUTILE_LIBS@
 else
 chess_library = $(top_builddir)/src/libCheSS-1.a @LIB_CHESS_DEPS@
 endif
@@ -74,7 +74,7 @@ check: regtest report #PS_Basics.out.yaml PS_Check.out.yaml PS_Check.ref.yaml to
 
 #test-random.report.yaml: $(srcdir)/driver_random.ref.yaml driver_random.out.yaml
 #	python $(pythondir)/fldiff_yaml.py \
-#		-r $< -d driver_random.out.yaml -t $(scrdir)/tols.yaml --output $@ 
+#		-r $< -d driver_random.out.yaml -t $(scrdir)/tols.yaml --output $@
 
 regtest: driver_random driver_foe smatmul
 	python $(pythondir)/f_regtest.py --fldiff=$(pythondir)/fldiff_yaml.py \
@@ -89,11 +89,11 @@ define F_REGTEST_INSTRUCTIONS
 - fermi_level:
    binary: small_programs
    runs:
-    - ./small_programs -n [100,70] -t 1.e-2 -o 1 
-    - ./small_programs -n [100,70] -t 1.e-2 -o 2 
-    - ./small_programs -n [100,70] -t 1.e-2 -o 3 
-    - ./small_programs -n [100,70] -t 1.e-2 -o 4 
-    - ./small_programs -n [100,70] -t 1.e-2 -o 5 
+    - ./small_programs -n [100,70] -t 1.e-2 -o 1
+    - ./small_programs -n [100,70] -t 1.e-2 -o 2
+    - ./small_programs -n [100,70] -t 1.e-2 -o 3
+    - ./small_programs -n [100,70] -t 1.e-2 -o 4
+    - ./small_programs -n [100,70] -t 1.e-2 -o 5
     - ./small_programs -e [-3.88324012786,-0.3021609833706,-0.1440794711642,-3.883210129002,-0.3022049247153,-0.1445156309774] -n [3,3] -t 0 -c 5
 - driver_random:
    binary: driver_random
@@ -118,7 +118,7 @@ define F_REGTEST_INSTRUCTIONS
         --check_spectrum=.true.
 - driver_foe:
    binary: driver_foe
-   runs:   
+   runs:
     - $(run_parallel) ./driver_foe \
         --sparsity_format=ccs \
         --matrix_format=serial_text \
@@ -156,4 +156,3 @@ define F_REGTEST_INSTRUCTIONS
         --fscale=1.e-2
 endef
 export F_REGTEST_INSTRUCTIONS
-

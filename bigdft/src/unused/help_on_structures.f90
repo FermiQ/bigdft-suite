@@ -6,8 +6,8 @@ rxyz(ix, iat)
         ix da 1 a 3
         iat da 1 a nat ; nat contenuto in atoms%nat
 
-        Le posizioni sono shiftate da system_size in modo 
-        che le sfere coarse centrate sugli atomi non 
+        Le posizioni sono shiftate da system_size in modo
+        che le sfere coarse centrate sugli atomi non
         vadano al di sotto di zero in alcuna direzione Free.
          Nessuno shift viene applicato da system_size nelle direzioni
         periodiche.
@@ -17,10 +17,10 @@ subroutine explain_pspreading()
 end
 
 psppar
-   the are three parametrisations: 
+   the are three parametrisations:
 
  GTH Goedecker Teter Hutter     PHYSICAL REVIEW B VOLUME 54, NUMBER 3 15 JULY 1996
-   
+
  HGH Hartwigsen C, Goedecker S, Hutter J (1998)   PHYSICAL REVIEW B VOLUME 58, NUMBER 7
 
  HGH-K :KRACK Theor Chem Acc (2005) 114: 145
@@ -38,43 +38,43 @@ psppar
     atoms%psppar(0,j,ityp),j=0,4
        that' s  rloc e c1,c2,c3,c4 which appear in the formul for the local part of the potential
               Vloc(r)=-Zion/r erf(r/(sqrt2 rloc)) + exp(-(r/rloc)**2/2) *Sum_i( Ci *(r/rloc)**(2*(i-1)))
-       where zion is  atoms%nelpsp(ityp) 
+       where zion is  atoms%nelpsp(ityp)
 
     ---npspcode=2 -----
 
      the non local part for  npspcode=2  is    diagonally written in the radial projectors basis.
-     There are two projectors for the s waves and one for p 
+     There are two projectors for the s waves and one for p
        Thus  psppar(1,j,ityp) is for  s waves con j=0 for the tipical radius  r_l and j=1,2 for the  two coefficients  h.
-    
+
    The form of the nonlocal part  est, per npscode==2
 
                Somma_i somma_lm Y_lm(r) Y*_lm(r')   h^l_i  p^l_i(r)  p^l_i(r')
 
    where the projectors  p  are, besides   factors which renormalise them to 1,
 
-        p^l_i (r) = r^(l+2(i-1)) exp(-(r/r_l)**2 ) 
+        p^l_i (r) = r^(l+2(i-1)) exp(-(r/r_l)**2 )
 
     ---npspcode=3 -----
 
-   This case is very similar to npspcode=2 the difference is that the pesudo potentials are read 
-        for the waves  s,p,d,f. Then one read cioe' psppar(l,j,ityp) with l going from 1 a 4 
+   This case is very similar to npspcode=2 the difference is that the pesudo potentials are read
+        for the waves  s,p,d,f. Then one read cioe' psppar(l,j,ityp) with l going from 1 a 4
         ( missing data from the psp file are continued with zeros )
         The other difference is that  h coeffs are read for  j=1,2,3 (  missing are zero filled).
 
 
    Another difference is that the h coeffs  h_i that one reads, become in reality the h_{ii} diagonal
    of a matrix that is filled with the formulas below.
-   The last difference is that for  l>1  (l=1 is s )  one  skips a line containing  k coeffs 
+   The last difference is that for  l>1  (l=1 is s )  one  skips a line containing  k coeffs
    who are there for spin-orbit but are not yet treated  in Big-dft
 
-   Out-of-diagonal terms are       
+   Out-of-diagonal terms are
 
                L=0
                        (1,2) = -1/2 sqrt(3/5) (2,2)
                        (1,3) =  1/2  sqrt(5/21) (3,3)
                        (2,3) = -1/2 sqrt(100/63) (3,3)
 
-               L = 1  
+               L = 1
                        (1,2) = -1/2 sqrt(5/7) (2,2)
                        (1,3) =  1/6  sqrt(35/11) (3,3)
                        (2,3) = -1/6 14/sqrt(11) (3,3)
@@ -84,16 +84,16 @@ psppar
                        (1,3) =  1/2  sqrt(63/143) (3,3)
                        (2,3) = -1/2 18/sqrt(143) (3,3)
 
-                          
+
     -- npspcode=10 ------------------
 
    very similar to the case above but the file has a variable number of terms.
-   The out-of-diagonal part is not completed but read from the file 
+   The out-of-diagonal part is not completed but read from the file
 
    The row for the local potentail has a number nn indicating the number of Ci terms (i=1,nn)
     contained in the row
         Before the eventual rows for s p d f non local parts the is a line with the number nlterms
-   which is the number of channel ( rows for s p d f ) to be read 
+   which is the number of channel ( rows for s p d f ) to be read
 
 
        read(11,*) atoms%psppar(0,0,ityp),nn,(atoms%psppar(0,j,ityp),j=1,nn) !local PSP parameters
@@ -123,9 +123,9 @@ nsccode:
   based on powers of 4 in BigDft. When initialised from subroutine eleconf
   a conversion is applied cause in eleconf it is coded with powers of 10.
   Used to tag some orbitals n l( for each l the lowest in n are taken)
-  This orbitals will be taken anyway by input_wf_diag regardeles of the energy
-  given at the first diag step, cause this energy could bring to loss of some 
-  important orbitals , like Zn 3d shell close to Ef in porfirine.
+  This orbitals will be taken anyway by input_wf_diag regardless of the energy
+  given at the first diag step, cause this energy could bring to loss of some
+  important orbitals , like Zn 3d shell close to Ef in porphyrine.
 
   nsccode   Semicore orbitals, indicated as an integer.
 !!             The integer is the n_s + 4*n_p + 16* n_d + 64* n_f
@@ -147,7 +147,7 @@ nsccode  is reset to zero in routine correct_semicore
 if one impose by in input a modification of the charge.
 
 ------------------------------------------
-atoms%alat1 , atoms%alat2, atoms%alat3 
+atoms%alat1 , atoms%alat2, atoms%alat3
    le tre dimensioni della scatola.
    In realta in input si leggono 1,2,3,4,5,6
    cioe 1 (2) 3 (4,5) 6
@@ -168,13 +168,13 @@ the third one is the coarse for the projectors.
 only first two are given, the proj-coarse is set equal to the fine radius for functions.
   The fine radius for projectors is always set equal to the fine for functions.
 
-  These radius  are expanded by factors to define the radius of the 
+  These radius  are expanded by factors to define the radius of the
 containing spheres.
   To do this one aplies crmult, frmult for functions, while for projectos
 one applies cpmult=fpmult=crmult ( da riverificare )
 
   If the radius are completely missing form pspfile then they are obtained
-the coarse as the tipical radius of an evanesceting exponential wave having 
+the coarse as the tipical radius of an evanesceting exponential wave having
 energy=ehomo  defined in eleconf.
   The fine radius is taken as the maximum ot te tipical radius of the nonlocal part
 
@@ -185,7 +185,7 @@ subroutine explain_nspinor
 end
 
 nspinor can be retouched later, for example by function orbitals_descriptors:
-if it comes out that the calculation is complex ( not a gamma point ) 
+if it comes out that the calculation is complex ( not a gamma point )
 one sets nspinor=2 for the two components : real and imaginary
 
   select case(nspin)
@@ -227,14 +227,14 @@ end
 
    at%aocc(nelecmax,atoms%nat+ndebug) :
    compressed form :
-            for every  l=L+1 channel : 
+            for every  l=L+1 channel :
                      a number equal to the number of  quantum numbers n :
-                           for every n:  
+                           for every n:
                                 nsp*noncoll*(2*L+1)  occupation   numbers
    all this on the linear array at%aocc with integers being converted to floats
-                              
 
-     n the inner nsp*noncoll*(2*L+1)  long block, 
+
+     n the inner nsp*noncoll*(2*L+1)  long block,
           the fastest dimension runs over  ncoll ( when it is 2 for noncollinear)
       second fastest is over m
      slowest is over  spin ( if >1)
@@ -262,32 +262,32 @@ subroutine explain_orbital_data
 
    - orbs%nkpt number of  points
    - orbs%kpts(3,orbs%nkpts+ndebug)  real(gp)    : the k points
-   - orbs%norb_par(0:npar-1)  for each process the number of orbitals trated by the process 
+   - orbs%norb_par(0:npar-1)  for each process the number of orbitals trated by the process
      Their total number is  norb_tot = norb*orbs%nkpts.
 
      The fractioning is made by  parallel_repartition_with_kpoints.
      One considers the fractioning for [0:nproc-1] in  nkpts segments.
-     For each segment one considers if it contains full segments : processes that 
+     For each segment one considers if it contains full segments : processes that
       will be entirely dedicated to a single  ikpt .
-      On the wings  points are distributed pro-rata 
-      !!  Attention : 
-      when a segment is on the saddle of two processesors 
-      one distributes nobj/2 on the firs and the rest to the other . 
-      This distribution half/half might be non equilibrated 
+      On the wings  points are distributed pro-rata
+      !!  Attention :
+      when a segment is on the saddle of two processesors
+      one distributes nobj/2 on the firs and the rest to the other .
+      This distribution half/half might be non equilibrated
 
-    - orbs%iskpts +1  is the first ikpt treated paritally or entirely by iproc 
+    - orbs%iskpts +1  is the first ikpt treated paritally or entirely by iproc
       !!! se l' indicizzazione parte da 1 !!!
-   
+
    - orbs%nkptsp  is the number of  kpoints  touched by  iproc
 
-   - orbs%isorb is the number of orbitals treated by all process having rank 
+   - orbs%isorb is the number of orbitals treated by all process having rank
    less than iproc
 
    -  orbs%norb=norb is the number of orbital per  kpoint
 
-   - orbs%norbp=orbs%norb_par(iproc)  is the number of orbitals treated by iproc 
+   - orbs%norbp=orbs%norb_par(iproc)  is the number of orbitals treated by iproc
 
-   - orbs%iokpt is a vector having lenght  norbp and for each orbitals treated by iproc 
+   - orbs%iokpt is a vector having lenght  norbp and for each orbitals treated by iproc
    tells the index of the corresponding kpoint
 
 --------------------------------------------------------------------------
@@ -297,7 +297,7 @@ end
 n1,n2,n3,n1i,n2i,n3i
    ~~~~~~~~~~`
    These variables are containe in the member d of the structur of type locreg_descriptors
-   The memebr  d is of the type 
+   The memebr  d is of the type
      type, public :: grid_dimensions
         integer :: n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,n1i,n2i,n3i
      end type grid_dimensions
@@ -312,12 +312,12 @@ n1,n2,n3,n1i,n2i,n3i
 
  n1 n2 , n3  are the maxium value of the grid starting from zero.
 
--F-  For this reason in the F case 
+-F-  For this reason in the F case
    alat=n*h
   The point n being at distance  alat  from point  0.
 
 -P-  In the case  P instead
-   alat=(n+1)*h 
+   alat=(n+1)*h
  the point n being at distance h from the following point n+1 ( not comprised in the grid)
  which is equivalent to the point 0. The distance from 0 and n+1 being alat.
  This is made sure by  correct_grid routine.
@@ -326,7 +326,7 @@ n1i,n2i,n3i
 
 
   -F-
-    
+
     If the coarse point are in the range 0:n
     the points of the fine grid will be in number
 
@@ -344,13 +344,13 @@ n1i,n2i,n3i
 
    Applying further the filter one obtains a range going from  -14 to 2n+16
 
-   The Daubechies in  BigDft are maximally  symmetric. 
+   The Daubechies in  BigDft are maximally  symmetric.
 
  - P -
-    
+
    In this case on simply doubles the number of points.
-   If the  range e'0:n  the number of coarse points is , 
-    = n+1 
+   If the  range e'0:n  the number of coarse points is ,
+    = n+1
    therefore ni is
     ni=2n+2
 
@@ -360,13 +360,13 @@ n1i,n2i,n3i
 -----------------------------------------
 hybrid_on
       ~~~~~~~~~~~~~~~~~~~
-       memorizzato in 
+       memorizzato in
            Glr%hybrid_on
        dove Glr e di tipo locreg_descriptor
       ~~~~~~~~~~~~~~~~~~~~
 
  Se la scatola contenente le fini, estesa di un margine =14
-che corriponde all'espanzione per sintesi, e'contenuta 
+che corriponde all'espanzione per sintesi, e'contenuta
 nella griglia 0:n1, 0:n2, 0:n2 allora si attiva l'ibrido.
 
 !!!!!!!!!Da Controllare !!!!!!!!1
@@ -386,7 +386,7 @@ of the box which will be conserved in the compressed form
 In the calculation one reads element from the comprexed form
 
 The loop on the result will go ( in x ) from  ibyz_c(1,i2,i3) to ibyz_c(2,i2,i3)
-for i2 e i3 which run  on y and z of the box when one derives along x 
+for i2 e i3 which run  on y and z of the box when one derives along x
 and so on  for the  other  directions of  derivation.
 
 Same thing for fine quantities.
@@ -435,11 +435,11 @@ and keyv ( v as vettore ).
 keyv has dimension mseg and gives the  position in the --compressed--  vector
 for the segment beginning.
 
-keyg has dimensions (2,mseg) and gives for every segment, the beginning  (1) and end (2) 
+keyg has dimensions (2,mseg) and gives for every segment, the beginning  (1) and end (2)
 of the  segment in the volume taken as array  1D ( total size (n1+1)*(n2+1)*(n3+1) )
-( the x,y,z coordinates are obtainable from the sequential numbers) 
+( the x,y,z coordinates are obtainable from the sequential numbers)
 
-The information for the fine  quantities are storead in the same vector. They begin 
+The information for the fine  quantities are storead in the same vector. They begin
 at  iseg=Glr%wfd%nseg_c+1
 
 
@@ -451,7 +451,7 @@ end
           Glr%bounds%kb%ibyz_f,Glr%bounds%gb%ibyz_ff,Glr%bounds%gb%ibzxx_f,Glr%bounds%gb%ibxxyy_f,&
 
 These bounds are used for the magic filters expansion ( grow)
-and the other way round ( shrink)  .. ( bra V ket ) 
+and the other way round ( shrink)  .. ( bra V ket )
 in the case F and in the case P-hybridon.
 
 In these case one can save on the loop extensions because the areas
@@ -460,11 +460,11 @@ dont cover completely the cube.
 
 In the growin case one loops with magic filters on the fastest variable
 using first  kb%ibyz_c limits taken from kinetic bounds.
-The result are store permutating ciclically x,y,z. So that 
-at the following steps ( y, z ) one always loops on the fastest variable 
+The result are store permutating ciclically x,y,z. So that
+at the following steps ( y, z ) one always loops on the fastest variable
 One used a filter already convoluted with synthesys
 
-For  shrinking 
+For  shrinking
 
   lr%bounds%kb%ibxy_c,lr%bounds%sb%ibzzx_c,lr%bounds%sb%ibyyzz_c,&
   lr%bounds%sb%ibxy_ff,lr%bounds%sb%ibzzx_f,lr%bounds%sb%ibyyzz_f,&
@@ -484,31 +484,31 @@ nlpspd : non local psp descriptor
         nlpspd%nseg_p(2*iat-1)
         nlpspd%nvctr_p(2*iat-1)
         nlpspd%nseg_p(2*iat)
-        nlpspd%nvctr_p(2*iat)          
-      questi array sono comulativi : 
-                 (2*iat-1) numero dei segmenti del coarse di iat + tutti i precedenti fini e grossi 
-                 (2*iat) numero dei segmenti del fini di iat + tutti i precedenti grossi  e fini 
+        nlpspd%nvctr_p(2*iat)
+      questi array sono comulativi :
+                 (2*iat-1) numero dei segmenti del coarse di iat + tutti i precedenti fini e grossi
+                 (2*iat) numero dei segmenti del fini di iat + tutti i precedenti grossi  e fini
 
 
-   nlpspd%nproj  :  numero di proiettori ( per un solo k ) 
-   nlpspd%nprojel 
+   nlpspd%nproj  :  numero di proiettori ( per un solo k )
+   nlpspd%nprojel
    Se DistProjApply est true
-      e' il massimo dei 
+      e' il massimo dei
       ( nlpspd%nvctr_p(2*iat-1)-nlpspd%nvctr_p(2*iat-2)+(nlpspd%nvctr_p(2*iat)-nlpspd%nvctr_p(2*iat-1))*7)*mproj
       ( mproj e' il numero totale di projettori per l' atomo in questione. Cioe' per tutti i canali
-             e per tuttii proiettori del canale si somma 2l+1 ) 
+             e per tuttii proiettori del canale si somma 2l+1 )
    se e' false
            non e' il massimo ma la somma di tutti quanti
 
    C'e ' infine un ulteriore fattore che lo moltiplica : questo e' 1 o 2 nel caso DistProjApply ( 2 se c' e' un k complesso )
-        se no e' la somma, per tutti i k toccati dal processore (nkptsp a partire da iskpts+1), di 1 o 2 ( se c' e' il complesso ) 
+        se no e' la somma, per tutti i k toccati dal processore (nkptsp a partire da iskpts+1), di 1 o 2 ( se c' e' il complesso )
 
 
    Per i proiettori si keyg e keyv sono messi tutti negli stessi array
 
    nlpspd%keyg_p(1,iseg),nlpspd%keyv_p(iseg)
-   
-   Dove quelli per la coarse iniziano in    iseg=nlpspd%nseg_p(2*iat-2)+1 e sono in numero 
+
+   Dove quelli per la coarse iniziano in    iseg=nlpspd%nseg_p(2*iat-2)+1 e sono in numero
         mseg=nlpspd%nseg_p(2*iat-1)-nlpspd%nseg_p(2*iat-2)
    Similmente per i fini.
 
@@ -542,35 +542,35 @@ nlpspd : non local psp descriptor
   -- communication_arrays
 
    -  nvctr_par che viene poi messo in comm%nvctr_par di comm ( communication_array)
-       contiene dapprima in 
+       contiene dapprima in
                  nvctr(jproc,0)
-       il numero di gradi di liberta ospitati dal processo jproc su 
+       il numero di gradi di liberta ospitati dal processo jproc su
        un totale di nkpts*(nvctr_c+7*nvctr_f) sequenzialmente, per la rappresentazione
        trasposta.
        Questo frazionemento e' stabilito da parallel_repartition_with_k_points
-       
-       Dopodiche il numero nvctr(jproc,0) viene distribuito(e lasciato locale ) su 
+
+       Dopodiche il numero nvctr(jproc,0) viene distribuito(e lasciato locale ) su
        comms%nvctr_par(jproc,ikpts) dove ikpts parte da 1 e arriva a orbs%nkptsp
-       Questo da il numero di componenti trattate da jproc che appartengono 
+       Questo da il numero di componenti trattate da jproc che appartengono
        al punto k :  orbs%iskpts+ikpts.
 
        Questo viene fatto all interno della routine  orbitals_communicators.
 
-       ATTENZione : questa routine ricalcola alcune quantita come 
+       ATTENZione : questa routine ricalcola alcune quantita come
        orbs%iskpts che gia erano calcolate da orbitals_descriptors.
        Cio' va bene perche tali quantita coincidono nella distribuzione
        degli orbitali con quelle nella distribuzione delle componenti.
-        
+
        --  orbs%ikptproc(1:nkpts)
          !this function which associates a given k-point to a processor in the component distribution
       !the association is chosen such that each k-point is associated to only
       !one processor
       !if two processors treat the same k-point the processor which highest rank is chosen
-                 
+
 
 
   -- comms%ncntd(0:nproc-1+ndebug)
-    la lunghezza del receive buffer in provenienza da jproc per passare dalla 
+    la lunghezza del receive buffer in provenienza da jproc per passare dalla
     distribuzione delle componenti ( t come trasposta )
     alla distribuzione degli orbitali ( d come diretta)
     Se iproc deve tenere norb_par(iproc,ikpts) per il punto ikpts
@@ -583,7 +583,7 @@ nlpspd : non local psp descriptor
     e' il displacement per l' all gather, comms%ndspld(jproc)=comms%ndspld(jproc-1)+comms%ncntd(jproc-1)
     Il buffer dovra poi essere smistato
 
-  -- comms%ncntt(jproc)  
+  -- comms%ncntt(jproc)
 
     lunghezza del receive buffer per passare alla forma trasposta.
     Ogni jproc  contiene norb_par(jproc,ikpts) orbitali per un ikpts
@@ -599,23 +599,23 @@ nlpspd : non local psp descriptor
 
 -----------------------------------------------------------------------------------
 
-!!    n3d         third dimension of the density. For distributed data, it takes into account 
+!!    n3d         third dimension of the density. For distributed data, it takes into account
 !!                the enlarging needed for calculating the XC functionals.
-!!                For global data it is simply equal to n03. 
+!!                For global data it is simply equal to n03.
 !!                When there are too many processes and there is no room for the density n3d=0
-!!    n3p         third dimension for the potential. The same as n3d, but without 
+!!    n3p         third dimension for the potential. The same as n3d, but without
 !!                taking into account the enlargment for the XC part. For non-GGA XC, n3p=n3d.
-!!    n3pi        Dimension of the pot_ion array, always with distributed data. 
+!!    n3pi        Dimension of the pot_ion array, always with distributed data.
 !!                For distributed data n3pi=n3p
-!!    i3xcsh      Shift of the density that must be performed to enter in the 
+!!    i3xcsh      Shift of the density that must be performed to enter in the
 !!                non-overlapping region. Useful for recovering the values of the potential
 !!                when using GGA XC functionals. If the density starts from rhopot(1,1,1),
-!!                the potential starts from rhopot(1,1,i3xcsh+1). 
+!!                the potential starts from rhopot(1,1,i3xcsh+1).
 !!                For non-GGA XCs and for global distribution data i3xcsh=0
-!!    i3s         Starting point of the density effectively treated by each processor 
+!!    i3s         Starting point of the density effectively treated by each processor
 !!                in the third direction.
 !!                It takes into account also the XC enlarging. The array rhopot will correspond
-!!                To the planes of third coordinate from i3s to i3s+n3d-1. 
+!!                To the planes of third coordinate from i3s to i3s+n3d-1.
 !!                The potential to the planes from i3s+i3xcsh to i3s+i3xcsh+n3p-1
 !!                The array pot_ion to the planes from i3s+i3xcsh to i3s+i3xcsh+n3pi-1
 !!                For global disposition i3s is equal to distributed case with i3xcsh=0.
@@ -634,9 +634,9 @@ nlpspd : non local psp descriptor
 
 -------------------------------------------------------------------------------
 
-domanda : 
-        
-         perche ci vuole psoffset nel caso periodico? 
+domanda :
+
+         perche ci vuole psoffset nel caso periodico?
 
 ------------------------------------------------------------------
 
@@ -644,18 +644,18 @@ subroutine   explain_paw_psp_terms_in_atom_data()
 end
 
       -- for each  itype, paw_NofL(itype) is the number of different L having paw projectors
-      These paw_NofL are stored sequentially in 
+      These paw_NofL are stored sequentially in
       -- paw_l(:),  in ascending order of itype and      ascending order of l
       --paw_nofchannels : The array runs parallel to paw_l, its entries are, for each l, the number of channels
       -- The array paw_nofgaussians contains, for each l, the number of gaussian
                concurring to it, they are put in sequential order : loopover_itype, over_l.
       -- paw_Greal, in sequeantial order  for each (loopover_itype, over_l) ,
         is the real part of the coefficient of r**2 in the exponent it is constant for all gaussians
-        there is one element in paw_Greal for each l   
+        there is one element in paw_Greal for each l
       -- paw_Gimag is the imaginary part ( cos/sin). There are paw_nofgaussians elements for each
           (loopover_itype, over_l). The first exponent coefficient for cos is 0 ( instead of startign from
-      the first   paw_Gimag 
-      __ paw_Gcoeffs : there are 2*paw_nofgaussians elements for each (loopover_itype, over_l, over_channel) 
+      the first   paw_Gimag
+      __ paw_Gcoeffs : there are 2*paw_nofgaussians elements for each (loopover_itype, over_l, over_channel)
          the 2* is there because it comprises the loop over cos/sin  coefficients : cos sin cos sin...
 
       __ paw_H_matrices, paw_S_matrices, in sequential order, for each l, the matrix connecting the channels
@@ -667,11 +667,11 @@ end
 
 subroutine explain_paw_psp_terms_in_PAWprojdatatype()
 end
-     
+
      !! all data are in sequential order, projector after projector
-     !! Each iproj belongs to a block of iproj_to_paw_nchannels(iproj)*(2*l-1), 
+     !! Each iproj belongs to a block of iproj_to_paw_nchannels(iproj)*(2*l-1),
      !! corresponding to a give l = iproj_to_l(l) for a given atom
-     !! The projectors of a given block are linked by matrices contained in 
+     !! The projectors of a given block are linked by matrices contained in
      !! paw_matrices which gives the patch
      !! The corrections to overlap is contained in paw_matrices_S.
      !!  The loop over m is the innest one.

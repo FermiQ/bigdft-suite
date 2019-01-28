@@ -218,7 +218,7 @@ program memguess
       output_grid=0
       loop_getargs: do
          call get_command_argument(i_arg, value = tatonam, status = istat)
- 
+
          if(istat > 0) exit loop_getargs
 
          !first restructuring in view of better behaviour
@@ -981,7 +981,7 @@ program memguess
 !!!       iproc=mpirank()
 !!!       nproc=mpisize()
 !!!
-!!!       !Read coefficients       
+!!!       !Read coefficients
 !!!       iunit01=98
 !!!       call f_open_file(iunit01, file=trim(coeff_file), binary=.false.)
 !!!       call read_linear_coefficients(trim(coeff_file), nspin, ntmb, norbks, coeff_ptr, &
@@ -1076,7 +1076,7 @@ program memguess
 !!!
 !!!       call write_gaussian_peaks(norbks,fe,eigenv,sigma,npts,output_dos)
 !!!       call yaml_map('written output file',trim(output_dos))
-!!!       
+!!!
 !!!       stop
 !!!
    end if
@@ -1618,7 +1618,7 @@ program memguess
       DistProjApply = .true.
       call orbital_basis_associate(ob,orbs=runObj%rst%KSwfn%orbs,&
            & Lzd=runObj%rst%KSwfn%Lzd,id='memguess')
-      call createProjectorsArrays(iproc,nproc,runObj%rst%KSwfn%Lzd%Glr, &
+      call createProjectorsArrays(runObj%rst%KSwfn%Lzd%Glr, &
            & runObj%atoms%astruct%rxyz,runObj%atoms,ob%orbs, &
            & runObj%inputs%frmult,runObj%inputs%frmult, &
            & runObj%inputs%projection,.false.,nlpsp,.true.)
@@ -2679,7 +2679,7 @@ subroutine take_psi_from_file(filename,in_frag,hgrids,lr,at,rxyz,orbs,psi,iorbp,
 END SUBROUTINE take_psi_from_file
 
 
-!> 
+!>
 subroutine write_gaussian_peaks(norb,coeff,energy,sigma,npts,filename)
 
    use module_base
@@ -2723,8 +2723,8 @@ subroutine write_gaussian_peaks(norb,coeff,energy,sigma,npts,filename)
    !close output file
    call f_close(iunit)
 
-   
-   
+
+
 end subroutine write_gaussian_peaks
 
 
