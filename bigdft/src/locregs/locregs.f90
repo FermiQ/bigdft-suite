@@ -980,9 +980,10 @@ contains
       Gnbl2=0
       Gnbl3=0
       if (present(global_geocode)) then
-         peri_glob(1)=(global_geocode /= 'F')
-         peri_glob(2)=(global_geocode == 'P')
-         peri_glob(3)=(global_geocode /= 'F')
+!!$         peri_glob(1)=(global_geocode /= 'F')
+!!$         peri_glob(2)=(global_geocode == 'P')
+!!$         peri_glob(3)=(global_geocode /= 'F')
+         peri_glob=bc_periodic_dims(geocode_to_bc(global_geocode))
          call ext_buffers(peri_glob(1),Gnbl1,Gnbr1)
          call ext_buffers(peri_glob(2),Gnbl2,Gnbr2)
          call ext_buffers(peri_glob(3),Gnbl3,Gnbr3)

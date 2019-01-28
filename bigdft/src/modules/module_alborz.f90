@@ -13,6 +13,7 @@ module module_alborz
     use module_base
     use yaml_output
     use module_atoms
+    use at_domain, only: domain_geocode
     !parameter
     implicit none
     integer, intent(in) :: nat
@@ -27,7 +28,7 @@ module module_alborz
      enddo
 
     !Boundary Conditions
-    select case(astruct%geocode)
+    select case(domain_geocode(astruct%dom))
     case('P')
       boundcond='bulk'
     case('S')

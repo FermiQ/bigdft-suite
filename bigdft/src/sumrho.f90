@@ -1124,6 +1124,7 @@ subroutine rho_segkey(iproc,at,rxyz,crmult,frmult,&
       &   n1i,n2i,n3i,hxh,hyh,hzh,nspin,rhodsc,iprint)
    use module_base
    use module_types
+  use at_domain, only: domain_geocode
    implicit none
    integer,intent(in) :: n1i,n2i,n3i,iproc,nspin
    type(atoms_data), intent(in) :: at
@@ -1161,7 +1162,7 @@ subroutine rho_segkey(iproc,at,rxyz,crmult,frmult,&
    ithread=0
    nthreads=1
 
-   rhodsc%geocode=at%astruct%geocode
+   rhodsc%geocode=domain_geocode(at%astruct%dom)
    nat=at%astruct%nat
 
    !parameter to adjust the single precision and double precision regions
@@ -1170,7 +1171,7 @@ subroutine rho_segkey(iproc,at,rxyz,crmult,frmult,&
 
    ! calculate the corrections of the grid when transforming from 
    ! n1,n2,n3 to n1i, n2i, n3i
-   call gridcorrection(nbx,nby,nbz,nl1,nl2,nl3,at%astruct%geocode)
+   call gridcorrection(nbx,nby,nbz,nl1,nl2,nl3,domain_geocode(at%astruct%dom))
 
    corx=nl1+nbx+1
    cory=nl2+nby+1

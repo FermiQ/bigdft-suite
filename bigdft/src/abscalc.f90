@@ -184,6 +184,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    use io, only: plot_density
    use locregs_init, only: lr_set
    use f_enums, only: toi
+   use at_domain, only: domain_geocode
    implicit none
    integer, intent(in) :: nproc,iproc
    real(gp), intent(inout) :: hx_old,hy_old,hz_old
@@ -512,12 +513,12 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    !pkernel=pkernel_init(.true.,iproc,nproc,in%matacc%PSolver_igpu,&
    !     atoms%astruct%geocode,dpcom%ndims,dpcom%hgrids,ndegree_ip)
    pkernel=pkernel_init(iproc,nproc,in%PS_dict,&
-        atoms%astruct%geocode,dpcom%mesh%ndims,dpcom%mesh%hgrids)
+        domain_geocode(atoms%astruct%dom),dpcom%mesh%ndims,dpcom%mesh%hgrids)
 
    call pkernel_set(pkernel,verbose=(get_verbose_level() > 1))
 
    !calculate the irreductible zone for this region, if necessary.
-   call set_symmetry_data(atoms%astruct%sym,atoms%astruct%geocode,&
+   call set_symmetry_data(atoms%astruct%sym,domain_geocode(atoms%astruct%dom),&
         KSwfn%Lzd%Glr%d%n1i,KSwfn%Lzd%Glr%d%n2i,KSwfn%Lzd%Glr%d%n3i, in%nspin)
 
 
@@ -775,9 +776,9 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
             if(exists) then
 
                nullify(pot_bB)
-               call read_field_dimensions(trim(filename),atoms%astruct%geocode,ndims,nspin)
+               call read_field_dimensions(trim(filename),domain_geocode(atoms%astruct%dom),ndims,nspin)
                pot_bB=f_malloc_ptr([ndims(1),ndims(2),ndims(3),nspin],id='pot_bB')
-               call read_field(trim(filename),atoms%astruct%geocode,ndims,hgrids,&
+               call read_field(trim(filename),domain_geocode(atoms%astruct%dom),ndims,hgrids,&
                     nspin2,product(ndims),nspin,pot_bB, nat_b2B, rxyz_b2B, iatype_b2B, znucl_b2B)
          !call read_density_cube_old(trim(filename), n1i_bB,n2i_bB,n3i_bB, 1 , hx_old ,hy_old ,hz_old , nat_b2B, rxyz_b2B, pot_bB )
                hx_old=2*hgrids(1)
@@ -1504,6 +1505,7 @@ subroutine extract_potential_for_spectra(iproc,nproc,at,rhod,dpcom,&
    use communications_init, only: orbitals_communicators
    use psp_projectors, only: update_nlpsp
    use io, only: plot_density
+   use at_domain, only: domain_geocode
    implicit none
    !Arguments
    integer, intent(in) :: iproc,nproc,ixc
@@ -1639,7 +1641,8 @@ subroutine extract_potential_for_spectra(iproc,nproc,at,rhod,dpcom,&
   end if
   if(orbs%nspinor==4) then
      !this wrapper can be inserted inside the poisson solver 
-     call PSolverNC(at%astruct%geocode,'D',iproc,nproc,Lzde%Glr%d%n1i,Lzde%Glr%d%n2i,Lzde%Glr%d%n3i,&
+     !call PSolverNC(domain_geocode(at%astruct%dom),'D',iproc,nproc,Lzde%Glr%d%n1i,Lzde%Glr%d%n2i,Lzde%Glr%d%n3i,&
+     call PSolverNC(at%astruct%dom,'D',iproc,nproc,Lzde%Glr%d%n1i,Lzde%Glr%d%n2i,Lzde%Glr%d%n3i,&
           dpcom%nscatterarr(iproc,1),& !this is n3d
           xc,[hxh,hyh,hzh],&
           rhopot,pkernel%kernel,pot_ion,ehart,eexcu,vexcu,0.d0,.true.,4)
@@ -1651,7 +1654,7 @@ subroutine extract_potential_for_spectra(iproc,nproc,at,rhod,dpcom,&
         potxc = f_malloc(1,id='potxc')
      end if
 
-     call XC_potential(at%astruct%geocode,'D',iproc,nproc,MPI_COMM_WORLD,&
+     call XC_potential(domain_geocode(at%astruct%dom),'D',iproc,nproc,MPI_COMM_WORLD,&
           Lzde%Glr%d%n1i,Lzde%Glr%d%n2i,Lzde%Glr%d%n3i,xc,[hxh,hyh,hzh],&
           rhopot,eexcu,vexcu,nspin,rhocore,rhocore,potxc,xcstr)
      if( iand(potshortcut,4)==0) then

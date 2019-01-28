@@ -480,6 +480,7 @@ subroutine createPawProjectorsArrays(iproc,n1,n2,n3,rxyz,at,orbs,&
   use psp_projectors_base, only: DFT_PSP_projectors_null
   use psp_projectors, only: bounds_to_plr_limits
   use module_abscalc
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iproc,n1,n2,n3
   real(gp), intent(in) :: cpmult,fpmult,hx,hy,hz
@@ -669,7 +670,7 @@ subroutine createPawProjectorsArrays(iproc,n1,n2,n3,rxyz,at,orbs,&
               if( .not. PAWD%DistProjApply) then
                  istart_c= istart_c-mproj*(nvctr_c+7*nvctr_f)*ncplx
                  call fillPawProjOnTheFly(PAWD, Glr, iat,  hx,hy,hz, kx,ky,kz, startjorb,&
-                      &   istart_c, at%astruct%geocode , at, iatat) 
+                      &   istart_c, domain_geocode(at%astruct%dom) , at, iatat) 
                  istart_c= istart_c+mproj*(nvctr_c+7*nvctr_f)*ncplx
               endif
            end if
@@ -771,9 +772,10 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
 
   call allocate_daubechies_projectors_ptr(PAWD%paw_nl%projs, PAWD%paw_nl%nregions)
   !mesh=cell_new(at%astruct%geocode,[n1+1,n2+1,n3+1],[hx,hy,hz])
-  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1+1,n2+1,n3+1]*[hx,hy,hz])
-  mesh=cell_new(dom,[n1+1,n2+1,n3+1],[hx,hy,hz])
+  !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
+  !          alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1+1,n2+1,n3+1]*[hx,hy,hz])
+  !mesh=cell_new(dom,[n1+1,n2+1,n3+1],[hx,hy,hz])
+  mesh=cell_new(at%astruct%dom,[n1+1,n2+1,n3+1],[hx,hy,hz])
 
   natpaw=0
   do iat=1,at%astruct%nat
@@ -794,7 +796,7 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
            call bounds_to_plr_limits(.true.,1,PAWD%paw_nl%projs(natpaw)%region%plr,&
                  nl1,nl2,nl3,nu1,nu2,nu3)
 
-           call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
+           call fill_logrid(domain_geocode(at%astruct%dom),n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
                 at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),at%radii_cf(1,3),cpmult,hx,hy,hz,logrid)
            call num_segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)
 
@@ -816,7 +818,7 @@ subroutine localize_projectors_paw(iproc,n1,n2,n3,hx,hy,hz,cpmult,fpmult,rxyz,&
            call bounds_to_plr_limits(.true.,2,PAWD%paw_nl%projs(natpaw)%region%plr,&
                  nl1,nl2,nl3,nu1,nu2,nu3)
 
-           call fill_logrid(at%astruct%geocode,n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
+           call fill_logrid(domain_geocode(at%astruct%dom),n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,0,1,  &
                 at%astruct%ntypes,at%astruct%iatype(iat),rxyz(1,iat),&
                 at%radii_cf(1,2),fpmult,hx,hy,hz,logrid)
            call num_segkeys(n1,n2,n3,nl1,nu1,nl2,nu2,nl3,nu3,logrid,mseg,mvctr)

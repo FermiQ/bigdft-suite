@@ -197,6 +197,7 @@ contains
     use module_tdpot
     use yaml_output
     use SWpotential
+    use at_domain, only: domain_geocode
     implicit none
     type(MM_restart_objects), intent(inout) :: mm_rst
     type(input_variables), intent(in) :: inputs
@@ -233,7 +234,7 @@ contains
           mm_rst%rf_extra=f_malloc0_ptr([3,astruct%nat],id='rf_extra')
        end if
        call init_lensic(inputs%mm_paramset,&
-            inputs%mm_paramfile,astruct%geocode,&
+            inputs%mm_paramfile,domain_geocode(astruct%dom),&
             astruct%units)
     case('LENOSKY_SI_BULK_RUN_MODE')
        if (associated(mm_rst%rf_extra)) then
@@ -254,20 +255,20 @@ contains
        !create reference counter
        mm_rst%refcnt=f_ref_new('mm_rst')
        call init_morse_slab(inputs%mm_paramset,&
-            inputs%mm_paramfile,astruct%geocode,&
+            inputs%mm_paramfile,domain_geocode(astruct%dom),&
             astruct%units)
     case('MORSE_BULK_RUN_MODE')
        call nullify_MM_restart_objects(mm_rst)
        !create reference counter
        mm_rst%refcnt=f_ref_new('mm_rst')
         call init_morse_bulk(inputs%mm_paramset,&
-             inputs%mm_paramfile,astruct%geocode)
+             inputs%mm_paramfile,domain_geocode(astruct%dom))
     case('TERSOFF_RUN_MODE')
        call nullify_MM_restart_objects(mm_rst)
        !create reference counter
        mm_rst%refcnt=f_ref_new('mm_rst')
        call init_tersoff(astruct%nat,astruct,inputs%mm_paramset,&
-            inputs%mm_paramfile,astruct%geocode)
+            inputs%mm_paramfile,domain_geocode(astruct%dom))
     case('ALBORZ_RUN_MODE')
        call nullify_MM_restart_objects(mm_rst)
        !create reference counter
@@ -278,7 +279,7 @@ contains
        !create reference counter
        mm_rst%refcnt=f_ref_new('mm_rst')
        call init_bmhtf(astruct%nat,astruct,inputs%mm_paramset,&
-            inputs%mm_paramfile,astruct%geocode)
+            inputs%mm_paramfile,domain_geocode(astruct%dom))
     case('AMBER_RUN_MODE')
        if (associated(mm_rst%rf_extra)) then
           if (size(mm_rst%rf_extra) == astruct%nat) then
@@ -1741,12 +1742,13 @@ contains
   end subroutine bigdft_set_units
 
   function bigdft_get_geocode(runObj) result(geocode)
+    use at_domain, only: domain_geocode
     implicit none
     type(run_objects), intent(in) :: runObj
     character :: geocode
 
     geocode=' '
-    if (associated(runObj%atoms)) geocode=runObj%atoms%astruct%geocode
+    if (associated(runObj%atoms)) geocode=domain_geocode(runObj%atoms%astruct%dom)
     if (all(geocode /= ['F','S','W','P'])) &
          call f_err_throw('Geometry code uninitialized',&
          err_name='BIGDFT_RUNTIME_ERROR')
@@ -2325,7 +2327,7 @@ contains
     use module_atoms, only: move_this_coordinate
     use module_forces
     use module_input_keys, only: inputpsiid_set_policy
-    use at_domain, only: bc_periodic_dims,geocode_to_bc
+    use at_domain, only: domain_periodic_dims
     implicit none
     integer, intent(in) :: iproc,nproc
     integer, intent(inout) :: infocode
@@ -2393,7 +2395,8 @@ contains
     fxyz_fake = f_malloc((/ 3, atoms%astruct%nat /),id='fxyz_fake')
 
     !get the periodic dimension
-    peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+    !peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+    peri=domain_periodic_dims(atoms%astruct%dom)
     do iat=1,atoms%astruct%nat
        do i=1,3 !a step in each of the three directions
 

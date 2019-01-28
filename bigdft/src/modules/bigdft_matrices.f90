@@ -576,6 +576,7 @@ module bigdft_matrices
       use sparsematrix_init, only: sparse_matrix_metadata_init, init_matrix_taskgroups_wrapper
       use yaml_output
       use sparsematrix_memory, only: sparse_matrix_null
+      use at_domain, only: domain_geocode
       implicit none
 
       ! Calling arguments
@@ -598,7 +599,7 @@ module bigdft_matrices
 
       call f_routine(id='init_bigdft_matrices')
 
-      call sparse_matrix_metadata_init(atoms%astruct%geocode, atoms%astruct%cell_dim, orbs%norb, &
+      call sparse_matrix_metadata_init(domain_geocode(atoms%astruct%dom), atoms%astruct%cell_dim, orbs%norb, &
            atoms%astruct%nat, atoms%astruct%ntypes, atoms%astruct%units, &           
            atoms%nzatom, atoms%nelpsp, atoms%astruct%atomnames, atoms%astruct%iatype, &
            atoms%astruct%rxyz, orbs%onwhichatom, linmat%smmd)
