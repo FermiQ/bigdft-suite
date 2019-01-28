@@ -1189,6 +1189,7 @@ contains
 
   subroutine set_astruct_from_openbabel(astruct, obfile)
     use at_babel
+    use dictionaries, only: dict_free
     implicit none
     type(atomic_structure), intent(out) :: astruct
     character(len = *), intent(in) :: obfile
