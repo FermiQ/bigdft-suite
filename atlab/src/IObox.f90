@@ -10,7 +10,7 @@
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS
 module IObox
-  use PSbase
+  use f_precisions, only: dp =>f_double, gp => f_double
   use box
   use f_enums
   use at_domain
@@ -32,7 +32,7 @@ module IObox
   public :: read_field,read_field_dimensions,dump_field
 
   contains
-    
+
     pure subroutine cube_dimensions(geocode,ndims,nc1,nc2,nc3)
       implicit none
       character(len=1), intent(in) :: geocode
@@ -478,7 +478,6 @@ module IObox
     !> Read density or potential in cube format
     subroutine read_cube(filename,geocode,ndims,hgrids,nspin,ldrho,nrho,rho,&
          nat,rxyz, iatypes, znucl,dry_run)
-      use PSbase
       use f_utils
       use yaml_strings, only: operator(+),f_strcpy
       use dictionaries, only: f_err_throw
@@ -610,7 +609,7 @@ module IObox
       else
          suffix='.cube'
       end if
-      
+
       call f_open_file(unit=fileunit0,file=trim(prefix)//suffix,status='unknown')
 
       call cubefile_header_dump(fileunit0,nat,mesh,message,form)
@@ -736,7 +735,7 @@ module IObox
       type(f_enumerator), intent(in) :: form
       integer, intent(in) :: unit,nat
       type(cell), intent(in) :: mesh
-      character(len=*), intent(in) :: message       
+      character(len=*), intent(in) :: message
       !local variables
       integer, dimension(3) :: nc,nl
 
@@ -869,7 +868,7 @@ module IObox
       type(f_enumerator), intent(out) :: form
       !local variables
       integer :: fformat
-      
+
       fformat=get_file_format(filename,isuffix)
 
       select case(fformat)
@@ -978,7 +977,7 @@ module IObox
       end if
 
       call f_zero(ns)
-      
+
       call f_strcpy(src=trim(filename(:isuffix)),dest=tmp_filename)
       if (form == CUBE_FORMAT) then
          call dump_rho_section(tmp_filename,'total spin',one,TOTAL_,zero,TOTAL_)
@@ -1089,7 +1088,7 @@ module IObox
         call write_cube_fields(form,filename,message,mesh,ns,&
              1.0_dp,a,rho(1,1,1,ia),1,b,rho(1,1,1,ib),&
              nat,rxyz_,iatype_,nzatom_,nelpsp_,ixyz0_)
-        
+
       end subroutine dump_rho_section
 
     END SUBROUTINE dump_field

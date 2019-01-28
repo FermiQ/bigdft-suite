@@ -146,7 +146,7 @@ class Runner():
         Returns:
            The value of the global option
         """
-        self._global_option.pop(key)
+        self._global_options.pop(key)
 
     def _run_options(self, **kwargs):
         """

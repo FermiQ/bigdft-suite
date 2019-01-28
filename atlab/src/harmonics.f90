@@ -108,13 +108,13 @@ module f_harmonics
          end do
       end do
 
-    end subroutine field_multipoles   
+    end subroutine field_multipoles
 
-    subroutine vector_multipoles(mp,nat,rxyz,mesh,origin,charges,lookup)
-      use box
+    subroutine vector_multipoles(mp,nat,rxyz,dom,origin,charges,lookup)
+      !use box
       use at_domain
       implicit none
-      type(cell), intent(in) :: mesh
+      type(domain), intent(in) :: dom
       integer, intent(in) :: nat
       real(dp), dimension(3,nat), intent(in) :: rxyz
       type(f_multipoles), intent(inout) :: mp
@@ -127,8 +127,8 @@ module f_harmonics
       oxyz=mp%rxyz
       if (present(origin)) oxyz=origin
       do iat=1,nat
-         tmp=closest_r(mesh%dom,rxyz(:,iat),oxyz)
-         tmp=rxyz_ortho(mesh%dom,tmp)
+         tmp=closest_r(dom,rxyz(:,iat),oxyz)
+         tmp=rxyz_ortho(dom,tmp)
          jat=iat
          if (present(lookup)) jat=lookup(iat)
          call accumulate_multipoles(tmp,charges(jat),&
@@ -200,8 +200,8 @@ module f_harmonics
       implicit none
       type(f_multipoles), intent(inout) :: mp
       integer, intent(in), optional :: comm
-      
-      !we might perform here, if needed, some checks that 
+
+      !we might perform here, if needed, some checks that
       !would guarantee that the multipoles are correctly iniitalized
 
       call fmpi_allreduce(mp%monomials,FMPI_SUM,comm=comm)
@@ -247,12 +247,12 @@ module f_harmonics
       q(Y_,Z_)=mp%monomials(YZ_)
       q(X_,Z_)=mp%monomials(XZ_)
 
-      q(Y_,X_)=q(X_,Y_)      
+      q(Y_,X_)=q(X_,Y_)
       q(Z_,Y_)=q(Y_,Z_)
       q(Z_,X_)=q(X_,Z_)
 
       q=3.0_dp*q
-      
+
       d=get_quadrupole_intensities(mp)
       d2=d(X_)+d(Y_)+d(Z_)
 
@@ -271,14 +271,14 @@ module f_harmonics
 
     pure function get_spreads(mp) result(s)
       !calculate the spread defined in terms of the multipoles
-      ! that is $sqrt (\langle r^2 \rangle - \langle r \rangle^2) $ 
+      ! that is $sqrt (\langle r^2 \rangle - \langle r \rangle^2) $
       type(f_multipoles), intent(in) :: mp
       real(dp), dimension(3) :: s
       !local variables
       real(dp) :: q
       real(dp), dimension(3) :: d
 
-      q=get_monopole(mp)            
+      q=get_monopole(mp)
       s=get_quadrupole_intensities(mp)
       s=s/q
       d=get_dipole(mp)

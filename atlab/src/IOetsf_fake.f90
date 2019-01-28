@@ -1,5 +1,5 @@
 module IOBoxETSF
-
+  use f_precisions, only: dp => f_double, gp => f_double
   implicit none
 
   private
@@ -12,7 +12,6 @@ contains
   !> Write a field in the ISF basis in the ETSF format
   subroutine write_etsf_density(filename,message,geocode,ndims,hgrids,&
        x,nspin,nat,rxyz,iatype,ntypes,nzatom)
-    use PSbase
     implicit none
     character(len=*), intent(in) :: filename,message
     character(len = 1), intent(in) :: geocode
@@ -32,21 +31,20 @@ contains
     !To avoid warnings from the compiler
     write(*,*) filename,message,ndims,hgrids,x(1,1,1,1),rxyz(1,1)
   END SUBROUTINE write_etsf_density
-  
+
   !> @file
   !!    File for handling the read-write of a given simulation in ETSF format, fake version
   !!
   !! @author
   !!    G. Fisicaro, L. Genovese (September 2015)
-  !!    Copyright (C) 2002-2015 BigDFT group 
+  !!    Copyright (C) 2002-2015 BigDFT group
   !!    This file is distributed under the terms of the
   !!    GNU General Public License, see ~/COPYING file
   !!    or http://www.gnu.org/copyleft/gpl.txt .
-  !!    For the list of contributors, see ~/AUTHORS 
+  !!    For the list of contributors, see ~/AUTHORS
   !> Read a field in the ISF basis in the ETSF format
   subroutine read_etsf(filename,geocode,n1i,n2i,n3i,nspin,hxh,hyh,hzh,ldrho,nrho,rho,&
        nat,rxyz,iatypes,znucl)
-    use PSbase
     implicit none
     character(len=*), intent(in) :: filename
     character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode

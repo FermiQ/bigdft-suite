@@ -62,7 +62,7 @@ module rhopotential
     !    err_name='BIGDFT_RUNTIME_ERROR')
 
     if(nspin==4) then
-       !this wrapper can be inserted inside the poisson solver 
+       !this wrapper can be inserted inside the poisson solver
        !call PSolverNC(domain_geocode(denspot%dpbox%mesh%dom),'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
        call PSolverNC(denspot%dpbox%mesh%dom,'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
             denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),&

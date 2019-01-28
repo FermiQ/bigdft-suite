@@ -1,7 +1,6 @@
 EXTRA_DIST = \
 	op2p_check.ref.yaml \
 	linalg_check.ref.yaml \
-	numerics_check.ref.yaml \
 	example.f90 \
 	mpi_check.f90 \
 	mpi_layer.f90
@@ -28,13 +27,10 @@ AM_LDFLAGS += -Wl,-rpath=$(abs_top_builddir)/src -Wl,-rpath=$(DESTDIR)$(libdir)
 endif
 endif
 
-#note: this way of iluding LDADD does not force the 
-#dependency between the programs and the library.	
+#note: this way of iluding LDADD does not force the
+#dependency between the programs and the library.
 op2p_check_SOURCES = op2p_check.f90
 op2p_check_LDADD = @LIB_FUTILE_LIBS@
-
-numerics_check_SOURCES = numerics_check.f90
-numerics_check_LDADD = @LIB_FUTILE_LIBS@
 
 linalg_check_SOURCES = linalg_check.f90
 linalg_check_LDADD = @LIB_FUTILE_LIBS@
@@ -42,7 +38,7 @@ linalg_check_LDADD = @LIB_FUTILE_LIBS@
 mpi_check_SOURCES = mpi_check.f90
 mpi_check_LDADD =  @LIB_FUTILE_LIBS@
 
-numerics_check.o op2p_check.o linalg_check.o: $(top_builddir)/wrappers/libwrappers.a
+op2p_check.o linalg_check.o: $(top_builddir)/wrappers/libwrappers.a
 
 op2p_check.out.yaml: op2p_check
 	$(run_parallel) ./op2p_check -o [10,10,10,10] -n 100 > $@

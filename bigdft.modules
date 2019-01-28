@@ -19,7 +19,6 @@
   <repository type="tarball" name="ntpoly" href="https://github.com/william-dawson/NTPoly/archive/"/>
   <repository type="tarball" name="bigpoly" href="https://github.com/william-dawson/BigPoly/archive/"/>
   <repository type="git" name="pyyaml" href="https://github.com/dcaliste/"/>
-  <repository type="git" name="ipython" href="https://github.com/ipython/"/>
   <repository type="git" name="esl" href="https://gitlab.e-cam2020.eu/esl/"/>
 
   <repository type="git" name="v_sim-dev" href="https://gitlab.com/l_sim/"/>
@@ -106,8 +105,9 @@
     </branch>
     <dependencies>
       <dep package="futile"/>
-      <dep package="libxc"/>
-      <dep package="psolver"/> <!-- this is for the libxc macro -->
+      <if condition-unset="no_upstream">
+         <dep package="libxc"/>
+      </if>
     </dependencies>
   </autotools>
 
@@ -119,7 +119,9 @@
   <autotools id="futile" autogen-sh="autoreconf">
     <branch repo="local" module="futile-1.8.tar.gz" version="1.8.0" checkoutdir="futile"/>
     <dependencies>
-      <dep package="libyaml"/>
+      <if condition-unset="no_upstream">
+         <dep package="libyaml"/>
+      </if>
       <if condition-set="testing">
         <dep package="PyYAML"/>
       </if>
@@ -137,6 +139,17 @@
     <branch repo="local" module="psolver-1.8.tar.gz" version="1.8.0" checkoutdir="psolver"/>
     <dependencies>
       <dep package="futile"/>
+      <dep package="atlab"/>
+    </dependencies>
+  </autotools>
+
+  <autotools id="atlab" autogen-sh="autoreconf">
+    <branch repo="local" module="atlab-1.0.tar.gz" version="1.0.0" checkoutdir="atlab"/>
+    <dependencies>
+      <dep package="futile"/>
+      <if condition-set="babel">
+        <dep package="openbabel"/>
+      </if>
     </dependencies>
   </autotools>
 
@@ -144,6 +157,7 @@
     <branch repo="local" module="CheSS-0.2.4.tar.gz" version="0.2.4" checkoutdir="chess"/>
     <dependencies>
       <dep package="futile"/>
+      <dep package="atlab"/>
       <if condition-set="ntpoly">
         <dep package="ntpoly"/>
       </if>
@@ -155,16 +169,16 @@
     <branch repo="local" module="bigdft-1.8.3.tar.gz" version="1.8.3" checkoutdir="bigdft"/>
     <dependencies>
       <dep package="futile"/>
+      <dep package="atlab"/>
       <dep package="chess"/>
-      <dep package="libxc"/>
+      <if condition-unset="no_upstream">
+         <dep package="libxc"/>
+         <dep package="GaIn"/>
+      </if>
       <dep package="psolver"/>
       <dep package="libABINIT"/>
-      <dep package="GaIn"/>
       <if condition-set="testing">
         <dep package="PyBigDFT"/>
-      </if>
-      <if condition-set="babel">
-        <dep package="openbabel"/>
       </if>
       <if condition-set="vsim">
         <dep package="v_sim-dev"/>
@@ -226,18 +240,6 @@
             checkoutdir="simgrid-dev"/>
   </cmake>
 
-  <cmake id="ipython" skip-autogen="true">
-    <branch repo="ipython"  module="ipython/ipython"
-            checkoutdir="ipython"/>
-  </cmake>
-
-  <distutils id="ipython">
-    <branch repo="local" module="ipython-5.1.0.tar.gz" version="5.1.0" checkoutdir="ipython"/>
-    <dependencies>
-      <dep package="PyYAML"/>
-    </dependencies>
-  </distutils>
-
   <distutils id="PyBigDFT">
     <branch repo="local" module="PyBigDFT-0.1.tar.gz" version="0.1" checkoutdir="PyBigDFT"/>
     <dependencies>
@@ -248,14 +250,6 @@
       <dep package="PyYAML"/>
     </dependencies>
   </distutils>
-
-  <!-- <autotools id="cmake-dev">
-    <branch repo="cmake-rep" module="cmake-3.3.2.tar.gz"
-            version="3.3.2"/>
-    <dependencies>
-      <dep package="cmake-dev"/>
-    </dependencies>
-  </autotools> -->
 
   <makesys id="parmetis" skip-autogen="true">
     <branch repo="metis" module="parmetis-4.0.2.tar.gz"
@@ -268,7 +262,9 @@
   <metamodule id="upstream-suite">
     <dependencies>
       <dep package="v_sim-dev"/>
+      <dep package="openbabel"/>
       <dep package="libxc"/>
+      <dep package="PyYAML"/>
     </dependencies>
   </metamodule>
 
