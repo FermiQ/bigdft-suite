@@ -9,7 +9,7 @@
 !!   For the list of contributors, see ~/AUTHORS
 program fft_results
   use futile
-  use numerics
+  !use numerics
   use f_random
   implicit none
   character(len=*), parameter :: inputs=&
@@ -117,7 +117,6 @@ end subroutine take_timings
 
 subroutine verify_1d_buildingblocks(pref,n,ndat,zinout,inzee,transpose,realfft)
   use futile
-  use numerics
   use wrapper_linalg
   implicit none
   logical, intent(in) :: transpose,realfft
@@ -126,7 +125,9 @@ subroutine verify_1d_buildingblocks(pref,n,ndat,zinout,inzee,transpose,realfft)
   real(f_double), dimension(2,n*ndat,2), intent(out) :: zinout
   !local variables
   integer :: idat,i1,ind
+  real(f_double) :: twopi
 
+  twopi=6.283185307179586d0
   inzee=.if. realfft .then. 2 .else. 1
   do i1=1,n
      do idat=1,ndat
@@ -159,15 +160,16 @@ end subroutine verify_1d_buildingblocks
 
 subroutine validate(pref,ndat,n,zinout,transpose)
   use futile
-  use numerics
+!  use numerics
   implicit none
   logical, intent(in) :: transpose 
   integer, intent(in) :: ndat,n,pref
   real(f_double), dimension(2,n*ndat) :: zinout
   !local variables
   integer :: i,idat,ind1,ind2
-  real(f_double) :: sum_tot,test1,test2
+  real(f_double) :: sum_tot,test1,test2,onehalf
 
+  onehalf = 0.5d0
   !verification of the result. Only two values should be different from zero
   do idat=1,ndat
      if (transpose) then
@@ -210,7 +212,6 @@ end subroutine validate
 
 subroutine verify_single_harmonic(pref,n,zinout,inzee,assert,dump)
   use futile
-  use numerics
   implicit none
   logical, intent(in) :: assert !<if true only assert the validity of the test
   logical, intent(in) :: dump
@@ -223,7 +224,9 @@ subroutine verify_single_harmonic(pref,n,zinout,inzee,assert,dump)
   real(f_double) :: refres,renorm,maxdiff,p2
   real(f_double), dimension(3) :: r,pval
   real(f_double), dimension(3,3) :: gmunu
+  real(f_double) :: twopi
 
+  twopi=6.283185307179586d0
   inzee=1
   !fill the inout array
   do i3=1,n(3)

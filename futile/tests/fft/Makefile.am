@@ -19,12 +19,23 @@ fft_cache_LDADD = @LINALG_LIBS@
 
 fft_results_SOURCES = fft_results.f90 $(top_srcdir)/wrappers/fft/fft3d.f90 $(mpi_source)
 fft_results_LDFLAGS =
-fft_results_LDADD = @LIB_FUTILE_LIBS@ @LINALG_LIBS@
+fft_results_LDADD = $(flib_libraries) @LINALG_LIBS@
 
 CLEANFILES = fft_check.out fft_cache.out fft_cache.dat fft_columns.dat fft_perf.dat \
 	fft_cache fft_cache.gnuplot *.report *.@MODULE_EXT@
 
-AM_FCFLAGS = -I$(top_builddir)/includes @LIB_YAML_CFLAGS@ @MPI_INCLUDE@ -I. -I$(srcdir)
+AM_FCFLAGS = -I$(top_builddir)/wrappers -I$(top_builddir)/dicts -I$(top_builddir)/flib -I$(top_builddir)/src @LIB_YAML_CFLAGS@ @MPI_INCLUDE@ -I. -I$(srcdir)
+
+if BUILD_DYNAMIC_LIBS
+flib_libraries = -lfutile-1
+AM_LDFLAGS = @FC_RPATH@$(abs_top_builddir)/src
+else
+if USE_SIMGRID_SHARED_ALLOCS
+AM_LDFLAGS = @FC_RPATH@$(abs_top_builddir)/src @FC_RPATH@$(DESTDIR)$(libdir)
+endif
+flib_libraries = $(top_builddir)/src/libfutile-1.a
+LIBS += @LIBS_EXT_DEPS@
+endif
 
 fft_cache.o: fft3d.o
 fft_check.o: fft3d.o
@@ -43,20 +54,20 @@ fft_cache.dat: fft_cache
 	python $(srcdir)/fft_cache.py
 
 fft_check.report: fft_check.out
-	python $(pythondir)/fldiff.py --mode=pseudo --discrepancy=1.e-8 \
+	python $(top_srcdir)/tests/fldiff.py --mode=pseudo --discrepancy=1.e-8 \
 		fft_check.out $(srcdir)/fft_check.out.ref | tee fft_check.report
 
 fft_cache.report: fft_cache.dat
-	python $(pythondir)/fldiff.py --mode=pseudo \
+	python $(top_srcdir)/tests/fldiff.py --mode=pseudo \
 		fft_cache.out $(srcdir)/fft_cache.out.ref | tee fft_cache.report
 
 check: fft_check.report fft_cache.report report
 
 report:
-	@if test $(MAKELEVEL) = 0 ; then python $(pythondir)/report.py ; fi
+	@if test $(MAKELEVEL) = 0 ; then python $(top_builddir)/tests/report.py ; fi
 
 regtest: fft_results
-	python $(pythondir)/f_regtest.py --fldiff=$(pythondir)/fldiff_yaml.py --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir)
+	python $(top_srcdir)/tests/f_regtest.py --fldiff=$(top_builddir)/tests/fldiff_yaml.py --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir)
 
 define F_REGTEST_INSTRUCTIONS
 - fft_results:
