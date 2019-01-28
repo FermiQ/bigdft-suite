@@ -24,7 +24,7 @@ flib_libraries = -lfutile-1
 AM_LDFLAGS += @FC_RPATH@$(abs_top_builddir)/src
 else
 if USE_SIMGRID_SHARED_ALLOCS
-AM_LDFLAGS += @FC_RPATH@$(abs_top_builddir)/src -Wl,-rpath=$(DESTDIR)$(libdir)
+AM_LDFLAGS += @FC_RPATH@$(abs_top_builddir)/src @FC_RPATH@$(DESTDIR)$(libdir)
 endif
 flib_libraries = $(top_builddir)/src/libfutile-1.a
 LIBS += @LIBS_EXT_DEPS@
@@ -70,7 +70,7 @@ yaml_test.out.yaml: yaml_test
 	./yaml_test > yaml_test.out.yaml
 
 yaml_test.report.yaml: tols.yaml yaml_test.ref.yaml yaml_test.out.yaml
-	python $(pythondir)/fldiff_yaml.py --label yaml_test -t $(srcdir)/tols.yaml 	\
+	python $(top_builddir)/tests/fldiff_yaml.py --label yaml_test -t $(srcdir)/tols.yaml 	\
 		-r $(srcdir)/yaml_test.ref.yaml -d yaml_test.out.yaml --output $@
 
 yaml_argparse.out.yaml: yaml_argparse
@@ -79,20 +79,20 @@ yaml_argparse.out.yaml: yaml_argparse
 	./yaml_argparse -n 100 -d [89,90,90] >> yaml_argparse.out.yaml
 
 yaml_argparse.report.yaml: tols.yaml yaml_argparse.ref.yaml yaml_argparse.out.yaml
-	python $(pythondir)/fldiff_yaml.py --label yaml_argparse -t $(srcdir)/tols.yaml 	\
+	python $(top_builddir)/tests/fldiff_yaml.py --label yaml_argparse -t $(srcdir)/tols.yaml 	\
 		-r $(srcdir)/yaml_argparse.ref.yaml -d yaml_argparse.out.yaml --output $@
 
 hooks.report.yaml: tols.yaml hooks.ref.yaml
-	python $(pythondir)/fldiff_yaml.py --label hooks -t $(srcdir)/tols.yaml 	\
+	python $(top_builddir)/tests/fldiff_yaml.py --label hooks -t $(srcdir)/tols.yaml 	\
 		-r $(srcdir)/hooks.ref.yaml -d hooks.out.yaml --output $@
 
 check: yaml_test.report.yaml regtest report
 
 report:
-	@if test $(MAKELEVEL) = 0 ; then python $(pythondir)/report.py ; fi
+	@if test $(MAKELEVEL) = 0 ; then python $(top_builddir)/tests/report.py ; fi
 
 regtest: yaml_argparse test_plugin hooks libpong.so
-	python $(pythondir)/f_regtest.py --fldiff=$(pythondir)/fldiff_yaml.py \
+	python $(top_srcdir)/tests/f_regtest.py --fldiff=$(top_builddir)/tests/fldiff_yaml.py \
 	       --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir) \
 	       --exclusive=$(CHECK_ONLY)
 
