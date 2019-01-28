@@ -24,15 +24,15 @@ dist_bin_SCRIPTS = futilevars.sh futile_environment.sh unienv.sh
 
 if HAVE_PYYAML
 SUBDIRS += tests
-endif
-
-SUBDIRS += doc
 
 check:
 	@if test $(MAKELEVEL) = 0 ; then $(MAKE) report ; fi
 
 report:
 	python $(top_builddir)/tests/report.py
+endif
+
+SUBDIRS += doc
 
 clean-local:
 	rm -rf includes

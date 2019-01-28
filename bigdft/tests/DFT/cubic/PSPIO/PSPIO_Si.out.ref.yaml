@@ -451,8 +451,8 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : bohr
-   Positions:
+   units                               : bohr
+   positions:
    - Si: [ 9.000000000,  9.000000000,  9.000000000] # [  22.50,  22.50,  22.50 ] 0001
    Rigid Shift Applied (AU)            :  [  9.0000,  9.0000,  9.0000 ]
   #------------------------------------------------------------------------- Grid properties
