@@ -331,7 +331,7 @@ subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old
   use bounds, only: ext_buffers_coarse
   use compression
   use m_pawrhoij
-  use at_domain, only: bc_periodic_dims,geocode_to_bc
+  use at_domain, only: domain_periodic_dims
   implicit none
   integer, intent(in) :: iproc,n1,n2,n3, iformat
   real(gp), intent(in) :: hx,hy,hz
@@ -373,7 +373,8 @@ subroutine readmywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz_old
 !!$     perx=(at%astruct%geocode /= 'F')
 !!$     pery=(at%astruct%geocode == 'P')
 !!$     perz=(at%astruct%geocode /= 'F')
-     peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+     !peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+     peri=domain_periodic_dims(at%astruct%dom)
      perx=peri(1)
      pery=peri(2)
      perz=peri(3)
@@ -2977,7 +2978,7 @@ END SUBROUTINE readmywaves_linear_new
       use module_atoms, only: deallocate_atomic_structure, nullify_atomic_structure, set_astruct_from_file
       use io, only: dist_and_shift
       use rototranslations
-      use at_domain, only: bc_periodic_dims,geocode_to_bc
+      use at_domain, only: domain_periodic_dims
       implicit none
       integer, intent(in) :: isfat
       type(atoms_data), intent(in) :: at
@@ -3133,7 +3134,8 @@ END SUBROUTINE readmywaves_linear_new
 !!$      perx=(at%astruct%geocode /= 'F')
 !!$      pery=(at%astruct%geocode == 'P')
 !!$      perz=(at%astruct%geocode /= 'F')
-      peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+      !peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+      peri=domain_periodic_dims(at%astruct%dom)
       perx=peri(1)
       pery=peri(2)
       perz=peri(3)
@@ -3744,7 +3746,7 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
   use rototranslations
   use reformatting
   use locregs, only: lr_box
-  use at_domain, only: bc_periodic_dims,geocode_to_bc
+  use at_domain, only: domain_periodic_dims
   implicit none
   integer, intent(in) :: iproc,nproc
   integer, intent(in) :: ndim_old
@@ -4069,7 +4071,8 @@ subroutine reformat_supportfunctions(iproc,nproc,at,rxyz_old,rxyz,add_derivative
 !!$             per(1)=(at%astruct%geocode /= 'F')
 !!$             per(2)=(at%astruct%geocode == 'P')
 !!$             per(3)=(at%astruct%geocode /= 'F')
-             per=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+             !per=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+             per=domain_periodic_dims(at%astruct%dom)
 
              !buffers related to periodicity
              !WARNING: the boundary conditions are not assumed to change between new and old

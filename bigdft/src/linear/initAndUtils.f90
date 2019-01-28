@@ -1208,6 +1208,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
   use public_enums
   use locregs_init, only: small_to_large_locreg
   use module_interfaces, only: deallocate_auxiliary_basis_function, update_locreg
+  use at_domain, only: domain_geocode
   implicit none
 
   ! Calling argument
@@ -1377,7 +1378,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      tmb%ham_descr%psit_f = f_malloc_ptr(7*tmb%ham_descr%collcom%ndimind_f,id='tmb%ham_descr%psit_f')
 
 
-     call sparse_matrix_metadata_init(at%astruct%geocode, at%astruct%cell_dim, tmb%orbs%norb, &
+     call sparse_matrix_metadata_init(domain_geocode(at%astruct%dom), at%astruct%cell_dim, tmb%orbs%norb, &
           at%astruct%nat, at%astruct%ntypes, at%astruct%units, &
           at%nzatom, at%nelpsp, at%astruct%atomnames, at%astruct%iatype, &
           at%astruct%rxyz, tmb%orbs%onwhichatom, tmb%linmat%smmd)
@@ -1500,7 +1501,7 @@ subroutine adjust_locregs_and_confinement(iproc, nproc, hx, hy, hz, at, input, &
      nullify(tmb%linmat%ks_e)
      if (input%lin%scf_mode/=LINEAR_FOE .or. &
          (mod(input%lin%plotBasisFunctions,10) /= WF_FORMAT_NONE) .or. input%lin%diag_end) then
-         call init_sparse_matrix_for_KSorbs(iproc, nproc, KSwfn%orbs, input, at%astruct%geocode, &
+         call init_sparse_matrix_for_KSorbs(iproc, nproc, KSwfn%orbs, input, domain_geocode(at%astruct%dom), &
               at%astruct%cell_dim, input%lin%extra_states, tmb%linmat%ks, tmb%linmat%ks_e)
      end if
 

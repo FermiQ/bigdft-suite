@@ -27,6 +27,7 @@ program wvl
   use rhopotential, only: full_local_potential
   use module_razero
   use locregs_init, only: lr_set
+  use at_domain, only: domain_geocode
   implicit none
 
   type(input_variables)             :: inputs
@@ -268,7 +269,7 @@ program wvl
   ! Example of calculation of the energy of the local potential of the pseudos.
   dict => dict_new()
   pkernel=pkernel_init(iproc,nproc,dict,&
-       atoms%astruct%geocode,(/Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i/),&
+       domain_geocode(atoms%astruct%dom),(/Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i/),&
        (/inputs%hx / 2._gp,inputs%hy / 2._gp,inputs%hz / 2._gp/))
   call dict_free(dict)
   call pkernel_set(pkernel,verbose=.false.)
