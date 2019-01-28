@@ -26,7 +26,7 @@ program BigDFT2Wannier
    use io, only: writemywaves
    use locregs_init, only: lr_set
    use f_allreduce
-   use box, only: cell_periodic_dims 
+   use at_domain, only: domain_periodic_dims 
    implicit none
    character :: filetype*4
    !etsf
@@ -328,7 +328,7 @@ program BigDFT2Wannier
 !!$         perx=(lzd%Glr%geocode /= 'F')
 !!$         pery=(lzd%Glr%geocode == 'P')
 !!$         perz=(lzd%Glr%geocode /= 'F')
-         peri=cell_periodic_dims(lzd%Glr%mesh)
+         peri=domain_periodic_dims(lzd%Glr%mesh%dom)
          perx=peri(1)
          pery=peri(2)
          perz=peri(3)
@@ -600,7 +600,7 @@ program BigDFT2Wannier
 !!$         perx=(lzd%Glr%geocode /= 'F')
 !!$         pery=(lzd%Glr%geocode == 'P')
 !!$         perz=(lzd%Glr%geocode /= 'F')
-         peri=cell_periodic_dims(lzd%Glr%mesh)
+         peri=domain_periodic_dims(lzd%Glr%mesh%dom)
          perx=peri(1)
          pery=peri(2)
          perz=peri(3)
@@ -833,7 +833,7 @@ program BigDFT2Wannier
 !!$      perx=(lzd%Glr%geocode /= 'F')
 !!$      pery=(lzd%Glr%geocode == 'P')
 !!$      perz=(lzd%Glr%geocode /= 'F')
-      peri=cell_periodic_dims(lzd%Glr%mesh)
+      peri=domain_periodic_dims(lzd%Glr%mesh%dom)
       perx=peri(1)
       pery=peri(2)
       perz=peri(3)
@@ -1797,6 +1797,7 @@ subroutine write_functions(w_sph, w_ang, w_rad, fn1, fn2, fn3, np, Glr, &
   use module_defs, only: gp
   use module_types
   use locregs
+  use at_domain, only: dmain_periodic_dims
    implicit none
 
    ! I/O variables
@@ -1848,7 +1849,8 @@ subroutine write_functions(w_sph, w_ang, w_rad, fn1, fn2, fn3, np, Glr, &
       end if
    end if
 
-   peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+   !peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+   peri=domain_periodic_dims(atoms%astruct%dom)
    if (peri(1)) then
       nl1=1
       nbx = 1
@@ -2158,7 +2160,7 @@ subroutine write_unk_bin(Glr,orbs,orbsv,orbsb,input,atoms,rxyz,n_occ,n_virt,virt
    use locreg_operations
    use module_interfaces, only: readmywaves
    use locregs
-   use box, only: cell_periodic_dims 
+   use at_domain, only: domain_periodic_dims 
    implicit none
    ! I/O variables
    type(locreg_descriptors), intent(in) :: Glr
@@ -2237,7 +2239,7 @@ subroutine write_unk_bin(Glr,orbs,orbsv,orbsb,input,atoms,rxyz,n_occ,n_virt,virt
 !!$   perx=(Glr%geocode /= 'F')
 !!$   pery=(Glr%geocode == 'P')
 !!$   perz=(Glr%geocode /= 'F')
-   peri=cell_periodic_dims(Glr%mesh)
+   peri=domain_periodic_dims(Glr%mesh%dom)
    perx=peri(1)
    pery=peri(2)
    perz=peri(3)

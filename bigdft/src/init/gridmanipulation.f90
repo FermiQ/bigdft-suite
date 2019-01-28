@@ -41,7 +41,7 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    type(domain) :: dom
 
    !check the geometry code with the grid spacings
-   if (atoms%astruct%geocode == 'F' .and. (hx/=hy .or. hx/=hz .or. hy/=hz)) then
+   if (domain_geocode(atoms%astruct%dom) == 'F' .and. (hx/=hy .or. hx/=hz .or. hy/=hz)) then
       call f_err_throw('Grid spacings must be equal' // &
            ' in the Free BC case, while hgrids = '//&
            trim(yaml_toa((/ hx, hy, hz/),fmt='(f7.4)')),&
@@ -94,7 +94,8 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    !!  cymin=cymin-eps_mach
    !!  czmin=czmin-eps_mach
 
-   peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+   !peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+   peri=domain_periodic_dims(atoms%astruct%dom)
    alat(1)=(cxmax-cxmin)
    alat(2)=(cymax-cymin)
    alat(3)=(czmax-czmin)
@@ -190,9 +191,10 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
    !we will also have to decide where the mesh should be in astruct or not
    !mesh_coarse=cell_new(atoms%astruct%geocode,ndims+1,hgridsh)
    ndims1=ndims+1
-   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(atoms%astruct%geocode),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims1*hgridsh)
-   mesh_coarse=cell_new(dom,ndims1,hgridsh)
+!   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(domain_geocode(atoms%astruct%dom)),&
+   !         alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims1*hgridsh)
+   !mesh_coarse=cell_new(dom,ndims1,hgridsh)
+   mesh_coarse=cell_new(atoms%astruct%dom,ndims1,hgridsh)
   
    do iat=1,atoms%astruct%nat
       rad=atoms%radii_cf(atoms%astruct%iatype(iat),2)*frmult
@@ -263,7 +265,7 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
 
    !assign the values
 !   call init_lr(Glr,mesh_coarse,nbox_fine,&
-   call init_lr(Glr,atoms%astruct%geocode,hgridsh,n1,n2,n3,&
+   call init_lr(Glr,domain_geocode(atoms%astruct%dom),hgridsh,n1,n2,n3,&
         nfl1,nfl2,nfl3,nfu1,nfu2,nfu3,&
         hybrid_flag=.not. OCLconv)
 
@@ -319,6 +321,7 @@ subroutine export_grids(fname, atoms, rxyz, hx, hy, hz, n1, n2, n3, logrid_c, lo
   use module_types
   use module_base, only: f_err_throw
   use module_atoms, only: write_xyz_bc
+  use at_domain, only: domain_geocode
   implicit none
   character(len = *), intent(in) :: fname
   type(atoms_data), intent(in) :: atoms
@@ -352,7 +355,7 @@ subroutine export_grids(fname, atoms, rxyz, hx, hy, hz, n1, n2, n3, logrid_c, lo
   open(unit=22,file=fname,status='unknown')
   write(22,*) nvctr+atoms%astruct%nat,' atomic'
 
-  call write_xyz_bc(22,atoms%astruct%geocode,1.0_gp,atoms%astruct%cell_dim)
+  call write_xyz_bc(22,domain_geocode(atoms%astruct%dom),1.0_gp,atoms%astruct%cell_dim)
 
 !!$  if (atoms%astruct%geocode=='F') then
 !!$     write(22,*)'complete simulation grid with low and high resolution points'

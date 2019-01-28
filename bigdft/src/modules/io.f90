@@ -695,7 +695,7 @@ module io
       use module_base
       use yaml_strings, only: f_strcpy
       use rototranslations, only: frag_center
-      use at_domain, only: bc_periodic_dims,geocode_to_bc
+      use at_domain, only: domain_periodic_dims
       implicit none
       integer, intent(in) :: num_neighbours
       type(atoms_data), intent(in) :: at
@@ -829,7 +829,8 @@ module io
 !!$      perx=(at%astruct%geocode /= 'F')
 !!$      pery=(at%astruct%geocode == 'P')
 !!$      perz=(at%astruct%geocode /= 'F')
-      peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+      !peri=bc_periodic_dims(geocode_to_bc(at%astruct%geocode))
+      peri=domain_periodic_dims(at%astruct%dom)
       perx=peri(1)
       pery=peri(2)
       perz=peri(3)
@@ -982,6 +983,7 @@ module io
       ref_frag%astruct_env%inputfile_format = ref_frag%astruct_frg%inputfile_format
       ref_frag%astruct_env%units = ref_frag%astruct_frg%units
       ref_frag%astruct_env%geocode = ref_frag%astruct_frg%geocode
+      ref_frag%astruct_env%dom = ref_frag%astruct_frg%dom
 
       ref_frag%astruct_env%nat = ref_frag%astruct_frg%nat+num_neighbours_tot
       ref_frag%astruct_env%rxyz = f_malloc_ptr((/3,ref_frag%astruct_env%nat/),id='ref_frag%astruct_env%rxyz')
@@ -1988,6 +1990,7 @@ module io
       use sparsematrix_io, only: write_sparse_matrix, write_sparse_matrix_metadata
       use matrix_operations, only: overlapPowerGeneral
       use sparsematrix_io, only: write_dense_matrix
+      use at_domain, only: domain_geocode
       implicit none
       integer, intent(in) :: iproc,nproc,comm,imethod_overlap,norder_taylor
       integer,intent(in) :: iformat !< 1: plain sparse, 11: plain dense, 21: plain both (later extend to other than plain formats...)
@@ -2021,7 +2024,7 @@ module io
 
       if (write_sparse) then
           call write_sparse_matrix_metadata(iproc, tmb%linmat%smat(2)%nfvctr, at%astruct%nat, at%astruct%ntypes, &
-               at%astruct%units, at%astruct%geocode, at%astruct%cell_dim, at%astruct%shift, at%astruct%iatype, &
+               at%astruct%units, domain_geocode(at%astruct%dom), at%astruct%cell_dim, at%astruct%shift, at%astruct%iatype, &
                at%astruct%rxyz, at%nzatom, at%nelpsp, at%astruct%atomnames, &
                tmb%orbs%onwhichatom, trim(filename//'sparsematrix_metadata.dat'))
 
@@ -2392,6 +2395,7 @@ module io
       use locregs
       use locreg_operations, only: lpsi_to_global2
       use module_atoms, only: write_xyz_bc
+      use at_domain, only: domain_geocode
       implicit none
       
       ! Calling arguments
@@ -2428,7 +2432,7 @@ module io
     
       !write(2000+iproc,*) llr%wfd%nvctr_c+llr%wfd%nvctr_f+atoms%astruct%nat,' atomic'
       write(2000+iproc,*) glr%wfd%nvctr_c+glr%wfd%nvctr_f+llr%wfd%nvctr_c+llr%wfd%nvctr_f+atoms%astruct%nat,' atomic'
-      call write_xyz_bc(2000+iproc,atoms%astruct%geocode,1.0_gp,atoms%astruct%cell_dim)
+      call write_xyz_bc(2000+iproc,domain_geocode(atoms%astruct%dom),1.0_gp,atoms%astruct%cell_dim)
 
 !!$      if (atoms%astruct%geocode=='F') then
 !!$         write(2000+iproc,*)'complete simulation grid with low and high resolution points'

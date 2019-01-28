@@ -144,7 +144,7 @@ contains
     use dynamic_memory
     use f_utils
     use module_base, only: f_err_throw
-    use at_domain, only: bc_periodic_dims,geocode_to_bc
+    use at_domain, only: domain_periodic_dims,domain_geocode
 
     implicit none
 
@@ -198,7 +198,8 @@ contains
     pos(1 + 2 * NATOMS:3 * NATOMS) = rxyz(3, :) * Bohr_Ang
     lbox = astruct%cell_dim * Bohr_Ang
 
-    peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+    !peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+    peri=domain_periodic_dims(astruct%dom)
 
     where(.not. peri) lbox = 1._gp
 
@@ -246,11 +247,11 @@ contains
 
           ! Pair interactions of i and j
           ! Distance, with periodic boundary conditions
-          if (astruct%geocode == "P") then
+          if (domain_geocode(astruct%dom) == "P") then
              xij = xa(j) - xi - 1.0_gp * nint( xa(j)-xi )
              yij = ya(j) - yi - 1.0_gp * nint( ya(j)-yi )
              zij = za(j) - zi - 1.0_gp * nint( za(j)-zi )
-          elseif (astruct%geocode == "S") then
+          elseif (domain_geocode(astruct%dom) == "S") then
              xij = xa(j) - xi - 1.0_gp * nint( xa(j)-xi )
              yij = ya(j) - yi
              zij = za(j) - zi - 1.0_gp * nint( za(j)-zi )
@@ -321,11 +322,11 @@ contains
                 !k_id = types(k)
                 k_id = 1
                 ! Distance, with periodic boundary conditions
-                if (astruct%geocode == "P") then
+                if (domain_geocode(astruct%dom) == "P") then
                    xik = xa(k) - xi - 1.0_gp * nint( xa(k)-xi )
                    yik = ya(k) - yi - 1.0_gp * nint( ya(k)-yi )
                    zik = za(k) - zi - 1.0_gp * nint( za(k)-zi )
-                elseif (astruct%geocode == "S") then
+                elseif (domain_geocode(astruct%dom) == "S") then
                    xik = xa(k) - xi - 1.0_gp * nint( xa(k)-xi )
                    yik = ya(k) - yi
                    zik = za(k) - zi - 1.0_gp * nint( za(k)-zi )

@@ -270,7 +270,7 @@ subroutine mkcore_paw_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
   use dynamic_memory
   use dictionaries, only: f_err_raise
   use f_utils
-  use at_domain, only: bc_periodic_dims,geocode_to_bc
+  use at_domain, only: domain_periodic_dims
   use m_pawrad,  only : pawrad_type, pawrad_init, pawrad_free
   use m_paw_numeric, only: paw_sort_dp, paw_splint
   use bounds, only: ext_buffers
@@ -310,7 +310,8 @@ subroutine mkcore_paw_iat(iproc,atoms,ityp,rx,ry,rz,cutoff,hxh,hyh,hzh,&
 !!$  perx=(atoms%astruct%geocode /= 'F')
 !!$  pery=(atoms%astruct%geocode == 'P')
 !!$  perz=(atoms%astruct%geocode /= 'F')
-  peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+  !peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+  peri=domain_periodic_dims(atoms%astruct%dom)
   perx=peri(1)
   pery=peri(2)
   perz=peri(3)

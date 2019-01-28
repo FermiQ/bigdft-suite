@@ -407,6 +407,7 @@ subroutine read_pos(iunit,whichone,nat,pos,nrep)
   use BigDFT_API
   use m_ab6_symmetry
   use module_atoms, only: deallocate_atomic_structure,set_astruct_from_file
+  use at_domain, only: domain_periodic_dims
   implicit none
   character(len=1), intent(in) :: whichone
   integer, intent(in) :: iunit,nat,nrep
@@ -445,7 +446,8 @@ subroutine read_pos(iunit,whichone,nat,pos,nrep)
      call allocate_atoms_nat(atoms)
      call allocate_atoms_ntypes(atoms)
      !transform the positions in reduced coordinates
-     peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+     !peri=bc_periodic_dims(geocode_to_bc(atoms%astruct%geocode))
+     peri=domain_periodic_dims(atoms%astruct%dom)
      alat=1.d0
      where(peri) alat=atoms%astruct%cell_dim
 !!$     alat(1) = atoms%astruct%cell_dim(1)
