@@ -94,7 +94,7 @@ dnl Produce dynamic excecutables.
 AX_DYNAMIC_LIBRARIES()
 
 dnl Test Python availability
-AX_PYTHON_DEV($ax_build_dynamic)
+AM_PATH_PYTHON([2.3.5], [ax_have_python="yes"], [ax_have_python="no"])
 
 dnl Test Glib availability
 AC_ARG_WITH(gobject, AS_HELP_STRING([--with-gobject], [Compile with GLib (disabled by default).]),
@@ -174,12 +174,6 @@ Compilation Options (from FUTILE lib when not specified):
   Fortran Flags:             $FUTILE_FCFLAGS
   OpenMP flag:               $ax_fc_openmp_msg
   Dynamic libraries flags    $FUTILE_DYNLIB_FLAG
-  With MPI:                  $ac_use_mpi
-   | include dir.:           $MPI_INCLUDE
-   | linker flags:           $MPI_LDFLAGS
-   | linked libraries:       $MPI_LIBS
-   | MPI_INIT_THREAD avail:  $ac_with_mpinithread
-   | MPI2 support:           $ac_with_mpi2
   With dgemmsy support:      $ax_have_dgemmsy
   With libyaml:              $ax_have_yaml
    | C flags:                $LIB_YAML_CFLAGS
