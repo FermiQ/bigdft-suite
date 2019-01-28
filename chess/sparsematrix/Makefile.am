@@ -47,7 +47,7 @@ endif
 
 CLEANFILES = *.@MODULE_EXT@
 
-AM_FCFLAGS = -I. -I$(srcdir) @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@ @MPI_INCLUDE@
+AM_FCFLAGS = -I. -I$(srcdir) @LIB_FUTILE_CFLAGS@ @MPI_INCLUDE@
 
 #dependencies
 $(modules): $(libsparsematrix_a_OBJECTS)

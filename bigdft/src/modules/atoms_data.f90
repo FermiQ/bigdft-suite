@@ -1188,9 +1188,12 @@ contains
   END SUBROUTINE set_astruct_from_file
 
   subroutine set_astruct_from_openbabel(astruct, obfile)
+    use at_babel
+    use dictionaries, only: dict_free
     implicit none
     type(atomic_structure), intent(out) :: astruct
     character(len = *), intent(in) :: obfile
+    type(dictionary), pointer :: dict
 
       call load_dict_from_openbabel(dict,obfile)
     ! giuseppe line
@@ -1257,6 +1260,7 @@ contains
     use yaml_output
     use yaml_strings, only: f_strcpy
     use internal_coordinates, only : xyzint
+    use at_babel
     implicit none
     character(len=*), intent(in) :: filename,comment
     type(atomic_structure), intent(in) :: astruct

@@ -188,8 +188,6 @@ Options:
    | MPI2 support:           $ac_with_mpi2
   With PEXSI:                $ax_have_pexsi
   With MINPACK:              $ax_have_minpack
-  With ETSF_IO:              $ax_have_etsf_io
-   | include dir.:           $LIBETSFIO_INCLUDE
 
 Installation paths:
   Source code location:      ${srcdir}
@@ -205,9 +203,6 @@ if test x"$ac_use_mpi" = x"warn" -o x"$ax_have_etsf_io" = x"warn" -o x"$withscal
   echo "Warnings:"
   if test x"$ac_use_mpi" = x"warn" ; then
     echo "  MPI:                       disabled by tests"
-  fi
-  if test x"$ax_have_etsf_io" = x"warn" ; then
-    echo "  ETSF_IO:                   disabled by tests"
   fi
   if test x"$withscalapack" = x"warn" ; then
     echo "  Scalapack binding:         disabled by tests"
