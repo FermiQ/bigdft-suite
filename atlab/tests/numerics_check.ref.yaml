@@ -9,11 +9,349 @@
    -  [ 48.0674124956131,  0.0,  48.0674124956131]
    -  [ 48.0674124956131,  48.0674124956131,  0.0]
    quadrupole intensity: [ 16.02247083187103,  16.02247083187103,  16.02247083187103]
- Normal loop, seq (ns)                 :  265360690
- Normal loop, omp (ns)                 :  84626639
- Normal loop, itr (ns)                 :  675814878
- Normal loop, iom (ns)                 :  98647628
- Normal loop, mpi (ns)                 :  682355613
+ Check of domain:
+   File exist                          : domain.yaml
+   Domain:
+     filename                          : domain_ortho_fbc.yaml
+     units                             :  0
+     orthorhombic                      :  Yes
+     bc                                :  [  0,  0,  0 ]
+     angrad: [ 1.570796326794897,  1.570796326794897,  1.570796326794897]
+     abc:
+     -  [ 0.0,  0.0,  0.0]
+     -  [ 0.0,  0.0,  0.0]
+     -  [ 0.0,  0.0,  0.0]
+     uabc:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     acell                             :  [  0.0,  0.0,  0.0 ]
+     gd:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     gu:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     detgd                             :  1.0
+   Domain:
+     filename                          : domain_ortho_wbc.yaml
+     units                             :  0
+     orthorhombic                      :  Yes
+     bc                                :  [  0,  0,  1 ]
+     angrad: [ 1.570796326794897,  1.570796326794897,  1.570796326794897]
+     abc:
+     -  [ 0.0,  0.0,  0.0]
+     -  [ 0.0,  0.0,  0.0]
+     -  [ 0.0,  0.0,  70.0]
+     uabc:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     acell                             :  [  0.0,  0.0,  70.0 ]
+     gd:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     gu:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     detgd                             :  1.0
+   Domain:
+     filename                          : domain_ortho_sbc.yaml
+     units                             :  0
+     orthorhombic                      :  Yes
+     bc                                :  [  1,  0,  1 ]
+     angrad: [ 1.570796326794897,  1.570796326794897,  1.570796326794897]
+     abc:
+     -  [ 70.0,  0.0,  0.0]
+     -  [ 0.0,  0.0,  0.0]
+     -  [ 0.0,  0.0,  70.0]
+     uabc:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     acell                             :  [  70.0,  0.0,  70.0 ]
+     gd:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     gu:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     detgd                             :  1.0
+   Domain:
+     filename                          : domain_ortho_pbc.yaml
+     units                             :  0
+     orthorhombic                      :  Yes
+     bc                                :  [  1,  1,  1 ]
+     angrad: [ 1.570796326794897,  1.570796326794897,  1.570796326794897]
+     abc:
+     -  [ 70.0,  0.0,  0.0]
+     -  [ 0.0,  70.0,  0.0]
+     -  [ 0.0,  0.0,  70.0]
+     uabc:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     acell                             :  [  70.0,  70.0,  70.0 ]
+     gd:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     gu:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     detgd                             :  1.0
+   Domain:
+     filename                          : domain_noortho_90_90_74.yaml
+     units                             :  0
+     orthorhombic                      :  No
+     bc                                :  [  1,  1,  1 ]
+     angrad: [ 1.570796326794897,  1.570796326794897,  1.291543646475804]
+     abc:
+     -  [ 70.0,  0.0,  0.0]
+     -  [ 19.29461490718994,  67.28831871568232,  0.0]
+     -  [ 0.0,  0.0,  70.0]
+     uabc:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.2756373558169992,  0.9612616959383189,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     acell                             :  [  70.0,  70.0,  70.0 ]
+     gd:
+     -  [ 1.0,  0.2756373558169992,  0.0]
+     -  [ 0.2756373558169992,  1.0,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     gu:
+     -  [ 1.082222916253968, -0.2983010630408053,  0.0]
+     -  [-0.2983010630408053,  1.082222916253968,  0.0]
+     -  [ 0.0,  0.0,  1.0]
+     detgd                             :  0.924024048078213
+   Domain:
+     filename                          : domain_noortho_90_64_90.yaml
+     units                             :  0
+     orthorhombic                      :  No
+     bc                                :  [  1,  1,  1 ]
+     angrad: [ 1.570796326794897,  1.117010721276371,  1.570796326794897]
+     abc:
+     -  [ 70.0,  0.0,  0.0]
+     -  [ 0.0,  70.0,  0.0]
+     -  [ 30.68598027523542,  0.0,  62.91558324094169]
+     uabc:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.4383711467890775,  0.0,  0.8987940462991669]
+     acell                             :  [  70.0,  70.0,  70.0 ]
+     gd:
+     -  [ 1.0,  0.0,  0.4383711467890775]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.4383711467890775,  0.0,  1.0]
+     gu:
+     -  [ 1.237883077949156,  0.0, -0.5426522244713644]
+     -  [ 0.0,  1.0,  0.0]
+     -  [-0.5426522244713644,  0.0,  1.237883077949156]
+     detgd                             :  0.8078307376628291
+   Domain:
+     filename                          : domain_noortho_43_90_90.yaml
+     units                             :  0
+     orthorhombic                      :  No
+     bc                                :  [  1,  1,  1 ]
+     angrad: [ 0.7504915783575616,  1.570796326794897,  1.570796326794897]
+     abc:
+     -  [ 70.0,  0.0,  0.0]
+     -  [ 0.0,  70.0,  0.0]
+     -  [ 0.0,  51.19475911334194,  47.73988520437489]
+     uabc:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.0,  0.7313537016191706,  0.6819983600624984]
+     acell                             :  [  70.0,  70.0,  70.0 ]
+     gd:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.7313537016191706]
+     -  [ 0.0,  0.7313537016191706,  1.0]
+     gu:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  2.149974650240003, -1.572391918840407]
+     -  [ 0.0, -1.572391918840407,  2.149974650240003]
+     detgd                             :  0.4651217631279372
+   Domain:
+     filename                          : domain_noortho_90_85_52.yaml
+     units                             :  0
+     orthorhombic                      :  No
+     bc                                :  [  1,  1,  1 ]
+     angrad: [ 1.570796326794897,  1.48352986419518,  0.9075712110370513]
+     abc:
+     -  [ 70.0,  0.0,  0.0]
+     -  [ 43.09630327279608,  55.16075275247054,  0.0]
+     -  [ 6.10090199233607, -4.766547035338367,  69.57053272930872]
+     uabc:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.6156614753256583,  0.7880107536067219,  0.0]
+     -  [ 8.7155742747658138E-002, -6.8093529076262385E-002,  0.9938647532758389]
+     acell                             :  [  70.0,  70.0,  70.0 ]
+     gd:
+     -  [ 1.0,  0.6156614753256583,  8.7155742747658138E-002]
+     -  [ 0.6156614753256583,  1.0,  0.0]
+     -  [ 8.7155742747658138E-002,  0.0,  1.0]
+     gu:
+     -  [ 1.630351073900537, -1.003744347456376, -0.1420944587852433]
+     -  [-1.003744347456376,  1.617966725804782,  8.7482084131323773E-002]
+     -  [-0.1420944587852433,  8.7482084131323773E-002,  1.012384348095754]
+     detgd                             :  0.613364824305938
+   Domain:
+     filename                          : domain_noortho_49_90_67.yaml
+     units                             :  0
+     orthorhombic                      :  No
+     bc                                :  [  1,  1,  1 ]
+     angrad: [ 0.8552113334772214,  1.570796326794897,  1.169370598836201]
+     abc:
+     -  [ 70.0,  0.0,  0.0]
+     -  [ 27.35117899424916,  64.43533974167083,  0.0]
+     -  [ 0.0,  49.89015740339957,  49.1016516449703]
+     uabc:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.3907311284892737,  0.9205048534524405,  0.0]
+     -  [ 0.0,  0.7127165343342796,  0.7014521663567186]
+     acell                             :  [  70.0,  70.0,  70.0 ]
+     gd:
+     -  [ 1.0,  0.3907311284892737,  0.0]
+     -  [ 0.3907311284892737,  1.0,  0.6560590289905073]
+     -  [ 0.0,  0.6560590289905073,  1.0]
+     gu:
+     -  [ 1.366191058993437, -0.9371944856538088,  0.6148549042332957]
+     -  [-0.9371944856538088,  2.39856621937798, -1.57360102485455]
+     -  [ 0.6148549042332957, -1.57360102485455,  2.032375160384543]
+     detgd                             :  0.4169157357095315
+   Domain:
+     filename                          : domain_noortho_49_85_90.yaml
+     units                             :  0
+     orthorhombic                      :  No
+     bc                                :  [  1,  1,  1 ]
+     angrad: [ 0.7853981633974483,  1.48352986419518,  1.570796326794897]
+     abc:
+     -  [ 70.0,  0.0,  0.0]
+     -  [ 0.0,  70.0,  0.0]
+     -  [ 6.10090199233607,  49.49747468305833,  49.12004677196379]
+     uabc:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 8.7155742747658138E-002,  0.7071067811865476,  0.7017149538851969]
+     acell                             :  [  70.0,  70.0,  70.0 ]
+     gd:
+     -  [ 1.0,  0.0,  8.7155742747658138E-002]
+     -  [ 0.0,  1.0,  0.7071067811865476]
+     -  [ 8.7155742747658138E-002,  0.7071067811865476,  1.0]
+     gu:
+     -  [ 1.015426611885745,  0.1251582687640667, -0.1770005211292801]
+     -  [ 0.1251582687640667,  2.015426611885745, -1.436030086123382]
+     -  [-0.1770005211292801, -1.436030086123382,  2.03085322377149]
+     detgd                             :  0.492403876506104
+   Domain:
+     filename                          : domain_noortho_120_80_55.yaml
+     units                             :  0
+     orthorhombic                      :  No
+     bc                                :  [  1,  1,  1 ]
+     angrad: [ 2.094395102393195,  1.396263401595464,  0.9599310885968813]
+     abc:
+     -  [ 70.0,  0.0,  0.0]
+     -  [ 40.15035054457323,  57.34064310022943,  0.0]
+     -  [ 12.15537243668513, -51.23839401656441,  46.1180431016839]
+     uabc:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.5735764363510462,  0.8191520442889918,  0.0]
+     -  [ 0.1736481776669304, -0.7319770573794915,  0.6588291871669127]
+     acell                             :  [  70.0,  70.0,  70.0 ]
+     gd:
+     -  [ 1.0,  0.5735764363510462,  0.1736481776669304]
+     -  [ 0.5735764363510462,  1.0, -0.4999999999999998]
+     -  [ 0.1736481776669304, -0.4999999999999998,  1.0]
+     gu:
+     -  [ 2.57505531643996, -2.267423844474823, -1.580865585328751]
+     -  [-2.267423844474823,  3.329877196942741,  2.058672617062968]
+     -  [-1.580865585328751,  2.058672617062968,  2.303850736560187]
+     detgd                             :  0.2912558791307375
+   Domain:
+     filename                          : domain_noortho_surface.yaml
+     units                             :  0
+     orthorhombic                      :  No
+     bc                                :  [  1,  0,  1 ]
+     angrad: [ 1.570796326794897,  1.117010721276371,  1.570796326794897]
+     abc:
+     -  [ 70.0,  0.0,  0.0]
+     -  [ 0.0,  0.0,  0.0]
+     -  [ 30.68598027523542,  0.0,  62.91558324094169]
+     uabc:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.4383711467890775,  0.0,  0.8987940462991669]
+     acell                             :  [  70.0,  0.0,  70.0 ]
+     gd:
+     -  [ 1.0,  0.0,  0.4383711467890775]
+     -  [ 0.0,  1.0,  0.0]
+     -  [ 0.4383711467890775,  0.0,  1.0]
+     gu:
+     -  [ 1.237883077949156,  0.0, -0.5426522244713644]
+     -  [ 0.0,  1.0,  0.0]
+     -  [-0.5426522244713644,  0.0,  1.237883077949156]
+     detgd                             :  0.8078307376628292
+   Domain:
+     filename                          : domain_abc.yaml
+     units                             :  1
+     orthorhombic                      :  No
+     bc                                :  [  1,  1,  1 ]
+     angrad: [ 1.570796326794897,  1.221730476396031,  0.6981317007977319]
+     abc:
+     -  [ 5.46872796,  0.0,  0.0]
+     -  [ 4.189288664687385,  3.515230573434344,  0.0]
+     -  [ 1.870415120688292, -2.229073939722805,  4.630309076944543]
+     uabc:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.766044443118978,  0.6427876096865393,  0.0]
+     -  [ 0.3420201433256687, -0.4076037345479523,  0.8466885006553777]
+     acell                             :  [  5.46872796,  5.46872796,  5.468727960000001 ]
+     gd:
+     -  [ 1.0,  0.766044443118978,  0.3420201433256686]
+     -  [ 0.766044443118978,  1.0,  0.0]
+     -  [ 0.3420201433256686,  0.0,  1.0]
+     gu:
+     -  [ 3.376118514983941, -2.586256827714544, -1.154700538379251]
+     -  [-2.586256827714544,  2.981187671349242,  0.8845519308919172]
+     -  [-1.154700538379251,  0.8845519308919172,  1.394930843634698]
+     detgd                             :  0.2961981327260239
+   Domain:
+     filename                          : domain_abc_from_ang_ace.yaml
+     units                             :  1
+     orthorhombic                      :  No
+     bc                                :  [  1,  1,  1 ]
+     angrad: [ 1.570796326794897,  1.221730476396031,  0.6981317007977319]
+     abc:
+     -  [ 5.46872796,  0.0,  0.0]
+     -  [ 4.189288664687385,  3.515230573434345,  0.0]
+     -  [ 1.870415120688293, -2.229073939722805,  4.630309076944543]
+     uabc:
+     -  [ 1.0,  0.0,  0.0]
+     -  [ 0.766044443118978,  0.6427876096865394,  0.0]
+     -  [ 0.3420201433256688, -0.4076037345479524,  0.8466885006553777]
+     acell                             :  [  5.46872796,  5.46872796,  5.468727960000001 ]
+     gd:
+     -  [ 1.0,  0.766044443118978,  0.3420201433256688]
+     -  [ 0.766044443118978,  1.0,  0.0]
+     -  [ 0.3420201433256688,  0.0,  1.0]
+     gu:
+     -  [ 3.376118514983942, -2.586256827714545, -1.154700538379252]
+     -  [-2.586256827714545,  2.981187671349243,  0.8845519308919181]
+     -  [-1.154700538379252,  0.8845519308919181,  1.394930843634699]
+     detgd                             :  0.2961981327260238
+ Normal loop, seq (ns)                 :  344552112
+ Normal loop, omp (ns)                 :  164625124
+ Normal loop, itr (ns)                 :  520807550
+ Normal loop, iom (ns)                 :  64819773
+ Normal loop, mpi (ns)                 :  64819773
  Check of functions distance, closest_r, rxyz_ortho:
    Cell orthorhombic                   :  Yes
    Cell ndims                          :  [  70,  70,  70 ]
@@ -392,13 +730,13 @@
      Cell angles cosine input: [ 6.123233995736766E-017,  6.123233995736766E-017, 
                                  6.123233995736766E-017]
  Check of functions distance, closest_r, rxyz_ortho:
-   Cell orthorhombic                 :  No
-   Cell ndims                        :  [  70,  70,  70 ]
-   Cell hgrids                       :  [  1.0,  1.0,  1.0 ]
-   Cell angles deg                   :  [  90.0,  70.0,  90.0 ]
+   Cell orthorhombic                   :  No
+   Cell ndims                          :  [  70,  70,  70 ]
+   Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
+   Cell angles deg                     :  [  90.0,  70.0,  90.0 ]
    Cell angles rad: [ 1.570796326794897,  1.221730476396031,  1.570796326794897]
-   Cell periodity (FREE=0,PERIODIC=1):  [  1,  0,  1 ]
-   Volume element                    :  0.9396926207859083
+   Cell periodity (FREE=0,PERIODIC=1)  :  [  1,  0,  1 ]
+   Volume element                      :  0.9396926207859083
    Contravariant matrix:
    -  [ 1.132474331431794,  0.0, -0.3873290331489433]
    -  [ 0.0,  1.0,  0.0]
@@ -415,48 +753,48 @@
    -  [ 1.0,  0.0,  0.0]
    -  [ 0.0,  1.0,  0.0]
    -  [ 0.3420201433256688,  0.0,  0.9396926207859083]
-   Sphere radius or cube side        :  20.0
+   Sphere radius or cube side          :  20.0
    center:
-     Sphere or cube center           :  [  0.0,  35.0,  0.0 ]
+     Sphere or cube center             :  [  0.0,  35.0,  0.0 ]
      Numerical sphere integral with distance:  33519.77547605414
      Numerical sphere integral with closest_r and rxyz_ortho:  33519.77547605414
      Numerical sphere integral with closest_r and square_gd:  33519.77547605414
-     Analytical sphere integral      :  33510.32163829113
-     Sphere integral error           :  2.8211718959468871E-004
-     Numerical cube integral         :  64650.85231007049
-     Analytical cube integral        :  64000.0
-     Cube integral error             :  1.016956734485143E-002
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  2.8211718959468871E-004
+     Numerical cube integral           :  64650.85231007049
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  1.016956734485143E-002
      Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
    center:
-     Sphere or cube center           :  [  35.0,  35.0,  35.0 ]
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
      Numerical sphere integral with distance:  33519.77547605414
      Numerical sphere integral with closest_r and rxyz_ortho:  33519.77547605414
      Numerical sphere integral with closest_r and square_gd:  33519.77547605414
-     Analytical sphere integral      :  33510.32163829113
-     Sphere integral error           :  2.8211718959468871E-004
-     Numerical cube integral         :  64650.85231007049
-     Analytical cube integral        :  64000.0
-     Cube integral error             :  1.016956734485143E-002
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  2.8211718959468871E-004
+     Numerical cube integral           :  64650.85231007049
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  1.016956734485143E-002
      Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
    center:
-     Sphere or cube center           :  [  105.0,  35.0,  105.0 ]
+     Sphere or cube center             :  [  105.0,  35.0,  105.0 ]
      Numerical sphere integral with distance:  33519.77547605414
      Numerical sphere integral with closest_r and rxyz_ortho:  33519.77547605414
      Numerical sphere integral with closest_r and square_gd:  33519.77547605414
-     Analytical sphere integral      :  33510.32163829113
-     Sphere integral error           :  2.8211718959468871E-004
-     Numerical cube integral         :  64650.85231007049
-     Analytical cube integral        :  64000.0
-     Cube integral error             :  1.016956734485143E-002
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  2.8211718959468871E-004
+     Numerical cube integral           :  64650.85231007049
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  1.016956734485143E-002
      Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
  Check of box cutoff:
-   Cell orthorhombic                 :  No
-   Cell ndims                        :  [  70,  70,  70 ]
-   Cell hgrids                       :  [  1.0,  1.0,  1.0 ]
-   Cell angles deg                   :  [  90.0,  70.0,  90.0 ]
+   Cell orthorhombic                   :  No
+   Cell ndims                          :  [  70,  70,  70 ]
+   Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
+   Cell angles deg                     :  [  90.0,  70.0,  90.0 ]
    Cell angles rad: [ 1.570796326794897,  1.221730476396031,  1.570796326794897]
-   Cell periodity (FREE=0,PERIODIC=1):  [  1,  0,  1 ]
-   Volume element                    :  0.9396926207859083
+   Cell periodity (FREE=0,PERIODIC=1)  :  [  1,  0,  1 ]
+   Volume element                      :  0.9396926207859083
    Contravariant matrix:
    -  [ 1.132474331431794,  0.0, -0.3873290331489433]
    -  [ 0.0,  1.0,  0.0]
@@ -473,9 +811,9 @@
    -  [ 1.0,  0.0,  0.0]
    -  [ 0.0,  1.0,  0.0]
    -  [ 0.3420201433256688,  0.0,  0.9396926207859083]
-   Sphere radius or cube side        :  20.0
-   Box cube cutoff                   :  20.0
-   Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
+   Sphere radius or cube side          :  20.0
+   Box cube cutoff                     :  20.0
+   Sphere or cube center               :  [  35.0,  35.0,  35.0 ]
    bit%nbox whole box:
    -  [ 1,  70]
    -  [ 1,  70]
@@ -497,23 +835,23 @@
    -  [ 16,  56]
    -  [ 15,  57]
    center:
-     Sphere or cube center           :  [  35.0,  35.0,  35.0 ]
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
      Numerical sphere integral with distance:  33519.77547605414
-     Analytical sphere integral      :  33510.32163829113
-     Sphere integral error           :  2.8211718959468871E-004
-     Numerical cube integral         :  64650.85231007049
-     Analytical cube integral        :  64000.0
-     Cube integral error             :  1.016956734485143E-002
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  2.8211718959468871E-004
+     Numerical cube integral           :  64650.85231007049
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  1.016956734485143E-002
      Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
-     Numerical box cutoff integral   :  71237.15788915893
+     Numerical box cutoff integral     :  71237.15788915893
  Check of functions distance, closest_r, rxyz_ortho:
-   Cell orthorhombic                 :  No
-   Cell ndims                        :  [  70,  70,  70 ]
-   Cell hgrids                       :  [  1.0,  1.0,  1.0 ]
-   Cell angles deg                   :  [  80.0,  80.0,  80.0 ]
+   Cell orthorhombic                   :  No
+   Cell ndims                          :  [  70,  70,  70 ]
+   Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
+   Cell angles deg                     :  [  80.0,  80.0,  80.0 ]
    Cell angles rad: [ 1.396263401595464,  1.396263401595464,  1.396263401595464]
-   Cell periodity (FREE=0,PERIODIC=1):  [  1,  1,  1 ]
-   Volume element                    :  0.9591721418386057
+   Cell periodity (FREE=0,PERIODIC=1)  :  [  1,  1,  1 ]
+   Volume element                      :  0.9591721418386057
    Contravariant matrix:
    -  [ 1.054167941476588, -0.1559703712540147, -0.1559703712540147]
    -  [-0.1559703712540147,  1.054167941476588, -0.1559703712540147]
@@ -530,369 +868,380 @@
    -  [ 0.7422271989685592,  0.0,  0.6701483306785797]
    -  [-0.3711135994842796,  0.6427876096865393,  0.6701483306785797]
    -  [-0.3711135994842796, -0.6427876096865393,  0.6701483306785797]
-   Sphere radius or cube side        :  20.0
+   Sphere radius or cube side          :  20.0
    center:
-     Sphere or cube center           :  [  0.0,  0.0,  0.0 ]
+     Sphere or cube center             :  [  0.0,  0.0,  0.0 ]
      Numerical sphere integral with distance:  33518.27049655007
      Numerical sphere integral with closest_r and rxyz_ortho:  33518.27049655007
      Numerical sphere integral with closest_r and square_gd:  33518.27049655007
-     Analytical sphere integral      :  33510.32163829113
-     Sphere integral error           :  2.3720626572156037E-004
-     Numerical cube integral         :  63609.41893031081
-     Analytical cube integral        :  64000.0
-     Cube integral error             :  6.1028292138935285E-003
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  2.3720626572156037E-004
+     Numerical cube integral           :  63609.41893031081
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  6.1028292138935285E-003
      Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
    center:
-     Sphere or cube center           :  [  35.0,  35.0,  35.0 ]
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
      Numerical sphere integral with distance:  33518.27049655007
      Numerical sphere integral with closest_r and rxyz_ortho:  33518.27049655007
      Numerical sphere integral with closest_r and square_gd:  33518.27049655007
-     Analytical sphere integral      :  33510.32163829113
-     Sphere integral error           :  2.3720626572156037E-004
-     Numerical cube integral         :  63609.41893031081
-     Analytical cube integral        :  64000.0
-     Cube integral error             :  6.1028292138935285E-003
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  2.3720626572156037E-004
+     Numerical cube integral           :  63609.41893031081
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  6.1028292138935285E-003
      Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
-     center:
-       Sphere or cube center           :  [  105.0,  105.0,  105.0 ]
-       Numerical sphere integral with distance:  33518.27049655007
-       Numerical sphere integral with closest_r and rxyz_ortho:  33518.27049655007
-       Numerical sphere integral with closest_r and square_gd:  33518.27049655007
-       Analytical sphere integral      :  33510.32163829113
-       Sphere integral error           :  2.3720626572156037E-004
-       Numerical cube integral         :  63609.41893031081
-       Analytical cube integral        :  64000.0
-       Cube integral error             :  6.1028292138935285E-003
-       Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
-   Check of box cutoff:
-     Cell orthorhombic                 :  No
-     Cell ndims                        :  [  70,  70,  70 ]
-     Cell hgrids                       :  [  1.0,  1.0,  1.0 ]
-     Cell angles deg                   :  [  80.0,  80.0,  80.0 ]
-     Cell angles rad: [ 1.396263401595464,  1.396263401595464,  1.396263401595464]
-     Cell periodity (FREE=0,PERIODIC=1):  [  1,  1,  1 ]
-     Volume element                    :  0.9591721418386057
-     Contravariant matrix:
-     -  [ 1.054167941476588, -0.1559703712540147, -0.1559703712540147]
-     -  [-0.1559703712540147,  1.054167941476588, -0.1559703712540147]
-     -  [-0.1559703712540147, -0.1559703712540147,  1.054167941476588]
-     Covariant matrix:
-     -  [ 1.0,  0.1736481776669304,  0.1736481776669304]
-     -  [ 0.1736481776669304,  1.0,  0.1736481776669304]
-     -  [ 0.1736481776669304,  0.1736481776669304,  1.0]
-     Product of the two:
-     -  [ 0.9999999999999999,  1.0408340855860843E-017,  0.0]
-     -  [ 1.0408340855860843E-017,  0.9999999999999999,  0.0]
-     -  [ 0.0,  0.0,  0.9999999999999999]
-     uabc matrix:
-     -  [ 0.7422271989685592,  0.0,  0.6701483306785797]
-     -  [-0.3711135994842796,  0.6427876096865393,  0.6701483306785797]
-     -  [-0.3711135994842796, -0.6427876096865393,  0.6701483306785797]
-     Sphere radius or cube side        :  20.0
-     Box cube cutoff                   :  20.0
-     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
-     bit%nbox whole box:
-     -  [ 1,  70]
-     -  [ 1,  70]
-     -  [ 1,  70]
-     nbox_ref:
-     -  [ 16,  56]
-     -  [ 16,  56]
-     -  [ 16,  56]
-     nbox_ref_cub:
-     -  [ 9,  63]
-     -  [ 2,  70]
-     -  [ 2,  70]
-     nbox:
-     -  [ 15,  55]
-     -  [ 15,  55]
-     -  [ 15,  55]
-     bit%nbox reduced box:
-     -  [ 16,  56]
-     -  [ 16,  56]
-     -  [ 16,  56]
-     center:
-       Sphere or cube center           :  [  35.0,  35.0,  35.0 ]
-       Numerical sphere integral with distance:  33518.27049655007
-       Analytical sphere integral      :  33510.32163829113
-       Sphere integral error           :  2.3720626572156037E-004
-       Numerical cube integral         :  63609.41893031081
-       Analytical cube integral        :  64000.0
-       Cube integral error             :  6.1028292138935285E-003
-       Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
-       Numerical box cutoff integral   :  66107.10318765855
-   Check of functions distance, closest_r, rxyz_ortho:
-     Cell orthorhombic                 :  No
-     Cell ndims                        :  [  70,  70,  70 ]
-     Cell hgrids                       :  [  1.0,  1.0,  1.0 ]
-     Cell angles deg                   :  [  59.99999999999999,  50.0,  90.0 ]
-     Cell angles rad: [ 1.047197551196598,  0.8726646259971648,  1.570796326794897]
-     Cell periodity (FREE=0,PERIODIC=1):  [  1,  1,  1 ]
-     Volume element                    :  0.5803654786713843
-     Contravariant matrix:
-     -  [ 2.226681596905677,  0.9541888941386714, -1.908377788277343]
-     -  [ 0.9541888941386714,  1.74222719896856, -1.484454397937119]
-     -  [-1.908377788277343, -1.484454397937119,  2.968908795874238]
-     Covariant matrix:
-     -  [ 1.0,  0.0,  0.6427876096865394]
-     -  [ 0.0,  1.0,  0.5000000000000001]
-     -  [ 0.6427876096865394,  0.5000000000000001,  1.0]
-     Product of the two:
-     -  [ 0.9999999999999996, -2.2204460492503131E-016,  2.2204460492503131E-016]
-     -  [-2.2204460492503131E-016,  1.0,  0.0]
-     -  [ 0.0,  0.0,  1.0]
-     uabc matrix:
-     -  [ 1.0,  0.0,  0.0]
-     -  [ 0.0,  1.0,  0.0]
-     -  [ 0.6427876096865394,  0.5000000000000001,  0.5803654786713843]
-     Sphere radius or cube side        :  20.0
-     center:
-       Sphere or cube center           :  [  0.0,  0.0,  0.0 ]
-       Numerical sphere integral with distance:  33515.52602779377
-       Numerical sphere integral with closest_r and rxyz_ortho:  33515.52602779377
-       Numerical sphere integral with closest_r and square_gd:  33515.52602779377
-       Analytical sphere integral      :  33510.32163829113
-       Sphere integral error           :  1.5530705908524392E-004
-       Numerical cube integral         :  63744.4423498715
-       Analytical cube integral        :  64000.0
-       Cube integral error             :  3.9930882832578622E-003
-       Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
-     center:
-       Sphere or cube center           :  [  35.0,  35.0,  35.0 ]
-       Numerical sphere integral with distance:  33515.52602779377
-       Numerical sphere integral with closest_r and rxyz_ortho:  33515.52602779377
-       Numerical sphere integral with closest_r and square_gd:  33515.52602779377
-       Analytical sphere integral      :  33510.32163829113
-       Sphere integral error           :  1.5530705908524392E-004
-       Numerical cube integral         :  63744.4423498715
-       Analytical cube integral        :  64000.0
-       Cube integral error             :  3.9930882832578622E-003
-       Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
-     center:
-       Sphere or cube center           :  [  105.0,  105.0,  105.0 ]
-       Numerical sphere integral with distance:  33515.52602779377
-       Numerical sphere integral with closest_r and rxyz_ortho:  33515.52602779377
-       Numerical sphere integral with closest_r and square_gd:  33515.52602779377
-       Analytical sphere integral      :  33510.32163829113
-       Sphere integral error           :  1.5530705908524392E-004
-       Numerical cube integral         :  63744.4423498715
-       Analytical cube integral        :  64000.0
-       Cube integral error             :  3.9930882832578622E-003
-       Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
-   Check of box cutoff:
-     Cell orthorhombic                 :  No
-     Cell ndims                        :  [  70,  70,  70 ]
-     Cell hgrids                       :  [  1.0,  1.0,  1.0 ]
-     Cell angles deg                   :  [  59.99999999999999,  50.0,  90.0 ]
-     Cell angles rad: [ 1.047197551196598,  0.8726646259971648,  1.570796326794897]
-     Cell periodity (FREE=0,PERIODIC=1):  [  1,  1,  1 ]
-     Volume element                    :  0.5803654786713843
-     Contravariant matrix:
-     -  [ 2.226681596905677,  0.9541888941386714, -1.908377788277343]
-     -  [ 0.9541888941386714,  1.74222719896856, -1.484454397937119]
-     -  [-1.908377788277343, -1.484454397937119,  2.968908795874238]
-     Covariant matrix:
-     -  [ 1.0,  0.0,  0.6427876096865394]
-     -  [ 0.0,  1.0,  0.5000000000000001]
-     -  [ 0.6427876096865394,  0.5000000000000001,  1.0]
-     Product of the two:
-     -  [ 0.9999999999999996, -2.2204460492503131E-016,  2.2204460492503131E-016]
-     -  [-2.2204460492503131E-016,  1.0,  0.0]
-     -  [ 0.0,  0.0,  1.0]
-     uabc matrix:
-     -  [ 1.0,  0.0,  0.0]
-     -  [ 0.0,  1.0,  0.0]
-     -  [ 0.6427876096865394,  0.5000000000000001,  0.5803654786713843]
-     Sphere radius or cube side        :  20.0
-     Box cube cutoff                   :  20.0
-     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
-     bit%nbox whole box:
-     -  [ 1,  70]
-     -  [ 1,  70]
-     -  [ 1,  70]
-     nbox_ref:
-     -  [ 7,  65]
-     -  [ 10,  62]
-     -  [ 2,  70]
-     nbox_ref_cub:
-     -  [ 1,  70]
-     -  [ 1,  70]
-     -  [ 2,  70]
-     nbox:
-     -  [ 6,  64]
-     -  [ 9,  61]
-     -  [ 1,  69]
-     bit%nbox reduced box:
-     -  [ 7,  65]
-     -  [ 10,  62]
-     -  [ 2,  70]
-     center:
-       Sphere or cube center           :  [  35.0,  35.0,  35.0 ]
-       Numerical sphere integral with distance:  33515.52602779377
-       Analytical sphere integral      :  33510.32163829113
-       Sphere integral error           :  1.5530705908524392E-004
-       Numerical cube integral         :  63744.4423498715
-       Analytical cube integral        :  64000.0
-       Cube integral error             :  3.9930882832578622E-003
-       Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
-       Numerical box cutoff integral   :  125221.3967745739
-   Check of consistency of cell data:
-     Cell orthorhombic                 :  No
-     Cell ndims                        :  [  70,  70,  70 ]
-     Cell hgrids                       :  [  1.0,  1.0,  1.0 ]
-     Cell angles deg                   :  [  59.99999999999999,  50.0,  90.0 ]
-     Cell angles rad: [ 1.047197551196598,  0.8726646259971648,  1.570796326794897]
-     Cell periodity (FREE=0,PERIODIC=1):  [  1,  1,  1 ]
-     Volume element                    :  0.5803654786713843
-     Contravariant matrix:
-     -  [ 2.226681596905677,  0.9541888941386714, -1.908377788277343]
-     -  [ 0.9541888941386714,  1.74222719896856, -1.484454397937119]
-     -  [-1.908377788277343, -1.484454397937119,  2.968908795874238]
-     Covariant matrix:
-     -  [ 1.0,  0.0,  0.6427876096865394]
-     -  [ 0.0,  1.0,  0.5000000000000001]
-     -  [ 0.6427876096865394,  0.5000000000000001,  1.0]
-     Product of the two:
-     -  [ 0.9999999999999996, -2.2204460492503131E-016,  2.2204460492503131E-016]
-     -  [-2.2204460492503131E-016,  1.0,  0.0]
-     -  [ 0.0,  0.0,  1.0]
-     uabc matrix:
-     -  [ 1.0,  0.0,  0.0]
-     -  [ 0.0,  1.0,  0.0]
-     -  [ 0.6427876096865394,  0.5000000000000001,  0.5803654786713843]
-     norm of cell vectors:
-       norm vector a                   :  1.0
-       norm vector b                   :  1.0
-       norm vector c                   :  1.0
-     norm of cell vectors:
+   center:
+     Sphere or cube center             :  [  105.0,  105.0,  105.0 ]
+     Numerical sphere integral with distance:  33518.27049655007
+     Numerical sphere integral with closest_r and rxyz_ortho:  33518.27049655007
+     Numerical sphere integral with closest_r and square_gd:  33518.27049655007
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  2.3720626572156037E-004
+     Numerical cube integral           :  63609.41893031081
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  6.1028292138935285E-003
+     Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
 
-       Cell angles cosine from abc     :  [  0.5000000000000001,  0.6427876096865394,  0.0 ]
-       Cell angles cosine input: [ 0.5000000000000001,  0.6427876096865394, 
-                                   6.123233995736766E-017]
-     Check of functions distance, closest_r, rxyz_ortho:
-       Cell orthorhombic               :  No
-       Cell ndims                      :  [  150,  150,  150 ]
-       Cell hgrids                     :  [  1.0,  1.0,  1.0 ]
-       Cell angles deg                 :  [  20.0,  25.0,  30.0 ]
-       Cell angles rad: [ 0.3490658503988659,  0.4363323129985824,  0.5235987755982988]
-       Cell periodity (FREE=0,PERIODIC=1):  [  1,  1,  1 ]
-       Volume element                  :  0.1438274137842181
-       Contravariant matrix:
-       -  [ 5.654836163027236, -0.694887283070669, -4.472041596788556]
-       -  [-0.694887283070669,  8.634022502202059, -7.483545477259078]
-       -  [-4.472041596788556, -7.483545477259078,  12.0852785854174]
-       Covariant matrix:
-       -  [ 1.0,  0.8660254037844387,  0.9063077870366499]
-       -  [ 0.8660254037844387,  1.0,  0.9396926207859084]
-       -  [ 0.9063077870366499,  0.9396926207859084,  1.0]
-       Product of the two:
-       -  [ 1.000000000000004, -6.2172489379008766E-015,  0.0]
-       -  [ 1.7763568394002505E-015,  0.9999999999999964,  1.7763568394002505E-015]
-       -  [ 1.7763568394002505E-015, -6.2172489379008766E-015,  1.000000000000004]
-       uabc matrix:
-       -  [ 1.0,  0.0,  0.0]
-       -  [ 0.8660254037844387,  0.4999999999999999,  0.0]
-       -  [ 0.9063077870366499,  0.3096141071290253,  0.2876548275684363]
-       Sphere radius or cube side      :  20.0
-       center:
-         Sphere or cube center         :  [  0.0,  0.0,  0.0 ]
-         Numerical sphere integral with distance:  33513.94482292959
-         Numerical sphere integral with closest_r and rxyz_ortho:  33513.94482292959
-         Numerical sphere integral with closest_r and square_gd:  33513.94482292959
-         Analytical sphere integral    :  33510.32163829113
-         Sphere integral error         :  1.0812145217733715E-004
-         Numerical cube integral       :  63626.37130986241
-         Analytical cube integral      :  64000.0
-         Cube integral error           :  5.8379482833997827E-003
-         Maximum difference between closest_r and square_gd:  7.1054273576010019E-014
-       center:
-         Sphere or cube center         :  [  75.0,  75.0,  75.0 ]
-         Numerical sphere integral with distance:  33513.94482292959
-         Numerical sphere integral with closest_r and rxyz_ortho:  33513.94482292959
-         Numerical sphere integral with closest_r and square_gd:  33513.94482292959
-         Analytical sphere integral    :  33510.32163829113
-         Sphere integral error         :  1.0812145217733715E-004
-         Numerical cube integral       :  63626.37130986241
-         Analytical cube integral      :  64000.0
-         Cube integral error           :  5.8379482833997827E-003
-         Maximum difference between closest_r and square_gd:  7.1054273576010019E-014
-       center:
-         Sphere or cube center         :  [  225.0,  225.0,  225.0 ]
-         Numerical sphere integral with distance:  33513.94482292959
-         Numerical sphere integral with closest_r and rxyz_ortho:  33513.94482292959
-         Numerical sphere integral with closest_r and square_gd:  33513.94482292959
-         Analytical sphere integral    :  33510.32163829113
-         Sphere integral error         :  1.0812145217733715E-004
-         Numerical cube integral       :  63626.37130986241
-         Analytical cube integral      :  64000.0
-         Cube integral error           :  5.8379482833997827E-003
-         Maximum difference between closest_r and square_gd:  7.1054273576010019E-014
-     Check of box cutoff:
-       Cell orthorhombic               :  No
-       Cell ndims                      :  [  150,  150,  150 ]
-       Cell hgrids                     :  [  1.0,  1.0,  1.0 ]
-       Cell angles deg                 :  [  20.0,  25.0,  30.0 ]
-       Cell angles rad: [ 0.3490658503988659,  0.4363323129985824,  0.5235987755982988]
-       Cell periodity (FREE=0,PERIODIC=1):  [  1,  1,  1 ]
-       Volume element                  :  0.1438274137842181
-       Contravariant matrix:
-       -  [ 5.654836163027236, -0.694887283070669, -4.472041596788556]
-       -  [-0.694887283070669,  8.634022502202059, -7.483545477259078]
-       -  [-4.472041596788556, -7.483545477259078,  12.0852785854174]
-       Covariant matrix:
-       -  [ 1.0,  0.8660254037844387,  0.9063077870366499]
-       -  [ 0.8660254037844387,  1.0,  0.9396926207859084]
-       -  [ 0.9063077870366499,  0.9396926207859084,  1.0]
-       Product of the two:
-       -  [ 1.000000000000004, -6.2172489379008766E-015,  0.0]
-       -  [ 1.7763568394002505E-015,  0.9999999999999964,  1.7763568394002505E-015]
-       -  [ 1.7763568394002505E-015, -6.2172489379008766E-015,  1.000000000000004]
-       uabc matrix:
-       -  [ 1.0,  0.0,  0.0]
-       -  [ 0.8660254037844387,  0.4999999999999999,  0.0]
-       -  [ 0.9063077870366499,  0.3096141071290253,  0.2876548275684363]
-       Sphere radius or cube side      :  20.0
-       Box cube cutoff                 :  20.0
-       Sphere or cube center           :  [  75.0,  75.0,  75.0 ]
-       bit%nbox whole box:
-       -  [ 1,  150]
-       -  [ 1,  150]
-       -  [ 1,  150]
-       nbox_ref:
-       -  [ 29,  123]
-       -  [ 18,  134]
-       -  [ 7,  145]
-       nbox_ref_cub:
-       -  [ 1,  150]
-       -  [ 1,  150]
-       -  [ 7,  145]
-       nbox:
-       -  [ 28,  122]
-       -  [ 17,  133]
-       -  [ 6,  144]
-       bit%nbox reduced box:
-       -  [ 29,  123]
-       -  [ 18,  134]
-       -  [ 7,  145]
-       center:
-         Sphere or cube center         :  [  75.0,  75.0,  75.0 ]
-         Numerical sphere integral with distance:  33513.94482292959
-         Analytical sphere integral    :  33510.32163829113
-         Sphere integral error         :  1.0812145217733715E-004
-         Numerical cube integral       :  63626.37130986241
-         Analytical cube integral      :  64000.0
-         Cube integral error           :  5.8379482833997827E-003
-         Maximum difference between closest_r and square_gd:  7.1054273576010019E-014
-         Numerical box cutoff integral :  222211.1968854102
-     Memory Consumption Report:
-       Tot. No. of Allocations         :  99
-       Tot. No. of Deallocations       :  99
-       Remaining Memory (B)            :  0
-       Memory occupation:
-         Peak Value (MB)               :  1261.715
-         for the array                 : lxyz
-         in the routine                : Main_program
-         Memory Peak of process        : 1307.732 MB
-     Walltime since initialization     :  00:01:02.994375008
-     Max No. of dictionaries used      :  221 #( 170 still in use)
-     Number of dictionary folders allocated:  1
+
+
+
+
+
+
+
+
+
+
+ Check of box cutoff:
+   Cell orthorhombic                   :  No
+   Cell ndims                          :  [  70,  70,  70 ]
+   Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
+   Cell angles deg                     :  [  80.0,  80.0,  80.0 ]
+   Cell angles rad: [ 1.396263401595464,  1.396263401595464,  1.396263401595464]
+   Cell periodity (FREE=0,PERIODIC=1)  :  [  1,  1,  1 ]
+   Volume element                      :  0.9591721418386057
+   Contravariant matrix:
+   -  [ 1.054167941476588, -0.1559703712540147, -0.1559703712540147]
+   -  [-0.1559703712540147,  1.054167941476588, -0.1559703712540147]
+   -  [-0.1559703712540147, -0.1559703712540147,  1.054167941476588]
+   Covariant matrix:
+   -  [ 1.0,  0.1736481776669304,  0.1736481776669304]
+   -  [ 0.1736481776669304,  1.0,  0.1736481776669304]
+   -  [ 0.1736481776669304,  0.1736481776669304,  1.0]
+   Product of the two:
+   -  [ 0.9999999999999999,  1.0408340855860843E-017,  0.0]
+   -  [ 1.0408340855860843E-017,  0.9999999999999999,  0.0]
+   -  [ 0.0,  0.0,  0.9999999999999999]
+   uabc matrix:
+   -  [ 0.7422271989685592,  0.0,  0.6701483306785797]
+   -  [-0.3711135994842796,  0.6427876096865393,  0.6701483306785797]
+   -  [-0.3711135994842796, -0.6427876096865393,  0.6701483306785797]
+   Sphere radius or cube side          :  20.0
+   Box cube cutoff                     :  20.0
+   Sphere or cube center               :  [  35.0,  35.0,  35.0 ]
+   bit%nbox whole box:
+   -  [ 1,  70]
+   -  [ 1,  70]
+   -  [ 1,  70]
+   nbox_ref:
+   -  [ 16,  56]
+   -  [ 16,  56]
+   -  [ 16,  56]
+   nbox_ref_cub:
+   -  [ 9,  63]
+   -  [ 2,  70]
+   -  [ 2,  70]
+   nbox:
+   -  [ 15,  55]
+   -  [ 15,  55]
+   -  [ 15,  55]
+   bit%nbox reduced box:
+   -  [ 16,  56]
+   -  [ 16,  56]
+   -  [ 16,  56]
+   center:
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
+     Numerical sphere integral with distance:  33518.27049655007
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  2.3720626572156037E-004
+     Numerical cube integral           :  63609.41893031081
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  6.1028292138935285E-003
+     Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
+     Numerical box cutoff integral     :  66107.10318765855
+ Check of functions distance, closest_r, rxyz_ortho:
+   Cell orthorhombic                   :  No
+   Cell ndims                          :  [  70,  70,  70 ]
+   Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
+   Cell angles deg                     :  [  59.99999999999999,  50.0,  90.0 ]
+   Cell angles rad: [ 1.047197551196598,  0.8726646259971648,  1.570796326794897]
+   Cell periodity (FREE=0,PERIODIC=1)  :  [  1,  1,  1 ]
+   Volume element                      :  0.5803654786713843
+   Contravariant matrix:
+   -  [ 2.226681596905677,  0.9541888941386714, -1.908377788277343]
+   -  [ 0.9541888941386714,  1.74222719896856, -1.484454397937119]
+   -  [-1.908377788277343, -1.484454397937119,  2.968908795874238]
+   Covariant matrix:
+   -  [ 1.0,  0.0,  0.6427876096865394]
+   -  [ 0.0,  1.0,  0.5000000000000001]
+   -  [ 0.6427876096865394,  0.5000000000000001,  1.0]
+   Product of the two:
+   -  [ 0.9999999999999996, -2.2204460492503131E-016,  2.2204460492503131E-016]
+   -  [-2.2204460492503131E-016,  1.0,  0.0]
+   -  [ 0.0,  0.0,  1.0]
+   uabc matrix:
+   -  [ 1.0,  0.0,  0.0]
+   -  [ 0.0,  1.0,  0.0]
+   -  [ 0.6427876096865394,  0.5000000000000001,  0.5803654786713843]
+   Sphere radius or cube side          :  20.0
+   center:
+     Sphere or cube center             :  [  0.0,  0.0,  0.0 ]
+     Numerical sphere integral with distance:  33515.52602779377
+     Numerical sphere integral with closest_r and rxyz_ortho:  33515.52602779377
+     Numerical sphere integral with closest_r and square_gd:  33515.52602779377
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  1.5530705908524392E-004
+     Numerical cube integral           :  63744.4423498715
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  3.9930882832578622E-003
+     Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
+   center:
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
+     Numerical sphere integral with distance:  33515.52602779377
+     Numerical sphere integral with closest_r and rxyz_ortho:  33515.52602779377
+     Numerical sphere integral with closest_r and square_gd:  33515.52602779377
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  1.5530705908524392E-004
+     Numerical cube integral           :  63744.4423498715
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  3.9930882832578622E-003
+     Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
+   center:
+     Sphere or cube center             :  [  105.0,  105.0,  105.0 ]
+     Numerical sphere integral with distance:  33515.52602779377
+     Numerical sphere integral with closest_r and rxyz_ortho:  33515.52602779377
+     Numerical sphere integral with closest_r and square_gd:  33515.52602779377
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  1.5530705908524392E-004
+     Numerical cube integral           :  63744.4423498715
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  3.9930882832578622E-003
+     Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
+ Check of box cutoff:
+   Cell orthorhombic                   :  No
+   Cell ndims                          :  [  70,  70,  70 ]
+   Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
+   Cell angles deg                     :  [  59.99999999999999,  50.0,  90.0 ]
+   Cell angles rad: [ 1.047197551196598,  0.8726646259971648,  1.570796326794897]
+   Cell periodity (FREE=0,PERIODIC=1)  :  [  1,  1,  1 ]
+   Volume element                      :  0.5803654786713843
+   Contravariant matrix:
+   -  [ 2.226681596905677,  0.9541888941386714, -1.908377788277343]
+   -  [ 0.9541888941386714,  1.74222719896856, -1.484454397937119]
+   -  [-1.908377788277343, -1.484454397937119,  2.968908795874238]
+   Covariant matrix:
+   -  [ 1.0,  0.0,  0.6427876096865394]
+   -  [ 0.0,  1.0,  0.5000000000000001]
+   -  [ 0.6427876096865394,  0.5000000000000001,  1.0]
+   Product of the two:
+   -  [ 0.9999999999999996, -2.2204460492503131E-016,  2.2204460492503131E-016]
+   -  [-2.2204460492503131E-016,  1.0,  0.0]
+   -  [ 0.0,  0.0,  1.0]
+   uabc matrix:
+   -  [ 1.0,  0.0,  0.0]
+   -  [ 0.0,  1.0,  0.0]
+   -  [ 0.6427876096865394,  0.5000000000000001,  0.5803654786713843]
+   Sphere radius or cube side          :  20.0
+   Box cube cutoff                     :  20.0
+   Sphere or cube center               :  [  35.0,  35.0,  35.0 ]
+   bit%nbox whole box:
+   -  [ 1,  70]
+   -  [ 1,  70]
+   -  [ 1,  70]
+   nbox_ref:
+   -  [ 7,  65]
+   -  [ 10,  62]
+   -  [ 2,  70]
+   nbox_ref_cub:
+   -  [ 1,  70]
+   -  [ 1,  70]
+   -  [ 2,  70]
+   nbox:
+   -  [ 6,  64]
+   -  [ 9,  61]
+   -  [ 1,  69]
+   bit%nbox reduced box:
+   -  [ 7,  65]
+   -  [ 10,  62]
+   -  [ 2,  70]
+   center:
+     Sphere or cube center             :  [  35.0,  35.0,  35.0 ]
+     Numerical sphere integral with distance:  33515.52602779377
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  1.5530705908524392E-004
+     Numerical cube integral           :  63744.4423498715
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  3.9930882832578622E-003
+     Maximum difference between closest_r and square_gd:  1.4210854715202004E-014
+     Numerical box cutoff integral     :  125221.3967745739
+ Check of consistency of cell data:
+   Cell orthorhombic                   :  No
+   Cell ndims                          :  [  70,  70,  70 ]
+   Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
+   Cell angles deg                     :  [  59.99999999999999,  50.0,  90.0 ]
+   Cell angles rad: [ 1.047197551196598,  0.8726646259971648,  1.570796326794897]
+   Cell periodity (FREE=0,PERIODIC=1)  :  [  1,  1,  1 ]
+   Volume element                      :  0.5803654786713843
+   Contravariant matrix:
+   -  [ 2.226681596905677,  0.9541888941386714, -1.908377788277343]
+   -  [ 0.9541888941386714,  1.74222719896856, -1.484454397937119]
+   -  [-1.908377788277343, -1.484454397937119,  2.968908795874238]
+   Covariant matrix:
+   -  [ 1.0,  0.0,  0.6427876096865394]
+   -  [ 0.0,  1.0,  0.5000000000000001]
+   -  [ 0.6427876096865394,  0.5000000000000001,  1.0]
+   Product of the two:
+   -  [ 0.9999999999999996, -2.2204460492503131E-016,  2.2204460492503131E-016]
+   -  [-2.2204460492503131E-016,  1.0,  0.0]
+   -  [ 0.0,  0.0,  1.0]
+   uabc matrix:
+   -  [ 1.0,  0.0,  0.0]
+   -  [ 0.0,  1.0,  0.0]
+   -  [ 0.6427876096865394,  0.5000000000000001,  0.5803654786713843]
+   norm of cell vectors:
+     norm vector a                     :  1.0
+     norm vector b                     :  1.0
+     norm vector c                     :  1.0
+   norm of cell vectors:
+ 
+     Cell angles cosine from abc       :  [  0.5000000000000001,  0.6427876096865394,  0.0 ]
+     Cell angles cosine input: [ 0.5000000000000001,  0.6427876096865394, 
+                                 6.123233995736766E-017]
+ Check of functions distance, closest_r, rxyz_ortho:
+   Cell orthorhombic                   :  No
+   Cell ndims                          :  [  150,  150,  150 ]
+   Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
+   Cell angles deg                     :  [  20.0,  25.0,  30.0 ]
+   Cell angles rad: [ 0.3490658503988659,  0.4363323129985824,  0.5235987755982988]
+   Cell periodity (FREE=0,PERIODIC=1)  :  [  1,  1,  1 ]
+   Volume element                      :  0.1438274137842181
+   Contravariant matrix:
+   -  [ 5.654836163027236, -0.694887283070669, -4.472041596788556]
+   -  [-0.694887283070669,  8.634022502202059, -7.483545477259078]
+   -  [-4.472041596788556, -7.483545477259078,  12.0852785854174]
+   Covariant matrix:
+   -  [ 1.0,  0.8660254037844387,  0.9063077870366499]
+   -  [ 0.8660254037844387,  1.0,  0.9396926207859084]
+   -  [ 0.9063077870366499,  0.9396926207859084,  1.0]
+   Product of the two:
+   -  [ 1.000000000000004, -6.2172489379008766E-015,  0.0]
+   -  [ 1.7763568394002505E-015,  0.9999999999999964,  1.7763568394002505E-015]
+   -  [ 1.7763568394002505E-015, -6.2172489379008766E-015,  1.000000000000004]
+   uabc matrix:
+   -  [ 1.0,  0.0,  0.0]
+   -  [ 0.8660254037844387,  0.4999999999999999,  0.0]
+   -  [ 0.9063077870366498,  0.3096141071290253,  0.2876548275684363]
+   Sphere radius or cube side          :  20.0
+   center:
+     Sphere or cube center             :  [  0.0,  0.0,  0.0 ]
+     Numerical sphere integral with distance:  33513.94482292959
+     Numerical sphere integral with closest_r and rxyz_ortho:  33513.94482292959
+     Numerical sphere integral with closest_r and square_gd:  33513.94482292959
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  1.0812145217733715E-004
+     Numerical cube integral           :  63626.22748244863
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  5.8401955867401515E-003
+     Maximum difference between closest_r and square_gd:  4.9737991503207013E-014
+   center:
+     Sphere or cube center             :  [  75.0,  75.0,  75.0 ]
+     Numerical sphere integral with distance:  33513.94482292959
+     Numerical sphere integral with closest_r and rxyz_ortho:  33513.94482292959
+     Numerical sphere integral with closest_r and square_gd:  33513.94482292959
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  1.0812145217733715E-004
+     Numerical cube integral           :  63626.22748244863
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  5.8401955867401515E-003
+     Maximum difference between closest_r and square_gd:  4.9737991503207013E-014
+   center:
+     Sphere or cube center             :  [  225.0,  225.0,  225.0 ]
+     Numerical sphere integral with distance:  33513.94482292959
+     Numerical sphere integral with closest_r and rxyz_ortho:  33513.94482292959
+     Numerical sphere integral with closest_r and square_gd:  33513.94482292959
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  1.0812145217733715E-004
+     Numerical cube integral           :  63626.22748244863
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  5.8401955867401515E-003
+     Maximum difference between closest_r and square_gd:  4.9737991503207013E-014
+ Check of box cutoff:
+   Cell orthorhombic                   :  No
+   Cell ndims                          :  [  150,  150,  150 ]
+   Cell hgrids                         :  [  1.0,  1.0,  1.0 ]
+   Cell angles deg                     :  [  20.0,  25.0,  30.0 ]
+   Cell angles rad: [ 0.3490658503988659,  0.4363323129985824,  0.5235987755982988]
+   Cell periodity (FREE=0,PERIODIC=1)  :  [  1,  1,  1 ]
+   Volume element                      :  0.1438274137842181
+   Contravariant matrix:
+   -  [ 5.654836163027236, -0.694887283070669, -4.472041596788556]
+   -  [-0.694887283070669,  8.634022502202059, -7.483545477259078]
+   -  [-4.472041596788556, -7.483545477259078,  12.0852785854174]
+   Covariant matrix:
+   -  [ 1.0,  0.8660254037844387,  0.9063077870366499]
+   -  [ 0.8660254037844387,  1.0,  0.9396926207859084]
+   -  [ 0.9063077870366499,  0.9396926207859084,  1.0]
+   Product of the two:
+   -  [ 1.000000000000004, -6.2172489379008766E-015,  0.0]
+   -  [ 1.7763568394002505E-015,  0.9999999999999964,  1.7763568394002505E-015]
+   -  [ 1.7763568394002505E-015, -6.2172489379008766E-015,  1.000000000000004]
+   uabc matrix:
+   -  [ 1.0,  0.0,  0.0]
+   -  [ 0.8660254037844387,  0.4999999999999999,  0.0]
+   -  [ 0.9063077870366498,  0.3096141071290253,  0.2876548275684363]
+   Sphere radius or cube side          :  20.0
+   Box cube cutoff                     :  20.0
+   Sphere or cube center               :  [  75.0,  75.0,  75.0 ]
+   bit%nbox whole box:
+   -  [ 1,  150]
+   -  [ 1,  150]
+   -  [ 1,  150]
+   nbox_ref:
+   -  [ 29,  123]
+   -  [ 18,  134]
+   -  [ 7,  145]
+   nbox_ref_cub:
+   -  [ 1,  150]
+   -  [ 1,  150]
+   -  [ 7,  145]
+   nbox:
+   -  [ 28,  122]
+   -  [ 17,  133]
+   -  [ 6,  144]
+   bit%nbox reduced box:
+   -  [ 29,  123]
+   -  [ 18,  134]
+   -  [ 7,  145]
+   center:
+     Sphere or cube center             :  [  75.0,  75.0,  75.0 ]
+     Numerical sphere integral with distance:  33513.94482292959
+     Analytical sphere integral        :  33510.32163829113
+     Sphere integral error             :  1.0812145217733715E-004
+     Numerical cube integral           :  63626.22748244863
+     Analytical cube integral          :  64000.0
+     Cube integral error               :  5.8401955867401515E-003
+     Maximum difference between closest_r and square_gd:  4.9737991503207013E-014
+     Numerical box cutoff integral     :  222211.1968854102
+ Memory Consumption Report:
+   Tot. No. of Allocations             :  95
+   Tot. No. of Deallocations           :  95
+   Remaining Memory (B)                :  0
+   Memory occupation:
+     Peak Value (MB)                   :  1261.715
+     for the array                     : lxyz
+     in the routine                    : Main_program
+     Memory Peak of process            : 1312.340 MB
+ Walltime since initialization         :  00:00:19.769084707
+ Max No. of dictionaries used          :  316 #( 170 still in use)
+ Number of dictionary folders allocated:  1

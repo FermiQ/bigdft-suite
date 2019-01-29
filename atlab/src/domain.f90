@@ -633,7 +633,6 @@ contains
           if (tol > 1.e-6) call yaml_warning('Inconsitency of tol="'//trim(yaml_toa(tol,fmt='1pe12.5'))//&
                'for the provided domain dictionary, assuming abc is correct')
        end if
-       write(*,*)abc
        dom=domain_new(units,bc,abc=abc)
     else
        !in this case abc is not provided
