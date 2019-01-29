@@ -165,7 +165,7 @@ subroutine test_box_functions()
   call loop_dotp('IOM',mesh_ortho,v1,v2,tseq)
   call yaml_map('Normal loop, iom (ns)',tseq)
 
-!  call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
+  call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
   call yaml_map('Normal loop, mpi (ns)',tseq)
 
   ndims=70

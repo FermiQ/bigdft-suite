@@ -6,7 +6,7 @@ EXTRA_DIST = \
 	mpi_layer.f90
 
 
-check_PROGRAMS = op2p_check linalg_check numerics_check mpi_check
+check_PROGRAMS = op2p_check linalg_check mpi_check
 
 check: regtest report #op2p_check.report.yaml $(check_PROGRAMS)
 
@@ -53,9 +53,6 @@ regtest: op2p_check linalg_check
 	python $(pythondir)/f_regtest.py --fldiff=$(pythondir)/fldiff_yaml.py --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir)
 
 define F_REGTEST_INSTRUCTIONS
-- numerics_check:
-   runs:
-    - ./numerics_check
 - op2p_check:
    runs:
     - $(run_parallel) ./op2p_check -o [10,10,10,10] -n 100
