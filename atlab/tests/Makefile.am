@@ -1,4 +1,5 @@
-EXTRA_DIST = numerics_check.ref.yaml
+EXTRA_DIST = numerics_check.ref.yaml domain.yaml
+
 
 check_PROGRAMS = numerics_check
 
@@ -22,6 +23,7 @@ regtest: numerics_check
 define F_REGTEST_INSTRUCTIONS
 - numerics_check:
    runs:
+    - cp -f $(srcdir)/domain.yaml $(builddir)
     - ./numerics_check
 endef
 export F_REGTEST_INSTRUCTIONS
