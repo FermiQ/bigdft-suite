@@ -32,7 +32,6 @@ SHORT_TESTDIRS += C \
 	taskgroups \
 	O2-Spin \
 	NLCC \
-	AgBulk \
 	PAW-GGA \
         Mg-cubic \
         Na8-multipole \
@@ -48,7 +47,6 @@ LONG_TESTDIRS += $(SHORT_TESTDIRS) \
 	  H2O-CP2K \
 	  SiBulk \
 	  TiMix \
-	  TiSmear \
 	  Cavity \
 	  ElectField \
 	  ElectronGas \

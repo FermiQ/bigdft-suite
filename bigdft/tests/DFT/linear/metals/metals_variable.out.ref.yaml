@@ -2853,10 +2853,10 @@
        norm(P)                         :  3.050646E+02
      Quadrupole Moment (AU):
        Q matrix:
-       -  [ 7.4545E+01,  1.4948E+02,  6.3452E+02]
-       -  [ 1.4948E+02, -1.7669E+03,  8.0216E+02]
-       -  [ 6.3452E+02,  8.0216E+02,  1.6923E+03]
-       trace                           : -8.07E-11
+       -  [ 7.454468E+01,  1.494758E+02,  6.345240E+02]
+       -  [ 1.494758E+02, -1.766854E+03,  8.021601E+02]
+       -  [ 6.345240E+02,  8.021601E+02,  1.692310E+03]
+       trace                           : -2.27E-13
      Average relative error of resulting potential in the Exterior region:
      -  {Thr:  1.0E-12, Ext. Vol. %:  76.7, int(V):  5.295E+03, Err %:  0.4, 
     int(rho):  9.853E-39}
@@ -2874,10 +2874,10 @@
        norm(P)                         :  3.059640E+02
      Quadrupole Moment (AU):
        Q matrix:
-       -  [ 8.0249E+01,  1.5011E+02,  6.3449E+02]
-       -  [ 1.5011E+02, -1.7705E+03,  8.0250E+02]
-       -  [ 6.3449E+02,  8.0250E+02,  1.6902E+03]
-       trace                           : -7.03E-11
+       -  [ 8.024926E+01,  1.501151E+02,  6.344854E+02]
+       -  [ 1.501151E+02, -1.770457E+03,  8.025026E+02]
+       -  [ 6.344854E+02,  8.025026E+02,  1.690207E+03]
+       trace                           :  2.27E-13
      Average relative error of resulting potential in the Exterior region:
      -  {Thr:  1.0E-12, Ext. Vol. %:  76.7, int(V):  5.295E+03, Err %:  0.3, 
     int(rho):  1.026E-38}
@@ -2895,10 +2895,10 @@
        norm(P)                         :  3.059640E+02
      Quadrupole Moment (AU):
        Q matrix:
-       -  [ 7.8825E+01,  1.5124E+02,  6.4073E+02]
-       -  [ 1.5124E+02, -1.7744E+03,  8.0361E+02]
-       -  [ 6.4073E+02,  8.0361E+02,  1.6956E+03]
-       trace                           :  1.84E-11
+       -  [ 7.882546E+01,  1.512363E+02,  6.407274E+02]
+       -  [ 1.512363E+02, -1.774446E+03,  8.036100E+02]
+       -  [ 6.407274E+02,  8.036100E+02,  1.695620E+03]
+       trace                           :  2.27E-13
      Average relative error of resulting potential in the Exterior region:
      -  {Thr:  1.0E-12, Ext. Vol. %:  76.7, int(V):  5.295E+03, Err %:  0.0, 
     int(rho):  2.647E-38}

@@ -1150,9 +1150,9 @@
      Numerical sphere integral with closest_r and square_gd:  33513.94482292959
      Analytical sphere integral        :  33510.32163829113
      Sphere integral error             :  1.0812145217733715E-004
-     Numerical cube integral           :  63626.22748244863
+     Numerical cube integral 150       :  63626.22748244863
      Analytical cube integral          :  64000.0
-     Cube integral error               :  5.8401955867401515E-003
+     Cube integral error 150           :  5.8401955867401515E-003
      Maximum difference between closest_r and square_gd:  4.9737991503207013E-014
    center:
      Sphere or cube center             :  [  75.0,  75.0,  75.0 ]
@@ -1161,9 +1161,9 @@
      Numerical sphere integral with closest_r and square_gd:  33513.94482292959
      Analytical sphere integral        :  33510.32163829113
      Sphere integral error             :  1.0812145217733715E-004
-     Numerical cube integral           :  63626.22748244863
+     Numerical cube integral 150       :  63626.22748244863
      Analytical cube integral          :  64000.0
-     Cube integral error               :  5.8401955867401515E-003
+     Cube integral error 150           :  5.8401955867401515E-003
      Maximum difference between closest_r and square_gd:  4.9737991503207013E-014
    center:
      Sphere or cube center             :  [  225.0,  225.0,  225.0 ]
@@ -1172,9 +1172,9 @@
      Numerical sphere integral with closest_r and square_gd:  33513.94482292959
      Analytical sphere integral        :  33510.32163829113
      Sphere integral error             :  1.0812145217733715E-004
-     Numerical cube integral           :  63626.22748244863
+     Numerical cube integral 150       :  63626.22748244863
      Analytical cube integral          :  64000.0
-     Cube integral error               :  5.8401955867401515E-003
+     Cube integral error 150           :  5.8401955867401515E-003
      Maximum difference between closest_r and square_gd:  4.9737991503207013E-014
  Check of box cutoff:
    Cell orthorhombic                   :  No
@@ -1228,9 +1228,9 @@
      Numerical sphere integral with distance:  33513.94482292959
      Analytical sphere integral        :  33510.32163829113
      Sphere integral error             :  1.0812145217733715E-004
-     Numerical cube integral           :  63626.22748244863
+     Numerical cube integral 150       :  63626.22748244863
      Analytical cube integral          :  64000.0
-     Cube integral error               :  5.8401955867401515E-003
+     Cube integral error 150           :  5.8401955867401515E-003
      Maximum difference between closest_r and square_gd:  4.9737991503207013E-014
      Numerical box cutoff integral     :  222211.1968854102
  Memory Consumption Report:
