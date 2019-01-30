@@ -443,35 +443,29 @@ END SUBROUTINE readmywaves
 
 
 !> Verify the presence of a given file
-subroutine verify_file_presence(filerad,orbs,iformat,nproc,nforb)
+subroutine verify_file_presence(filerad,orbs,iformat,nproc)
   use module_base
   use module_types
   use public_enums
   use module_interfaces, only: filename_of_iorb
+  use module_fragments, only: minimal_orbitals_data
   implicit none
   integer, intent(in) :: nproc
   character(len=*), intent(in) :: filerad
   type(orbitals_data), intent(in) :: orbs
   integer, intent(out) :: iformat
-  integer, optional, intent(in) :: nforb
   !local variables
   character(len=500) :: filename
   logical :: onefile,allfiles
   integer :: iorb,ispinor,iorb_out
 
   allfiles=.true.
-
   !first try with plain files
   loop_plain: do iorb=1,orbs%norbp
      do ispinor=1,orbs%nspinor
         call filename_of_iorb(.false.,trim(filerad),orbs,iorb,ispinor,filename,iorb_out)
-        inquire(file=filename,exist=onefile)
-        ! for fragment calculations, this number could be less than the number of orbs - find a better way of doing this
-        if (.not. present(nforb)) then
-           allfiles=allfiles .and. onefile
-        else if (iorb_out<=nforb) then
-           allfiles=allfiles .and. onefile
-        end if
+             inquire(file=filename,exist=onefile)
+        allfiles=allfiles .and. onefile
         if (.not. allfiles) then
            exit loop_plain
         end if
@@ -490,14 +484,8 @@ subroutine verify_file_presence(filerad,orbs,iformat,nproc,nforb)
   loop_binary: do iorb=1,orbs%norbp
      do ispinor=1,orbs%nspinor
         call filename_of_iorb(.true.,trim(filerad),orbs,iorb,ispinor,filename,iorb_out)
-
         inquire(file=filename,exist=onefile)
-        ! for fragment calculations, this number could be less than the number of orbs - find a better way of doing this
-        if (.not. present(nforb)) then
-           allfiles=allfiles .and. onefile
-        else if (iorb_out<=nforb) then
-           allfiles=allfiles .and. onefile
-        end if
+        allfiles=allfiles .and. onefile
         if (.not. allfiles) then
            exit loop_binary
         end if
@@ -2354,7 +2342,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   logical :: lstat
   character(len=*), parameter :: subname='readmywaves_linear_new'
   ! to eventually be part of the fragment structure?
-  integer :: ndim_old, iiorb, ifrag, ifrag_ref, isfat, iorbp, iforb, isforb, iiat, iat, i, np, c, minperm, iorb, ind
+  integer :: ndim_old, iiorb, ifrag, ifrag_ref, isfat, iorbp, iforb, isforb, iiat, iat, i, np, c, minperm, iorb, ind, forb
   integer :: iatt, iatf, ityp, num_env
   type(local_zone_descriptors) :: lzd_old
   real(wp), dimension(:), pointer :: psi_old
@@ -2372,6 +2360,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   integer :: stat(mpi_status_size)
   integer, dimension(2,3) :: nbox
   !!$ integer :: ierr
+  type(orbitals_data) :: fake_orbs
 
   ! DEBUG
   ! character(len=12) :: orbname
@@ -2429,6 +2418,16 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   do ifrag=1,input_frag%nfrag
      ! find reference fragment this corresponds to
      ifrag_ref=input_frag%frag_index(ifrag)
+
+        if (input_frag%nfrag>1) then
+               call nullify_orbitals_data(fake_orbs)
+               call min_orbs_to_orbs_point(ref_frags(ifrag_ref)%fbasis%forbs,fake_orbs)
+               fake_orbs%iokpt = f_malloc_ptr(fake_orbs%norb,id='fake_orbs%iokpt')
+               fake_orbs%iokpt = 1
+               fake_orbs%isorb = 0
+               fake_orbs%norbp = fake_orbs%norb
+        end if
+
      ! loop over orbitals of this fragment
      loop_iforb: do iforb=1,ref_frags(ifrag_ref)%fbasis%forbs%norb
         loop_iorb: do iorbp=1,tmb%orbs%norbp
@@ -2437,16 +2436,25 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
            ilr=tmb%orbs%inwhichlocreg(iiorb)
            iiat=tmb%orbs%onwhichatom(iiorb)
 
+           forb = iforb+isforb
+           if (ref_frags(ifrag_ref)%fbasis%forbs%spinsgn(iforb) == -1.0d0) then
+               forb = forb + tmb%orbs%norbu - ref_frags(ifrag_ref)%fbasis%forbs%norbu
+           end if
            ! check if this ref frag orbital corresponds to the orbital we want
-           if (iiorb/=iforb+isforb) cycle
+           if (iiorb/=forb) cycle
+
            do ispinor=1,tmb%orbs%nspinor
               ! if this is a fragment calculation frag%dirname will contain fragment directory, otherwise it will be empty
               ! bit of a hack to use orbs here not forbs, but different structures so this is necessary - to clean somehow
               full_filename=trim(dir_output)//trim(input_frag%dirname(ifrag_ref))//trim(filename)
 
-              call open_filename_of_iorb(unitwf,(iformat == WF_FORMAT_BINARY),full_filename, &
-                   & tmb%orbs,iorbp,ispinor,iorb_out,iiorb=iforb)
-                   !& ref_frags(ifrag_ref)%fbasis%forbs,iforb,ispinor,iorb_out)
+              if (input_frag%nfrag == 1) then
+                  call open_filename_of_iorb(unitwf,(iformat == WF_FORMAT_BINARY),full_filename, &
+                       & tmb%orbs,iorbp,ispinor,iorb_out,iiorb=iforb)
+              else
+                  call open_filename_of_iorb(unitwf,(iformat == WF_FORMAT_BINARY),full_filename, &
+                       & fake_orbs,iforb,ispinor,iorb_out,iiorb=iforb)
+              end if
 
               ! read headers, reading lzd info directly into lzd_old, which is otherwise nullified
               call io_read_descr_linear(unitwf, (iformat == WF_FORMAT_PLAIN), iorb_old, eval, &
@@ -2538,8 +2546,12 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
         end do loop_iorb
      end do loop_iforb
-     isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
+     isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norbu
      isfat=isfat+ref_frags(ifrag_ref)%astruct_frg%nat
+
+        if (input_frag%nfrag>1) then
+               call deallocate_orbs(fake_orbs)
+        end if
   end do
 
   ! reformat fragments
@@ -2571,7 +2583,12 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
               do iorbp=1,tmb%orbs%norbp
                  iiorb=iorbp+tmb%orbs%isorb
                  ! check if this ref frag orbital corresponds to the orbital we want
-                 if (iiorb==iforb+isforb) then
+                 forb = iforb+isforb
+                 if (ref_frags(ifrag_ref)%fbasis%forbs%spinsgn(iforb) == -1.0d0) then
+                     forb = forb + tmb%orbs%norbu - ref_frags(ifrag_ref)%fbasis%forbs%norbu
+                 end if
+                 ! check if this ref frag orbital corresponds to the orbital we want
+                 if (iiorb==forb) then
                     skip=.false.
                     mpi_has_frag(iproc,ifrag)=.true.
                     exit
@@ -2582,7 +2599,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
         if (skip) then
            isfat=isfat+ref_frags(ifrag_ref)%astruct_frg%nat
-           isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
+           isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norbu
            cycle
         end if
 
@@ -2635,7 +2652,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
         end if
 
         isfat=isfat+ref_frags(ifrag_ref)%astruct_frg%nat
-        isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
+        isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norbu
      end do
 
 
@@ -2705,7 +2722,12 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
            do iorbp=1,tmb%orbs%norbp
               iiorb=iorbp+tmb%orbs%isorb
               ! check if this ref frag orbital corresponds to the orbital we want
-              if (iiorb/=iforb+isforb) cycle
+              forb = iforb+isforb
+              if (ref_frags(ifrag_ref)%fbasis%forbs%spinsgn(iforb) == -1.0d0) then
+                  forb = forb + tmb%orbs%norbu - ref_frags(ifrag_ref)%fbasis%forbs%norbu
+              end if
+              ! check if this ref frag orbital corresponds to the orbital we want
+              if (iiorb/=forb) cycle
 
 !!$              frag_trans_orb(iorbp)%rot_center=frag_trans_frag(ifrag)%rot_center
 !!$              frag_trans_orb(iorbp)%rot_center_new=frag_trans_frag(ifrag)%rot_center_new
@@ -2731,7 +2753,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
               !     frag_trans_orb(iorbp)%rot_center,frag_trans_orb(iorbp)%rot_center_new
            end do
         end do
-        isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
+        isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norbu
         isfat=isfat+ref_frags(ifrag_ref)%astruct_frg%nat
      end do
 
@@ -2758,7 +2780,13 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
         do iforb=1,ref_frags(ifrag_ref)%fbasis%forbs%norb
            do iorbp=1,tmb%orbs%norbp
               iiorb=iorbp+tmb%orbs%isorb
-              if (iiorb/=iforb+isforb) cycle
+              ! check if this ref frag orbital corresponds to the orbital we want
+              forb = iforb+isforb
+              if (ref_frags(ifrag_ref)%fbasis%forbs%spinsgn(iforb) == -1.0d0) then
+                  forb = forb + tmb%orbs%norbu - ref_frags(ifrag_ref)%fbasis%forbs%norbu
+              end if
+              ! check if this ref frag orbital corresponds to the orbital we want
+              if (iiorb/=forb) cycle
 
               do iat=1,ref_frags(ifrag_ref)%astruct_frg%nat
                  rxyz_new(:,iat)=rxyz(:,isfat+iat)
@@ -2811,7 +2839,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
 
            end do
         end do
-        isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
+        isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norbu
         isfat=isfat+ref_frags(ifrag_ref)%astruct_frg%nat
 
         call f_free(ipiv)
@@ -2911,7 +2939,8 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
         binary=(iformat == WF_FORMAT_BINARY)
         !!call read_dense_matrix_local(full_filename, binary, tmb%orbs%nspinor, ref_frags(ifrag_ref)%fbasis%forbs%norb, &
         !!     ref_frags(ifrag_ref)%kernel, ref_frags(ifrag_ref)%astruct_frg%nat)
-        call read_dense_matrix_local(full_filename, binary, tmb%orbs%nspinor, ref_frags(ifrag_ref)%fbasis%forbs%norb, &
+        call read_dense_matrix_local(full_filename, binary, ref_frags(ifrag_ref)%fbasis%forbs%nspin, &
+             ref_frags(ifrag_ref)%fbasis%forbs%norbu, &
              ref_frags(ifrag_ref)%kernel)
 
 
@@ -2938,16 +2967,21 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
         !!end if
 
      else
+        ! should eventually switch this to using the sparsematrix routines
+        ! but need the number of electrons of the fragment which isn't stored in that case
         full_filename=trim(dir_output)//trim(input_frag%dirname(ifrag_ref))//trim(filename)//'_coeff.bin'
+        !full_filename=trim(dir_output)//trim(input_frag%dirname(ifrag_ref))//'KS_coeffs.bin'
         call f_open_file(unitwf,file=trim(full_filename),binary=iformat == WF_FORMAT_BINARY)
         call read_coeff_minbasis(unitwf,(iformat == WF_FORMAT_PLAIN),iproc,ref_frags(ifrag_ref)%fbasis%forbs%norb,&
              ref_frags(ifrag_ref)%nelec,ref_frags(ifrag_ref)%fbasis%forbs%norb,ref_frags(ifrag_ref)%coeff,ref_frags(ifrag_ref)%eval)
+        !call read_linear_coefficients(mode, bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm,&
+        !     full_filename, input%nspin, ref_frags(ifrag_ref)%fbasis%forbs%norb, ref_frags(ifrag_ref)%fbasis%forbs%norb,&
+        !     coeff, eval)
         call f_close(unitwf)
      end if
 
      !isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
   end do
-
 
   call cpu_time(tr1)
   call system_clock(ncount2,ncount_rate,ncount_max)
@@ -3444,7 +3478,7 @@ subroutine initialize_linear_from_file(iproc,nproc,input_frag,astruct,rxyz,orbs,
   character(len=*), parameter :: subname='initialize_linear_from_file'
   character(len =256) :: error
   logical :: lstat
-  integer :: ilr, iorb_old, iorb, ispinor, iorb_out, iforb, isforb, isfat, iiorb, iorbp, ifrag, ifrag_ref
+  integer :: ilr, iorb_old, iorb, ispinor, iorb_out, iforb, isforb, isfat, iiorb, iorbp, ifrag, ifrag_ref, forb
   integer, dimension(3) :: n_old, ns_old
   integer :: confPotOrder, iat,unitwf
   real(gp), dimension(3) :: hgrids_old
@@ -3454,6 +3488,7 @@ subroutine initialize_linear_from_file(iproc,nproc,input_frag,astruct,rxyz,orbs,
   real(kind=8), dimension(:), allocatable :: lrad
   real(gp), dimension(:,:), allocatable :: cxyz
   character(len=256) :: full_filename
+  type(orbitals_data) :: fake_orbs
 
 
   unitwf=99
@@ -3480,29 +3515,49 @@ subroutine initialize_linear_from_file(iproc,nproc,input_frag,astruct,rxyz,orbs,
         ! find reference fragment this corresponds to
         ifrag_ref=input_frag%frag_index(ifrag)
         ! loop over orbitals of this fragment
+
+        if (input_frag%nfrag>1) then
+               call nullify_orbitals_data(fake_orbs)
+               call min_orbs_to_orbs_point(ref_frags(ifrag_ref)%fbasis%forbs,fake_orbs)
+               !fake_orbs%iokpt => orbs%iokpt
+               fake_orbs%iokpt = f_malloc_ptr(fake_orbs%norb,id='fake_orbs%iokpt') !=> lorbs%iokpt
+               fake_orbs%iokpt = 1
+               fake_orbs%isorb = 0
+               fake_orbs%norbp = fake_orbs%norb
+        end if
+
         loop_iforb: do iforb=1,ref_frags(ifrag_ref)%fbasis%forbs%norb
            loop_iorb: do iorbp=1,orbs%norbp
               iiorb=iorbp+orbs%isorb
+              ! need to calculate here the correct iiorb which takes into account the different ordering due to spin+fragments
+              forb = iforb+isforb
+              if (ref_frags(ifrag_ref)%fbasis%forbs%spinsgn(iforb) == -1.0d0) then
+                  forb = forb + orbs%norbu - ref_frags(ifrag_ref)%fbasis%forbs%norbu
+              end if
               ! check if this ref frag orbital corresponds to the orbital we want
-              if (iiorb/=iforb+isforb) cycle
+              if (iiorb/=forb) cycle
               do ispinor=1,orbs%nspinor
 
                  ! if this is a fragment calculation frag%dirname will contain fragment directory, otherwise it will be empty
                  ! bit of a hack to use orbs here not forbs, but different structures so this is necessary - to clean somehow
                  full_filename=trim(dir_output)//trim(input_frag%dirname(ifrag_ref))//trim(filename)
 
-                 call open_filename_of_iorb(unitwf,(iformat == WF_FORMAT_BINARY),full_filename, &
-                      & orbs,iorbp,ispinor,iorb_out,iiorb=iforb)
-                      !& ref_frags(ifrag_ref)%fbasis%forbs,iforb,ispinor,iorb_out)
+                 if (input_frag%nfrag==1) then
 
-                 !print *,'before crash',iorbp,trim(full_filename),iiorb,iforb
+                     call open_filename_of_iorb(unitwf,(iformat == WF_FORMAT_BINARY),full_filename, &
+                          & orbs,iorbp,ispinor,iorb_out)
+                          !& ref_frags(ifrag_ref)%fbasis%forbs,iforb,ispinor,iorb_out)
+                 else
+                     call open_filename_of_iorb(unitwf,(iformat == WF_FORMAT_BINARY),full_filename, &
+                          & fake_orbs,iforb,ispinor,iorb_out)
+                          !& ref_frags(ifrag_ref)%fbasis%forbs,iforb,ispinor,iorb_out)
+                 end if
 
                  call io_read_descr_linear(unitwf,(iformat == WF_FORMAT_PLAIN), iorb_old, eval, n_old(1), n_old(2), n_old(3), &
                       ns_old(1), ns_old(2), ns_old(3), hgrids_old, lstat, error, orbs%onwhichatom(iiorb), &
                       locrad(iiorb), locregCenter, confPotOrder, confPotprefac)
 
                  orbs%onwhichatom(iiorb) = orbs%onwhichatom(iiorb) + isfat
-
                  if (.not. lstat) then
                     call yaml_warning(trim(error))
                     stop
@@ -3516,8 +3571,13 @@ subroutine initialize_linear_from_file(iproc,nproc,input_frag,astruct,rxyz,orbs,
               end do
            end do loop_iorb
         end do loop_iforb
-        isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
+        isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norbu
         isfat=isfat+ref_frags(ifrag_ref)%astruct_frg%nat
+
+        if (input_frag%nfrag>1) then
+               call deallocate_orbs(fake_orbs)
+        end if
+
      end do
   else
      call yaml_warning('Unknown wavefunction file format from filename.')

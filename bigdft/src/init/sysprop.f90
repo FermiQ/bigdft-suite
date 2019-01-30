@@ -474,6 +474,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
            ! Correction for spin polarized systems. For non polarized systems, norbu=norb and the loop does nothing.
            do iorb=lorbs%norbu+1,lorbs%norb
                lorbs%inwhichlocreg(iorb)=lorbs%inwhichlocreg(iorb-lorbs%norbu)+lorbs%norbu
+               lorbs%onwhichatom(iorb)=lorbs%onwhichatom(iorb-lorbs%norbu)+lorbs%norbu
            end do
        end if
      end subroutine init_linear_orbs
@@ -806,7 +807,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
        end if
 
        call input_check_psi_id(inputpsi, input_wf_format, in%dir_output, &
-            orbs, lorbs, iproc, nproc, in%frag%nfrag_ref, in%frag%dirname, ref_frags)
+            orbs, lorbs, iproc, nproc, in%frag%nfrag_ref, in%lin%fragment_calculation, in%frag%dirname, ref_frags)
 
        ! we need to deallocate the fragment arrays we just allocated as not a restart calculation so this is no longer needed
        if (frag_allocated .and. (.not. in%lin%fragment_calculation) .and. inputpsi /= 'INPUT_PSI_DISK_LINEAR') then
@@ -843,7 +844,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
                 lorbs%onwhichatom(iorbn) = iat
                 lorbs%inwhichlocreg(iorbn) = inwhichlocreg_tmp(iorb)
                 ! perform the same change for spin down
-                if (lorbs%nspin==2) then
+                if (lorbs%nspinor==2) then
                    lorbs%onwhichatom(iorbn+lorbs%norbu) = iat
                    lorbs%inwhichlocreg(iorbn+lorbs%norbu) = inwhichlocreg_tmp(iorb+lorbs%norbu)
                 end if

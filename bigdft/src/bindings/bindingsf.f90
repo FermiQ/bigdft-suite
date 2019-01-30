@@ -707,7 +707,7 @@ subroutine inputs_check_psi_id(inputpsi, input_wf_format, dir_output, ln, orbs, 
   nullify(ref_frags)
   frag_dir(1:len(frag_dir))=' '
   
-  call input_check_psi_id(inputpsi, input_wf_format, trim(dir_output), orbs, lorbs, iproc, nproc,0, frag_dir, ref_frags)
+  call input_check_psi_id(inputpsi, input_wf_format, trim(dir_output), orbs, lorbs, iproc, nproc,0, .false., frag_dir, ref_frags)
 END SUBROUTINE inputs_check_psi_id
 
 

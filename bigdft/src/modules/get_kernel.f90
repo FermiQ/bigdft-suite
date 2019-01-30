@@ -656,7 +656,7 @@ module get_kernel
       use module_types
       use sparsematrix_base, only: sparse_matrix, matrices, matrices_null, &
            deallocate_matrices
-      use yaml_output, only: yaml_newline, yaml_map
+      use yaml_output, only: yaml_newline, yaml_map, yaml_warning
       use matrix_operations, only: overlapPowerGeneral, overlap_minus_one_half_serial, deviation_from_unity_parallel
       use orthonormalization, only: gramschmidt_coeff_trans
       implicit none
@@ -892,7 +892,7 @@ module get_kernel
           end if
     
           if (max_error>5.0d0.and.orbs%norb==norb) then
-             if (iproc==0) print*,'Error in reorthonormalize_coeff too large, reverting to gram-schmidt orthonormalization'
+             if (iproc==0) call yaml_warning('Error in reorthonormalize_coeff, reverting to gram-schmidt orthonormalization')
              ! gram-schmidt as too far from orthonormality to use iterative schemes for S^-1/2
              call f_free(ovrlp_coeff)
              call timing(iproc,'renormCoefCom2','ON')
@@ -2068,7 +2068,7 @@ module get_kernel
     
     !> subset of reordering coeffs - need to arrange this routines better but taking the lazy route for now
     !! (also assuming we have no extra - or rather number of extra bands come from input.mix not input.lin)
-    subroutine coeff_weight_analysis(iproc, nproc, input, ksorbs, tmb, ref_frags)
+    subroutine coeff_weight_analysis(iproc, nproc, input, ksorbs, tmb, ref_frags, cdft_orb)
       use module_base
       use module_types
       use module_fragments
@@ -2087,6 +2087,7 @@ module get_kernel
       type(dft_wavefunction), intent(inout) :: tmb
       type(input_variables),intent(in) :: input
       type(system_fragment), dimension(input%frag%nfrag_ref), intent(in) :: ref_frags
+      integer, dimension(2), intent(in) :: cdft_orb
     
       integer :: iorb, istat, iall, ifrag
       integer, dimension(2) :: ifrag_charged
@@ -2095,7 +2096,7 @@ module get_kernel
       real(kind=8), dimension(:,:), allocatable :: weight_coeff_diag
       real(kind=8), dimension(:,:), pointer :: ovrlp_half
       real(kind=8), dimension(:), allocatable :: weight_sum
-      real(kind=8) :: max_error, mean_error, occsum
+      real(kind=8) :: max_error, mean_error, occsum, occup
       type(sparse_matrix) :: weight_matrix
       type(matrices) :: weight_matrix_
       type(matrices),dimension(1) :: inv_ovrlp
@@ -2117,7 +2118,8 @@ module get_kernel
       call allocate_matrices(tmb%linmat%smat(3), allocate_full=.true., matname='inv_ovrlp', mat=inv_ovrlp(1))
     
       !weight_coeff=f_malloc((/ksorbs%norb,ksorbs%norb,input%frag%nfrag/), id='weight_coeff')
-      weight_coeff_diag=f_malloc((/ksorbs%norb,input%frag%nfrag/), id='weight_coeff')
+      !*weight_coeff_diag=f_malloc((/ksorbs%norb,input%frag%nfrag/), id='weight_coeff')
+      weight_coeff_diag=f_malloc((/tmb%orbs%norb,input%frag%nfrag/), id='weight_coeff')
       !ovrlp_half=f_malloc_ptr((/tmb%orbs%norb,tmb%orbs%norb/), id='ovrlp_half')
       tmb%linmat%ovrlp_%matrix = sparsematrix_malloc_ptr(tmb%linmat%smat(1), DENSE_FULL, id='tmb%linmat%ovrlp_%matrix')
       call uncompress_matrix2(bigdft_mpi%iproc, bigdft_mpi%nproc, bigdft_mpi%mpi_comm, &
@@ -2134,11 +2136,12 @@ module get_kernel
       do ifrag=1,input%frag%nfrag
          ifrag_charged(1)=ifrag
          call calculate_weight_matrix_lowdin(weight_matrix,weight_matrix_,1,ifrag_charged,tmb,input%frag,ref_frags,&
-              .false.,.true.,input%lin%order_taylor)
+              .false.,.true.,input%lin%order_taylor,cdft_orb)
          weight_matrix_%matrix = sparsematrix_malloc_ptr(weight_matrix,iaction=DENSE_FULL,id='weight_matrix%matrix')
          call uncompress_matrix(iproc,nproc,weight_matrix,weight_matrix_%matrix_compr,weight_matrix_%matrix)
          !call calculate_coeffMatcoeff(nproc,weight_matrix%matrix,tmb%orbs,ksorbs,tmb%coeff,weight_coeff(1,1,ifrag))
-         call calculate_coeffMatcoeff_diag(weight_matrix_%matrix,tmb%orbs,ksorbs,tmb%coeff,weight_coeff_diag(1,ifrag))
+         !*call calculate_coeffMatcoeff_diag(weight_matrix_%matrix,tmb%orbs,ksorbs,tmb%coeff,weight_coeff_diag(1,ifrag))
+         call calculate_coeffMatcoeff_diag(weight_matrix_%matrix,tmb%orbs,tmb%orbs,tmb%coeff,weight_coeff_diag(1,ifrag))
          call f_free_ptr(weight_matrix_%matrix)
       end do
       !call f_free_ptr(ovrlp_half)
@@ -2149,16 +2152,21 @@ module get_kernel
       ! only care about diagonal elements
       weight_sum=f_malloc(input%frag%nfrag,id='weight_sum')
       weight_sum=0.0d0
-      do iorb=1,ksorbs%norb
+      do iorb=1,tmb%orbs%norb
+         if (iorb <= KSorbs%norb) then
+            occup = KSorbs%occup(iorb)
+         else
+            occup = 0.0d0
+         end if
          if (iproc==0) then
              call yaml_mapping_open(flow=.true.)
              call yaml_map('iorb',iorb,fmt='(i4)')
-             call yaml_map('occ',KSorbs%occup(iorb),fmt='(f6.4)')
+             call yaml_map('occ',occup,fmt='(f6.4)')
              call yaml_map('eval',tmb%orbs%eval(iorb),fmt='(f10.6)')
          end if
          do ifrag=1,input%frag%nfrag
             if (iproc==0) call yaml_map('frac',weight_coeff_diag(iorb,ifrag),fmt='(f6.4)')
-            weight_sum(ifrag)=weight_sum(ifrag)+KSorbs%occup(iorb)*weight_coeff_diag(iorb,ifrag)
+            weight_sum(ifrag)=weight_sum(ifrag)+occup*weight_coeff_diag(iorb,ifrag)
          end do
          if (iproc==0) call yaml_mapping_close()
          if (iproc==0) call yaml_newline()
