@@ -6,6 +6,7 @@
 [subrepo]
 	remote = ../BigDFT-repositories/PyBigDFT
 	branch = devel
-	commit = 
+	commit = d7f644f8848fdfca14fd9365e13aa7cba3210507
 	method = merge
 	cmdver = 0.4.0
+	parent = dd60c7f51981f8ab805a00116b83cebebfe7f372
