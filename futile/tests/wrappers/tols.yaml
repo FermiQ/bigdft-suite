@@ -12,3 +12,8 @@ Keys to ignore:
 numerics_check:
   Patterns to ignore:
     - Normal loop
+
+mpi_check:
+ Keys to ignore: 
+  - All measurements
+  - Min/Max/Median
