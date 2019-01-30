@@ -138,6 +138,7 @@ subroutine test_box_functions()
   real(gp), dimension(3) :: angrad
   real(gp), dimension(3) :: acell
 
+  acell=0.0_gp
   ndims=[300,300,300]
 
   angrad(1) = 90.0_gp/180.0_gp*pi
@@ -164,7 +165,7 @@ subroutine test_box_functions()
   call loop_dotp('IOM',mesh_ortho,v1,v2,tseq)
   call yaml_map('Normal loop, iom (ns)',tseq)
 
-  call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
+  !call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
   call yaml_map('Normal loop, mpi (ns)',tseq)
 
   ndims=70
@@ -288,19 +289,19 @@ subroutine test_domain()
   use dictionaries
   implicit none
   !local variables
-  type(dictionary), pointer :: yaml_file_dict
+  type(dictionary), pointer :: yaml_file_dict,file_list,iter
   character(len=64) :: mainfile
   integer, parameter :: file_number=14
-  character(len=64), dimension(file_number) :: filenames
+  !character(len=64), dimension(file_number) :: filenames
   type(domain) :: dom
   logical :: exists
   integer :: i
   
-filenames =['domain_ortho_fbc.yaml','domain_ortho_wbc.yaml','domain_ortho_sbc.yaml',&
-'domain_ortho_pbc.yaml','domain_noortho_90_90_74.yaml','domain_noortho_90_64_90.yaml',&
-'domain_noortho_43_90_90.yaml','domain_noortho_90_85_52.yaml','domain_noortho_49_90_67.yaml',&
-'domain_noortho_49_85_90.yaml','domain_noortho_120_80_55.yaml','domain_noortho_surface.yaml',&
-'domain_abc.yaml','domain_abc_from_ang_ace.yaml']
+file_list => yaml_load(" [ 'domain_ortho_fbc.yaml','domain_ortho_wbc.yaml','domain_ortho_sbc.yaml',&
+             'domain_ortho_pbc.yaml','domain_noortho_90_90_74.yaml','domain_noortho_90_64_90.yaml',&
+      'domain_noortho_43_90_90.yaml','domain_noortho_90_85_52.yaml','domain_noortho_49_90_67.yaml',&
+      'domain_noortho_49_85_90.yaml','domain_noortho_120_80_55.yaml','domain_noortho_surface.yaml',&
+      'domain_abc.yaml','domain_abc_from_ang_ace.yaml' ] ")
 
   call f_strcpy(src='domain.yaml',dest=mainfile)
   call f_file_exists(trim(mainfile),exists)
@@ -309,15 +310,20 @@ filenames =['domain_ortho_fbc.yaml','domain_ortho_wbc.yaml','domain_ortho_sbc.ya
       call yaml_map('File exist',mainfile)
       call yaml_parse_from_file(yaml_file_dict,trim(mainfile))
       !call yaml_dict_dump(yaml_file_dict)
-      do i=0,file_number-1
+      nullify(iter)
+      i=0
+      do while(iterating(iter,on=file_list))
+       !do i=0,file_number-1
        call domain_set_from_dict(yaml_file_dict//i,dom)
-       call print_domain(filenames(i+1),dom)
+       call print_domain(dict_value(iter),dom)
+       i=i+1      
       end do
   else
       call yaml_map('File does not exist',mainfile)
   end if
   call yaml_mapping_close()
   call dict_free(yaml_file_dict)
+  call dict_free(file_list)
 
 end subroutine test_domain
 
@@ -468,9 +474,15 @@ subroutine loop_box_function(fcheck,mesh)
         call yaml_map('Numerical sphere integral with closest_r and square_gd',totvolS2)
         call yaml_map('Analytical sphere integral',IntaS)
         call yaml_map('Sphere integral error',errorS)
-        call yaml_map('Numerical cube integral',totvolC)
-        call yaml_map('Analytical cube integral',IntaC)
-        call yaml_map('Cube integral error',errorC)
+        if (mesh%ndims(1)==150) then
+         call yaml_map('Numerical cube integral 150',totvolC)
+         call yaml_map('Analytical cube integral',IntaC)
+         call yaml_map('Cube integral error 150',errorC)
+        else
+         call yaml_map('Numerical cube integral',totvolC)
+         call yaml_map('Analytical cube integral',IntaC)
+         call yaml_map('Cube integral error',errorC)
+        end if
         call yaml_map('Maximum difference between closest_r and square_gd',diff)
         call yaml_mapping_close()
      end do
@@ -602,9 +614,15 @@ subroutine loop_box_function(fcheck,mesh)
         call yaml_map('Numerical sphere integral with distance',totvolS)
         call yaml_map('Analytical sphere integral',IntaS)
         call yaml_map('Sphere integral error',errorS)
-        call yaml_map('Numerical cube integral',totvolC)
-        call yaml_map('Analytical cube integral',IntaC)
-        call yaml_map('Cube integral error',errorC)
+        if (mesh%ndims(1)==150) then
+         call yaml_map('Numerical cube integral 150',totvolC)
+         call yaml_map('Analytical cube integral',IntaC)
+         call yaml_map('Cube integral error 150',errorC)
+        else
+         call yaml_map('Numerical cube integral',totvolC)
+         call yaml_map('Analytical cube integral',IntaC)
+         call yaml_map('Cube integral error',errorC)
+        end if
         call yaml_map('Maximum difference between closest_r and square_gd',diff)
         call yaml_map('Numerical box cutoff integral',totvol_Bcutoff)
         call yaml_mapping_close()

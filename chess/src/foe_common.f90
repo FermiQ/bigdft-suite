@@ -2549,7 +2549,8 @@ module foe_common
       type(matrices),intent(in) :: ham_
       logical,intent(in) :: do_scaling
       real(mp),intent(in) :: accuracy_function, accuracy_penalty
-      real(mp),intent(in),optional :: bounds_factor_low, bounds_factor_up
+      !real(mp),intent(in),optional :: bounds_factor_low, bounds_factor_up
+      real(mp),intent(in) :: bounds_factor_low, bounds_factor_up
       type(foe_data),intent(inout) :: foe_obj
       integer,intent(inout) :: npl_min
       real(kind=mp),dimension(smatl%nspin*smatl%nvctrp_tg),intent(inout) :: workarr_compr
@@ -2577,7 +2578,6 @@ module foe_common
       type(matrices) :: ham_scaled
 
       call f_routine(id='get_bounds_and_polynomials')
-
       ! Check the arguments
       select case (itype)
       case (1) !standard eigenvalue problem, i.e. the overlap matrix is the identity and is not required
@@ -2805,6 +2805,7 @@ module foe_common
       call f_free(mean_error)
 
       call f_release_routine()
+      
 
     end subroutine get_bounds_and_polynomials
 
