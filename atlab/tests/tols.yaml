@@ -10,5 +10,7 @@ Keys to ignore:
  - Max No. of dictionaries used
  - Number of omp threads
 numerics_check:
+  Cube integral error 150: 2.4e-06
+  Numerical cube integral 150: 0.15
   Patterns to ignore:
     - Normal loop

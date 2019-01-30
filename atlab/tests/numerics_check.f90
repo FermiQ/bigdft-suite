@@ -165,7 +165,7 @@ subroutine test_box_functions()
   call loop_dotp('IOM',mesh_ortho,v1,v2,tseq)
   call yaml_map('Normal loop, iom (ns)',tseq)
 
-!  call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
+  !call loop_dotp('ITM',mesh_ortho,v1,v2,tseq)
   call yaml_map('Normal loop, mpi (ns)',tseq)
 
   ndims=70
@@ -318,7 +318,6 @@ file_list => yaml_load(" [ 'domain_ortho_fbc.yaml','domain_ortho_wbc.yaml','doma
        call print_domain(dict_value(iter),dom)
        i=i+1      
       end do
-      call dict_free(iter)
   else
       call yaml_map('File does not exist',mainfile)
   end if
@@ -475,9 +474,15 @@ subroutine loop_box_function(fcheck,mesh)
         call yaml_map('Numerical sphere integral with closest_r and square_gd',totvolS2)
         call yaml_map('Analytical sphere integral',IntaS)
         call yaml_map('Sphere integral error',errorS)
-        call yaml_map('Numerical cube integral',totvolC)
-        call yaml_map('Analytical cube integral',IntaC)
-        call yaml_map('Cube integral error',errorC)
+        if (mesh%ndims(1)==150) then
+         call yaml_map('Numerical cube integral 150',totvolC)
+         call yaml_map('Analytical cube integral',IntaC)
+         call yaml_map('Cube integral error 150',errorC)
+        else
+         call yaml_map('Numerical cube integral',totvolC)
+         call yaml_map('Analytical cube integral',IntaC)
+         call yaml_map('Cube integral error',errorC)
+        end if
         call yaml_map('Maximum difference between closest_r and square_gd',diff)
         call yaml_mapping_close()
      end do
@@ -609,9 +614,15 @@ subroutine loop_box_function(fcheck,mesh)
         call yaml_map('Numerical sphere integral with distance',totvolS)
         call yaml_map('Analytical sphere integral',IntaS)
         call yaml_map('Sphere integral error',errorS)
-        call yaml_map('Numerical cube integral',totvolC)
-        call yaml_map('Analytical cube integral',IntaC)
-        call yaml_map('Cube integral error',errorC)
+        if (mesh%ndims(1)==150) then
+         call yaml_map('Numerical cube integral 150',totvolC)
+         call yaml_map('Analytical cube integral',IntaC)
+         call yaml_map('Cube integral error 150',errorC)
+        else
+         call yaml_map('Numerical cube integral',totvolC)
+         call yaml_map('Analytical cube integral',IntaC)
+         call yaml_map('Cube integral error',errorC)
+        end if
         call yaml_map('Maximum difference between closest_r and square_gd',diff)
         call yaml_map('Numerical box cutoff integral',totvol_Bcutoff)
         call yaml_mapping_close()

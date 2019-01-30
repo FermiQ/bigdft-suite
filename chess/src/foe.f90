@@ -245,7 +245,6 @@ module foe
               call yaml_map('function to assign occupations',foe_data_get_int(foe_obj,"occupation_function"))
               call yaml_map('decay length of error function',fscale,fmt='(es10.3)')
           end if
-
           ! Don't let this value become too small.
           call foe_data_set_real(foe_obj, &
                "bisection_shift",max(foe_data_get_real(foe_obj,"bisection_shift",1),1.d-4), &
@@ -263,6 +262,17 @@ module foe
           ! Use kernel_%matrix_compr as workarray to save memory
           efarr(1) = foe_data_get_real(foe_obj,"ef")
           fscale_arr(1) = foe_data_get_real(foe_obj,"fscale",1)
+
+!!$          print *, iproc, nproc, comm, 2, 1, npl_max, npl_stride
+!!$          print *, 1, foe_data_get_int(foe_obj,"occupation_function")
+!!$          print *, accuracy_function, accuracy_penalty, .false., 1.2_mp, 1.2_mp, foe_verbosity
+!!$          !print *, smatm, smatl, ham_, foe_obj, npl_min, ham_eff
+!!$          print *, npl, scale_factor, shift_value, hamscal_compr
+!!$          !print *, smats=smats, ovrlp_=ovrlp_, ovrlp_minus_one_half_=ovrlp_minus_one_half_(1)
+!!$          !print *, efarr=efarr, fscale_arr=fscale_arr, max_errorx=max_error
+!!$          print *, size(ham_eff)
+!!$          print *, size(hamscal_compr)
+!!$          print *,smatl%nvctrp_tg*smatl%nspin
           call get_bounds_and_polynomials(iproc, nproc, comm, 2, 1, npl_max, npl_stride, &
                1, foe_data_get_int(foe_obj,"occupation_function"), &
                accuracy_function, accuracy_penalty, .false., 1.2_mp, 1.2_mp, foe_verbosity, &

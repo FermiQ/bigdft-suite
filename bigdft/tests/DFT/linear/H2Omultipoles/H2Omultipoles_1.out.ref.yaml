@@ -1823,12 +1823,12 @@
      Coefficients available            :  Yes
     #Eigenvalues and New Occupation Numbers
    Orbitals: [
- {e: -9.026227637459E-01, f:  1.0000},  # 00001
- {e: -4.566652167823E-01, f:  1.0000},  # 00002
- {e: -3.143070353449E-01, f:  1.0000},  # 00003
- {e: -2.363468518676E-01, f:  1.0000},  # 00004
- {e:  3.255890892512E-01, f:  1.0000},  # 00005
- {e:  4.027913368320E-01, f:  1.0000}] # 00006
+ {e: -9.026227637459E-01, f:  2.0000},  # 00001
+ {e: -4.566652167823E-01, f:  2.0000},  # 00002
+ {e: -3.143070353449E-01, f:  2.0000},  # 00003
+ {e: -2.363468518676E-01, f:  2.0000},  # 00004
+ {e:  3.255890892512E-01, f:  0.0000},  # 00005
+ {e:  4.027913368320E-01, f:  0.0000}] # 00006
    Calculating eigenvalues using FOE:
       #WARNING: The required eigenvalues are outside of the possible range, automatic ajustment
      summary: {npl:  110, npl determined by: penalty, scale:  1.00E+00, 

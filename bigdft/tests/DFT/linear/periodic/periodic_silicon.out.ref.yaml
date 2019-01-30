@@ -1023,20 +1023,20 @@
    BC                                  : Periodic
    Box                                 :  [  72,  72,  72 ]
    MPI tasks                           :  2
- Multipole analysis origin             :  [  1.492488E+00,  1.399207E+00,  1.305927E+00 ]
+ Multipole analysis origin             :  [  9.328049E+00,  9.607890E+00,  9.887732E+00 ]
  Electric Dipole Moment (AU):
-   P vector                            :  [ -9.6993E+01, -1.3789E+01, -1.0172E+01 ]
-   norm(P)                             :  9.849503E+01
+   P vector                            :  [ -9.919904E+00, -4.929934E+01, -6.487842E+01 ]
+   norm(P)                             :  8.20855595E+01
  Electric Dipole Moment (Debye):
-   P vector                            :  [ -2.4653E+02, -3.5047E+01, -2.5854E+01 ]
-   norm(P)                             :  2.503494E+02
+   P vector                            :  [ -2.521388E+01, -1.253064E+02, -1.649045E+02 ]
+   norm(P)                             :  2.08640662E+02
  Quadrupole Moment (AU):
    Q matrix:
-   -  [ 1.5333E+02,  1.1276E+03,  1.0556E+03]
-   -  [ 1.1276E+03, -1.5898E+01,  9.3519E+02]
-   -  [ 1.0556E+03,  9.3519E+02, -1.3743E+02]
-   trace                               :  0.00E+00
- Spreads of the electronic density (AU):  [  6.045505E+00,  6.143558E+00,  6.217728E+00 ]
+   -  [-1.8994E+01,  2.3848E+02,  3.1903E+02]
+   -  [ 2.3848E+02, -1.4135E+01,  3.1187E+02]
+   -  [ 3.1903E+02,  3.1187E+02,  3.3129E+01]
+   trace                               : -3.64E-12
+ Spreads of the electronic density (AU):  [  5.649203E+00,  5.555718E+00,  5.441422E+00 ]
  Calculate local forces                :  Yes
  Calculate Non Local forces            :  Yes
  Stress Tensor calculated              :  Yes
