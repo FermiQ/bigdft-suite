@@ -6,7 +6,7 @@
 [subrepo]
 	remote = ../BigDFT-repositories/futile
 	branch = devel
-	commit = af13105383a5758a3d188e72f3806a2c5ca43aa3
+	commit = 3addcee7c53b75b42897babe72a07c7a9e796c7e
 	method = merge
 	cmdver = 0.4.0
-	parent = fd89c704b39061718173e9ad69ea7309e94d0629
+	parent = 4c242918df018ad4aad0f29a993b27ce425038fc
