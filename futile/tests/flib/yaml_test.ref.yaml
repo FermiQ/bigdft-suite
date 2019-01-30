@@ -570,6 +570,15 @@
    Four                                : 4
  DictA key                             : First
  Dictionary associated before last pop :  No
+ Total dict:
+   head:
+     onlyone: [1.0, 1.0, 1.0]
+ Nowdict:
+ - 1.0
+ - 1.0
+ - 1.0
+ Dict popped:
+   head                                : null
  Stack:
  - 5
  - 4
@@ -580,7 +589,11 @@
  Stack2: [1, 2, 3]
  Stack3: [4, AQ, 3g]
  Stack4                                : 12
- Values retrieved from the dict        :  [  1.00000,  2.0000,  3.0000 ]
+ Matrix:
+ -  [1.0, 1.0, 1.0]
+ -  [1.0, 1.0, 1.0]
+ -  [1.0, 0.0, 1.0]
+ Values retrieved from the dict        :  [  1.0000,  2.0000,  3.0000 ]
  Lenght zero                           :  4
  Dict extracted:
  - 5
@@ -595,15 +608,31 @@
  Stack2: [1, 2, 3]
  Stack3: [4, AQ, 3g]
  Stack4                                : 12
+ Matrix:
+ -  [1.0, 1.0, 1.0]
+ -  [1.0, 1.0, 1.0]
+ -  [1.0, 0.0, 1.0]
  Two values from Stack key             :  [  5.0000,  4.0000,  3.0000 ]
  Array filled with a scalar            :  [  5.0000,  5.0000,  5.0000 ]
+ Small matrix:
+ -  [ 1.0,  1.0,  1.0]
+ -  [ 1.0,  1.0,  1.0]
+ -  [ 1.0,  0.0,  1.0]
+ Original matrix:
+ -  [ 1.0,  1.0,  1.0]
+ -  [ 1.0,  1.0,  1.0]
+ -  [ 1.0,  0.0,  1.0]
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Prepend dictionary example
- Size of dict A                        :  4
+ Size of dict A                        :  5
  Dict A:
    Stack: [5, 4]
    Stack2: [1, 2, 3]
    Stack3: [4, AQ, 3g]
    Stack4                              : 12
+   Matrix:
+   -  [1.0, 1.0, 1.0]
+   -  [1.0, 1.0, 1.0]
+   -  [1.0, 0.0, 1.0]
  Size of dict 2                        :  2
  Dict 2:
    Test1:
@@ -636,9 +665,9 @@
  List of list of zeroes, second version:
  -  [0., 0., 0.]
  Zero1 and and Zero2 are equal         :  Yes
- Keys of first dict                    :  [ Stack, Stack2, Stack3, Stack4 ]
+ Keys of first dict                    :  [ Stack, Stack2, Stack3, Stack4, Matrix ]
  Keys of second dict                   :  [ Test1, Test2 ]
- Size of prepended                     :  6
+ Size of prepended                     :  7
  Prepended:
    Test1:
      Toto                              : 4
@@ -652,7 +681,11 @@
    Stack2: [1, 2, 3]
    Stack3: [4, AQ, 3g]
    Stack4                              : 12
- Keys of prepended dict                :  [ Test1, Test2, Stack, Stack2, Stack3, Stack4 ]
+   Matrix:
+   -  [1.0, 1.0, 1.0]
+   -  [1.0, 1.0, 1.0]
+   -  [1.0, 0.0, 1.0]
+ Keys of prepended dict: [Test1, Test2, Stack, Stack2, Stack3, Stack4, Matrix]
  Iterating in dictA                    :  Yes
  Key of dictA                          : Test1
  Value of dictA                        : __dict__
@@ -671,6 +704,9 @@
  Iterating in dictA                    :  Yes
  Key of dictA                          : Stack4
  Value of dictA                        : 12
+ Iterating in dictA                    :  Yes
+ Key of dictA                          : Matrix
+ Value of dictA                        : __list__
  Iterating in dictA, again             :  Yes
  Key of dictA, again                   : Test1
  Value of dictA, again                 : __dict__
@@ -689,6 +725,22 @@
  Iterating in dictA, again             :  Yes
  Key of dictA, again                   : Stack4
  Value of dictA, again                 : 12
+ Iterating in dictA, again             :  Yes
+ Key of dictA, again                   : Matrix
+ Value of dictA, again                 : __list__
+ Iterating in dictA, compact form      :  Yes
+ Key of dictA, again (CF)              : nolocks
+ Value of dictA, again (CF)            : true
+ Test of the iterator over a provided sequence:
+   Provided list:
+   - xyz
+   - ascii
+   - int
+   - yaml
+   Extension probed                    : xyz
+   Extension probed                    : ascii
+   Extension probed                    : int
+   Extension probed                    : yaml
  Item of dictA                         :  0
  Value of dictA                        : Value1
  Item of dictA                         :  1
@@ -1027,6 +1079,14 @@
        __when__:
        - MPGrid
      __default__: [0., 0., 0.]
+ new method:
+   __comment__                         : Grid shifts
+   __cond__:
+     __master_key__                    : kpt_method
+     __when__:
+     - MPGrid
+   __default__: [0.0, 0.0, 0.0]
+   dicts are equal                     :  Yes
  test dict_update:
    additional:
      __exclusive__:
