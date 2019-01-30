@@ -77,7 +77,7 @@ subroutine fragment_coeffs_to_kernel(iproc,input,input_frag_charge,ref_frags,tmb
      use_tmbs_as_coeffs=.true.
      stop 'Error in restart: cannot construct coefficients using diagonal kernel'
   else if (restart_mode==LIN_RESTART_KERNEL) then
-     stop 'Error in restart: annot construct coefficients using kernel'
+     stop 'Error in restart: cannot construct coefficients using kernel'
   end if
 
   random=(rmax>0.0d0) ! add a bit of noise
@@ -894,13 +894,18 @@ contains
   subroutine fill_diagonal_kernel()
     implicit none
 
+    integer :: ispin
+
     isforb=0
     do ifrag=1,input%frag%nfrag
        ifrag_ref=input%frag%frag_index(ifrag)
 
        nelecfrag=ref_frags(ifrag_ref)%nelec-input_frag_charge(ifrag)
-       do itmb=1,ref_frags(ifrag_ref)%fbasis%forbs%norb
-          tmb%linmat%kernel_%matrix(isforb+itmb,isforb+itmb,1)=nelecfrag/real(ref_frags(ifrag_ref)%fbasis%forbs%norb,dp)
+       ! if number of fragment spins is inconsistent we almost certainly will have crashed before reaching this point
+       do ispin=1,input%nspin
+          do itmb=1,ref_frags(ifrag_ref)%fbasis%forbs%norbu
+             tmb%linmat%kernel_%matrix(isforb+itmb,isforb+itmb,ispin)=nelecfrag/real(ref_frags(ifrag_ref)%fbasis%forbs%norbu,dp)
+          end do
        end do
 
        isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
@@ -911,10 +916,10 @@ contains
   subroutine fill_kernel_from_frag_env()
     implicit none
 
-    integer :: itmb_full, jtmb_full, ntmb
+    integer :: itmb_full, jtmb_full, ntmb, ispin
     logical, parameter :: nn_only=.false.
 
-    ! add loop over spin
+    ! add loop over spin - the current version won't work!
 
     do ifrag=1,input%frag%nfrag
        ifrag_ref=input%frag%frag_index(ifrag)
@@ -930,15 +935,18 @@ contains
           ntmb=ref_frags(ifrag_ref)%nbasis_env
        end if
 
-       do itmb=1,ntmb
-          itmb_full = frag_env_mapping(ifrag,itmb,1)
+       do ispin=1,input%nspin
 
-          do jtmb=itmb,ref_frags(ifrag_ref)%nbasis_env
-             jtmb_full = frag_env_mapping(ifrag,jtmb,1)
+          do itmb=1,ntmb
+             itmb_full = frag_env_mapping(ifrag,itmb,ispin)
 
-             tmb%linmat%kernel_%matrix(itmb_full,jtmb_full,1) = ref_frags(ifrag_ref)%kernel_env(itmb,jtmb,1)
-             tmb%linmat%kernel_%matrix(jtmb_full,itmb_full,1) = ref_frags(ifrag_ref)%kernel_env(itmb,jtmb,1)
-             !write(*,'(A,3(2(1x,I4),2x),F12.6)') 'Kij',ifrag,ifrag_ref,itmb,jtmb,itmb_full,jtmb_full,ref_frags(ifrag_ref)%kernel_env(itmb,jtmb,1)
+             do jtmb=itmb,ref_frags(ifrag_ref)%nbasis_env
+                jtmb_full = frag_env_mapping(ifrag,jtmb,ispin)
+
+                tmb%linmat%kernel_%matrix(itmb_full,jtmb_full,ispin) = ref_frags(ifrag_ref)%kernel_env(itmb,jtmb,ispin)
+                tmb%linmat%kernel_%matrix(jtmb_full,itmb_full,ispin) = ref_frags(ifrag_ref)%kernel_env(itmb,jtmb,ispin)
+                !write(*,'(A,3(2(1x,I4),2x),F12.6)') 'Kij',ifrag,ifrag_ref,itmb,jtmb,itmb_full,jtmb_full,ref_frags(ifrag_ref)%kernel_env(itmb,jtmb,1)
+             end do
           end do
        end do
     end do
@@ -950,17 +958,18 @@ contains
   subroutine fill_kernel_from_fragments()
     implicit none
 
-    ! add loop over spin
+    integer :: ispin
 
     isforb=0
     do ifrag=1,input%frag%nfrag
        ifrag_ref=input%frag%frag_index(ifrag)
-       do itmb=1,ref_frags(ifrag_ref)%fbasis%forbs%norb
-          call vcopy(ref_frags(ifrag_ref)%fbasis%forbs%norb,ref_frags(ifrag_ref)%kernel(1,itmb,1),1,&
-               tmb%linmat%kernel_%matrix(1+isforb,itmb+isforb,1),1)
+       do ispin=1,input%nspin
+          do itmb=1,ref_frags(ifrag_ref)%fbasis%forbs%norbu
+             call vcopy(ref_frags(ifrag_ref)%fbasis%forbs%norbu,ref_frags(ifrag_ref)%kernel(1,itmb,ispin),1,&
+                  tmb%linmat%kernel_%matrix(1+isforb,itmb+isforb,ispin),1)
+          end do
        end do
-  
-       isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
+       isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norbu
     end do
   
     ! should we purify kernel?

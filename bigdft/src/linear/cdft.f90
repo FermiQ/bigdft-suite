@@ -32,7 +32,7 @@ subroutine calculate_weight_matrix_lowdin_wrapper(cdft,tmb,input,ref_frags,calcu
   call f_routine('calculate_weight_matrix_lowdin_wrapper')
 
   ! wrapper here so we can modify charge and avoid restructuring the code as much whilst still using the routine elsewhere
-  if (.not. input%lin%calc_transfer_integrals) then
+  if ((.not. input%lin%calc_transfer_integrals) .and. (input%lin%cdft_orb(1)==0)) then
      cdft%charge=ref_frags(input%frag%frag_index(cdft%ifrag_charged(1)))%nelec-input%frag%charge(cdft%ifrag_charged(1))
   end if
 
@@ -44,7 +44,7 @@ subroutine calculate_weight_matrix_lowdin_wrapper(cdft,tmb,input,ref_frags,calcu
 
   !ovrlp_half=f_malloc_ptr((/tmb%orbs%norb,tmb%orbs%norb/), id='ovrlp_half')
   call calculate_weight_matrix_lowdin(cdft%weight_matrix,cdft%weight_matrix_,nfrag_charged,cdft%ifrag_charged,tmb,input%frag,&
-       ref_frags,calculate_overlap_matrix,.true.,meth_overlap)
+       ref_frags,calculate_overlap_matrix,.true.,meth_overlap,input%lin%cdft_orb)
   !call f_free_ptr(ovrlp_half)
 
   call f_release_routine()
@@ -53,7 +53,7 @@ end subroutine calculate_weight_matrix_lowdin_wrapper
 
 
 subroutine calculate_weight_matrix_lowdin(weight_matrix,weight_matrix_,nfrag_charged,ifrag_charged,tmb,input_frag,&
-     ref_frags,calculate_overlap_matrix,calculate_ovrlp_half,meth_overlap)
+     ref_frags,calculate_overlap_matrix,calculate_ovrlp_half,meth_overlap,cdft_orb)
   use module_base
   use module_types
   use module_fragments
@@ -75,8 +75,9 @@ subroutine calculate_weight_matrix_lowdin(weight_matrix,weight_matrix_,nfrag_cha
   type(system_fragment), dimension(input_frag%nfrag_ref), intent(in) :: ref_frags
   integer, intent(in) :: nfrag_charged, meth_overlap
   integer, dimension(2), intent(in) :: ifrag_charged
+  integer, dimension(2), intent(in) :: cdft_orb
   !local variables
-  integer :: ifrag,iorb,ifrag_ref,isforb,ierr
+  integer :: ifrag,iorb,ifrag_ref,isforb,ierr,cdft_iorb1,cdft_iorb2,jorb
   integer,dimension(1) :: power
   real(kind=gp), allocatable, dimension(:,:) :: proj_mat, proj_ovrlp_half, weight_matrixp
   character(len=*),parameter :: subname='calculate_weight_matrix_lowdin'
@@ -85,7 +86,7 @@ subroutine calculate_weight_matrix_lowdin(weight_matrix,weight_matrix_,nfrag_cha
 
   call f_routine(id='calculate_weight_matrix_lowdin')
 
-  call allocate_matrices(tmb%linmat%smat(3), allocate_full=.true., matname='inv_ovrlp', mat=inv_ovrlp(1))
+  if (cdft_orb(1) == 0) call allocate_matrices(tmb%linmat%smat(3), allocate_full=.true., matname='inv_ovrlp', mat=inv_ovrlp(1))
 
   if (calculate_overlap_matrix) then
      if(.not.tmb%can_use_transposed) then
@@ -111,54 +112,106 @@ subroutine calculate_weight_matrix_lowdin(weight_matrix,weight_matrix_,nfrag_cha
           tmb%linmat%smat(1), tmb%linmat%ovrlp_%matrix_compr, tmb%linmat%ovrlp_%matrix)
      ! Maybe not clean here to use twice tmb%linmat%smat(1), but it should not
      ! matter as dense is used
-     power(1)=2
-     call overlapPowerGeneral(bigdft_mpi%iproc, bigdft_mpi%nproc,bigdft_mpi%mpi_comm,&
-          meth_overlap, 1, power, &
-          tmb%orthpar%blocksize_pdsyev, &
-          imode=2, ovrlp_smat=tmb%linmat%smat(1), inv_ovrlp_smat=tmb%linmat%smat(3), &
-          ovrlp_mat=tmb%linmat%ovrlp_, inv_ovrlp_mat=inv_ovrlp, &
-          check_accur=.false., max_error=max_error, mean_error=mean_error)
-          !check_accur=.true., max_error=max_error, mean_error=mean_error)
-     call f_free_ptr(tmb%linmat%ovrlp_%matrix)
+     if (cdft_orb(1) == 0) then
+        power(1)=2
+        call overlapPowerGeneral(bigdft_mpi%iproc, bigdft_mpi%nproc,bigdft_mpi%mpi_comm,&
+             meth_overlap, 1, power, &
+             tmb%orthpar%blocksize_pdsyev, &
+             imode=2, ovrlp_smat=tmb%linmat%smat(1), inv_ovrlp_smat=tmb%linmat%smat(3), &
+             ovrlp_mat=tmb%linmat%ovrlp_, inv_ovrlp_mat=inv_ovrlp, &
+             check_accur=.false., max_error=max_error, mean_error=mean_error)
+             !check_accur=.true., max_error=max_error, mean_error=mean_error)
+        call f_free_ptr(tmb%linmat%ovrlp_%matrix)
+     end if
   end if
 
   proj_mat=f_malloc0((/tmb%orbs%norb,tmb%orbs%norb/),id='proj_mat')
   !call f_zero(tmb%orbs%norb**2,proj_mat(1,1))
 
-  isforb=0
-  do ifrag=1,input_frag%nfrag
-     ifrag_ref=input_frag%frag_index(ifrag)
-     if (ifrag==ifrag_charged(1)) then
-        do iorb=1,ref_frags(ifrag_ref)%fbasis%forbs%norb
-           proj_mat(iorb+isforb,iorb+isforb)=1.0_gp
-        end do
-     end if
-     if (nfrag_charged==2) then
-        if (ifrag==ifrag_charged(2)) then
+  ! spatial constraint - assume that if the first fragment is a spatial constraint, the second one must be also
+  if (cdft_orb(1) == 0) then
+     isforb=0
+     do ifrag=1,input_frag%nfrag
+        ifrag_ref=input_frag%frag_index(ifrag)
+        if (ifrag==ifrag_charged(1)) then
            do iorb=1,ref_frags(ifrag_ref)%fbasis%forbs%norb
-              proj_mat(iorb+isforb,iorb+isforb)=-1.0_gp
+              proj_mat(iorb+isforb,iorb+isforb)=1.0_gp
            end do
         end if
-     end if
-     isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
-  end do
+        if (nfrag_charged==2) then
+           if (ifrag==ifrag_charged(2)) then
+              do iorb=1,ref_frags(ifrag_ref)%fbasis%forbs%norb
+                 proj_mat(iorb+isforb,iorb+isforb)=-1.0_gp
+              end do
+           end if
+        end if
+        isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
+     end do
+
+  ! orbital constraint
+  else
+     ! find the orbital index for fragment 1
+     call get_cdft_iorb(ifrag_charged(1),cdft_orb(1),cdft_iorb1,input_frag,ref_frags)
+     if (nfrag_charged==2) call get_cdft_iorb(ifrag_charged(2),cdft_orb(2),cdft_iorb2,input_frag,ref_frags)
+
+     isforb=0
+     do ifrag=1,input_frag%nfrag
+        ifrag_ref=input_frag%frag_index(ifrag)
+        if (ifrag==ifrag_charged(1)) then
+           do iorb=1,ref_frags(ifrag_ref)%fbasis%forbs%norb
+              do jorb=1,ref_frags(ifrag_ref)%fbasis%forbs%norb
+                 proj_mat(iorb+isforb,jorb+isforb) = ref_frags(ifrag_ref)%coeff(iorb,cdft_iorb1) &
+                      * ref_frags(ifrag_ref)%coeff(jorb,cdft_iorb1)
+              end do
+           end do
+        end if
+        if (nfrag_charged==2) then
+           if (ifrag==ifrag_charged(2)) then
+              do iorb=1,ref_frags(ifrag_ref)%fbasis%forbs%norb
+                 do jorb=1,ref_frags(ifrag_ref)%fbasis%forbs%norb
+                    proj_mat(iorb+isforb,jorb+isforb) = ref_frags(ifrag_ref)%coeff(iorb,cdft_iorb2) &
+                         * ref_frags(ifrag_ref)%coeff(jorb,cdft_iorb2)
+                 end do
+              end do
+           end if
+        end if
+        isforb=isforb+ref_frags(ifrag_ref)%fbasis%forbs%norb
+     end do
+  end if
 
   proj_ovrlp_half=f_malloc((/tmb%orbs%norb,tmb%orbs%norbp/),id='proj_ovrlp_half')
   if (tmb%orbs%norbp>0) then
-     call dgemm('n', 'n', tmb%orbs%norb, tmb%orbs%norbp, &
+     if (cdft_orb(1) == 0) then
+        call dgemm('n', 'n', tmb%orbs%norb, tmb%orbs%norbp, &
             tmb%orbs%norb, 1.d0, &
             proj_mat(1,1), tmb%orbs%norb, &
             inv_ovrlp(1)%matrix(1,tmb%orbs%isorb+1,1), tmb%orbs%norb, 0.d0, &
             proj_ovrlp_half(1,1), tmb%orbs%norb)
+     else
+        call dgemm('n', 'n', tmb%orbs%norb, tmb%orbs%norbp, &
+            tmb%orbs%norb, 1.d0, &
+            proj_mat(1,1), tmb%orbs%norb, &
+            tmb%linmat%ovrlp_%matrix(1,tmb%orbs%isorb+1,1), tmb%orbs%norb, 0.d0, &
+            proj_ovrlp_half(1,1), tmb%orbs%norb)
+
+     end if
   end if
   call f_free(proj_mat)
   weight_matrixp=f_malloc((/tmb%orbs%norb,tmb%orbs%norbp/), id='weight_matrixp')
   if (tmb%orbs%norbp>0) then
-     call dgemm('n', 'n', tmb%orbs%norb, tmb%orbs%norbp, & 
+     if (cdft_orb(1) == 0) then
+        call dgemm('n', 'n', tmb%orbs%norb, tmb%orbs%norbp, & 
           tmb%orbs%norb, 1.d0, &
           inv_ovrlp(1)%matrix(1,1,1), tmb%orbs%norb, &
           proj_ovrlp_half(1,1), tmb%orbs%norb, 0.d0, &
           weight_matrixp(1,1), tmb%orbs%norb)
+     else
+        call dgemm('n', 'n', tmb%orbs%norb, tmb%orbs%norbp, & 
+          tmb%orbs%norb, 1.d0, &
+          tmb%linmat%ovrlp_%matrix(1,1,1), tmb%orbs%norb, &
+          proj_ovrlp_half(1,1), tmb%orbs%norb, 0.d0, &
+          weight_matrixp(1,1), tmb%orbs%norb)
+     end if
   end if
   call f_free(proj_ovrlp_half)
   weight_matrix_%matrix = sparsematrix_malloc_ptr(weight_matrix,iaction=DENSE_FULL,id='weight_matrix_%matrix')
@@ -175,10 +228,33 @@ subroutine calculate_weight_matrix_lowdin(weight_matrix,weight_matrix_,nfrag_cha
   call f_free(weight_matrixp)
   call compress_matrix(bigdft_mpi%iproc,bigdft_mpi%nproc,weight_matrix,weight_matrix_%matrix,weight_matrix_%matrix_compr)
   call f_free_ptr(weight_matrix_%matrix)
-  call deallocate_matrices(inv_ovrlp(1))
+  if (cdft_orb(1) == 0) call deallocate_matrices(inv_ovrlp(1))
+  if (calculate_ovrlp_half .and. cdft_orb(1) /= 0) call f_free_ptr(tmb%linmat%ovrlp_%matrix)
   call f_release_routine()
 
 end subroutine calculate_weight_matrix_lowdin
+
+     subroutine get_cdft_iorb(ifrag,cdft_orb,iorb,input_frag,ref_frags)
+        use module_fragments
+        implicit none
+        integer, intent(in) :: ifrag, cdft_orb
+        integer, intent(out) :: iorb
+        type(fragmentInputParameters),intent(in) :: input_frag
+        type(system_fragment), dimension(input_frag%nfrag_ref), intent(in) :: ref_frags
+ 
+        integer :: ifrag_ref, ihomo
+        
+        ifrag_ref = input_frag%frag_index(ifrag)
+        ihomo = ceiling(ref_frags(ifrag_ref)%nelec/2.0d0)
+        ! HOMO, HOMO-1...
+        if (cdft_orb < 0) then
+           iorb = ihomo + cdft_orb + 1
+        ! LUMO, LUMO+1...
+        else
+           iorb = ihomo + cdft_orb
+        end if
+
+     end subroutine get_cdft_iorb
 
 
 

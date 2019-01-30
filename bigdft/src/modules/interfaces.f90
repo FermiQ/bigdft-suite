@@ -746,7 +746,7 @@ module module_interfaces
       end interface
 
       interface
-        subroutine verify_file_presence(filerad,orbs,iformat,nproc,nforb)
+        subroutine verify_file_presence(filerad,orbs,iformat,nproc)
         use module_defs, only: gp,dp,wp
         use module_types
         implicit none
@@ -754,7 +754,6 @@ module module_interfaces
         character(len=*), intent(in) :: filerad
         type(orbitals_data), intent(in) :: orbs
         integer, intent(out) :: iformat
-        integer, optional, intent(in) :: nforb
         END SUBROUTINE verify_file_presence
       end interface
 
@@ -944,7 +943,7 @@ module module_interfaces
        end interface
 
        interface
-         subroutine input_check_psi_id(inputpsi, input_wf_format, dir_output, orbs, lorbs, iproc, nproc, nfrag, frag_dir, ref_frags)
+         subroutine input_check_psi_id(inputpsi, input_wf_format, dir_output, orbs, lorbs, iproc, nproc, nfrag, frag_calc, frag_dir, ref_frags)
          use module_types
          use f_enums
          use module_fragments
@@ -954,6 +953,7 @@ module module_interfaces
          integer, intent(in) :: iproc                    !< (in)  id proc
          integer, intent(in) :: nproc                    !< (in)  #proc
          integer, intent(in) :: nfrag                    !< number of fragment directories which need checking
+         logical, intent(in) :: frag_calc
          type(system_fragment), dimension(:), pointer :: ref_frags  !< number of orbitals for each fragment
          character(len=100), dimension(nfrag), intent(in) :: frag_dir !< label for fragment subdirectories (blank if not a fragment calculation)
          character(len = *), intent(in) :: dir_output
