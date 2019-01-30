@@ -57,6 +57,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   use PSbox, only: PS_gather
   use foe_common, only: init_foe
   use test_mpi_wrappers, only: test_mpi_alltoallv
+  use at_domain, only: domain_geocode
   implicit none
   !Arguments
   integer, intent(in) :: nproc,iproc
@@ -536,7 +537,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
             extra_states = in%lin%extra_states
          end if
          call init_sparse_matrix_for_KSorbs(iproc, nproc, &
-              KSwfn%orbs, in, atoms%astruct%geocode, &
+              KSwfn%orbs, in, domain_geocode(atoms%astruct%dom), &
               atoms%astruct%cell_dim, extra_states, tmb%linmat%ks, tmb%linmat%ks_e)
      end if
 
@@ -620,7 +621,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
      !use Vxc and other quantities as local variables
      call xc_init_rho(denspot%xc, denspot%dpbox%nrhodim,denspot%rhov,1)
      denspot%rhov=1.d-16
-     call XC_potential(atoms%astruct%geocode,'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
+     call XC_potential(domain_geocode(atoms%astruct%dom),'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
           denspot%pkernel%mpi_env%mpi_comm,&
           denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),denspot%xc,&
           denspot%dpbox%mesh%hgrids,&
@@ -1233,7 +1234,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
 !!$$!MM test END
 
 
-           call XC_potential(atoms%astruct%geocode,'D',iproc,nproc,bigdft_mpi%mpi_comm,&
+           call XC_potential(domain_geocode(atoms%astruct%dom),'D',iproc,nproc,bigdft_mpi%mpi_comm,&
                 KSwfn%Lzd%Glr%d%n1i,KSwfn%Lzd%Glr%d%n2i,KSwfn%Lzd%Glr%d%n3i,denspot%xc,&
                 denspot%dpbox%mesh%hgrids,&
                 denspot%rhov,energs%exc,energs%evxc,in%nspin,denspot%rho_C,&
@@ -1391,7 +1392,7 @@ subroutine cluster(nproc,iproc,atoms,rxyz,energy,energs,fxyz,strten,fnoise,press
   call deallocate_paw_objects(KSwfn%paw)
 
   !------------------------------------------------------------------------
-  if ((in%rbuf > 0.0_gp) .and. atoms%astruct%geocode == 'F' .and. DoLastRunThings ) then
+  if ((in%rbuf > 0.0_gp) .and. domain_geocode(atoms%astruct%dom) == 'F' .and. DoLastRunThings ) then
      if (in%SIC%alpha /= 0.0_gp) call f_err_throw('Tail correction not admitted with SIC corrections for the moment',&
              err_name='BIGDFT_RUNTIME_ERROR')
 
@@ -1676,7 +1677,7 @@ subroutine kswfn_optimization_loop(iproc, nproc, opt, &
            if (iproc == 0) then
               !yaml output
               if (endloop .and. (opt%itrpmax==1 .or. opt%itrpmax >1 .and. endlooprp)) then
-                 call yaml_sequence(label='FINAL'//trim(adjustl(yaml_toa(opt%itrep,fmt='(i3.3)'))),advance='no')
+                call yaml_sequence(label='FINAL'//trim(adjustl(yaml_toa(opt%itrep,fmt='(i3.3)'))),advance='no')
               else if (endloop .and. opt%itrep == opt%nrepmax) then
                  call yaml_sequence(label='final'//trim(adjustl(yaml_toa(opt%itrp,fmt='(i4.4)'))),&
                       advance='no')
@@ -2021,7 +2022,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
   use io, only: plot_density
   use module_xc, only: XC_NO_HARTREE
   use PSbox
-  use box
+  use at_domain, only: domain_geocode
   implicit none
   !Arguments
   type(DFT_wavefunction), intent(in) :: KSwfn
@@ -2103,7 +2104,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
 !!$     end if
 
      ! This seems to be necessary to get the correct value of xcstr.
-     call XC_potential(atoms%astruct%geocode,'D',iproc,nproc,bigdft_mpi%mpi_comm,&
+     call XC_potential(domain_geocode(atoms%astruct%dom),'D',iproc,nproc,bigdft_mpi%mpi_comm,&
           KSwfn%Lzd%Glr%d%n1i,KSwfn%Lzd%Glr%d%n2i,KSwfn%Lzd%Glr%d%n3i,denspot%xc,&
           denspot%dpbox%mesh%hgrids,&
           denspot%rhov,exc_fake,evxc_fake,nspin,denspot%rho_C,denspot%rhohat,&
@@ -2120,7 +2121,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
      end if
   end if
   !xc stress, diagonal for the moment
-  if (atoms%astruct%geocode=='P' .and. atoms%astruct%sym%symObj >= 0) &
+  if (domain_geocode(atoms%astruct%dom) =='P' .and. atoms%astruct%sym%symObj >= 0) &
        call symm_stress(xcstr,atoms%astruct%sym%symObj)
 
   denspot%pot_work = f_malloc_ptr(max(denspot%dpbox%ndimpot,1),id='denspot%pot_work')
@@ -2153,7 +2154,7 @@ subroutine kswfn_post_treatments(iproc, nproc, KSwfn, tmb, linear, &
 
   !In principle symmetrization of the stress tensor is not needed since the density has been
   !already symmetrized
-  if (atoms%astruct%sym%symObj >= 0 .and. cell_geocode(denspot%pkernel%mesh)=='P') &
+  if (atoms%astruct%sym%symObj >= 0 .and. domain_geocode(denspot%pkernel%mesh%dom)=='P') &
        call symm_stress(hstrten,atoms%astruct%sym%symObj)
 
   !SM: for a spin polarized calculation, rho_work already contains the full

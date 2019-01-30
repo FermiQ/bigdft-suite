@@ -21,7 +21,8 @@
 !!    to 10^-20 and not to zero.
 !! @author Luigi Genovese
 !! @date   February 2007
-subroutine PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,xc,hgrids,&
+!subroutine PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,xc,hgrids,&
+subroutine PSolver(dom,datacode,iproc,nproc,n01,n02,n03,xc,hgrids,&
      rhopot,karray,pot_ion,eh,exc,vxc,offset,sumpion,nspin)!,&
 !     alpha,beta,gamma,quiet) !optional argument
   use module_base
@@ -31,9 +32,11 @@ subroutine PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,xc,hgrids,&
   use box
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use module_interfaces, only: xc_energy
+  use at_domain, only: domain,domain_geocode
   implicit none
   !Arguments
-  character(len=1), intent(in) :: geocode  !< @copydoc poisson_solver::doc::geocode
+  type(domain), intent(in) :: dom !< data type for the simulation domain
+  !character(len=1), intent(in) :: geocode  !< @copydoc poisson_solver::doc::geocode
   character(len=1), intent(in) :: datacode !< @copydoc poisson_solver::doc::datacode
   logical, intent(in) :: sumpion           !< Logical value which states whether to sum pot_ion to the final result or not
                                            !!  if .true. rhopot will be the Hartree potential + pot_ion+vxci
@@ -122,33 +125,37 @@ subroutine PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,xc,hgrids,&
 !!$  end if
 
 
-     mesh=cell_new(geocode,[n01,n02,n03],hgrids)
+     !mesh=cell_new(geocode,[n01,n02,n03],hgrids)
+     !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+     !         alpha_bc=alphat,beta_ac=betat,gamma_ab=gammat,acell=[n01,n02,n03]*hgrids)
+     mesh=cell_new(dom,[n01,n02,n03],hgrids)
+
  
   detg = 1.0_dp - dcos(alphat)**2 - dcos(betat)**2 - dcos(gammat)**2 + 2.0_dp*dcos(alphat)*dcos(betat)*dcos(gammat)
 
   
   !calculate the dimensions wrt the geocode
-  if (geocode == 'P') then
+  if (domain_geocode(dom) == 'P') then
      if (iproc==0 .and. wrtmsg) call PSolver_yaml('periodic BC',n01,n02,n03,nproc,xc%ixc)
           !write(*,'(1x,a,3(i5),a,i5,a,i7,a)',advance='no')&
           !'PSolver, periodic BC, dimensions: ',n01,n02,n03,'   proc',nproc,'  ixc:',ixc,' ... '
      call P_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc,.false.)
-  else if (geocode == 'S') then
+  else if (domain_geocode(dom) == 'S') then
      if (iproc==0 .and. wrtmsg) call PSolver_yaml('surfaces BC',n01,n02,n03,nproc,xc%ixc)
           !write(*,'(1x,a,3(i5),a,i5,a,i7,a)',advance='no')&
           !'PSolver, surfaces BC, dimensions: ',n01,n02,n03,'   proc',nproc,'  ixc:',ixc,' ... '
      call S_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc,0,.false.)
-  else if (geocode == 'F') then
+  else if (domain_geocode(dom) == 'F') then
      if (iproc==0 .and. wrtmsg) call PSolver_yaml('free BC',n01,n02,n03,nproc,xc%ixc)
           !write(*,'(1x,a,3(i5),a,i5,a,i7,a)',advance='no')&
           !'PSolver, free  BC, dimensions: ',n01,n02,n03,'   proc',nproc,'  ixc:',ixc,' ... '
      call F_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc,0,.false.)
-  else if (geocode == 'W') then
+  else if (domain_geocode(dom)== 'W') then
      if (iproc==0 .and. wrtmsg) call PSolver_yaml('wires BC',n01,n02,n03,nproc,xc%ixc)
           !write(*,'(1x,a,3(i5),a,i5,a,i7,a)',advance='no')&
           !'PSolver, wires  BC, dimensions: ',n01,n02,n03,'   proc',nproc,'  ixc:',ixc,' ... '
      call W_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc,0,.false.)
-  else if (geocode == 'H') then
+  else if (domain_geocode(dom) == 'H') then
      if (iproc==0 .and. wrtmsg) call PSolver_yaml('Helmholtz Equation Solver',n01,n02,n03,nproc,xc%ixc)
           !write(*,'(1x,a,3(i5),a,i5,a,i7,a)',advance='no')&
           !'PSolver, Helmholtz Equation Solver, dimensions: ',n01,n02,n03,'   proc',nproc,'  ixc:',ixc,' ... '
@@ -178,7 +185,7 @@ subroutine PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,xc,hgrids,&
   istart=iproc*(md2/nproc)
   iend=min((iproc+1)*md2/nproc,m2)
 
-  call xc_dimensions(geocode,xc_isgga(xc),(xc%ixc/=13),istart,iend,m2,nxc,nxcl,nxcr,nwbl,nwbr,i3s_fake,i3xcsh_fake)
+  call xc_dimensions(domain_geocode(dom),xc_isgga(xc),(xc%ixc/=13),istart,iend,m2,nxc,nxcl,nxcr,nwbl,nwbr,i3s_fake,i3xcsh_fake)
   nwb=nxcl+nxc+nxcr-2
   nxt=nwbr+nwb+nwbl
 
@@ -209,11 +216,11 @@ subroutine PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,xc,hgrids,&
   end if
 
   !calculate the actual limit of the array for the zero padded FFT
-  if (geocode == 'P' .or. geocode == 'W') then
+  if (domain_geocode(dom) == 'P' .or. domain_geocode(dom) == 'W') then
      nlim=n2
-  else if (geocode == 'S') then
+  else if (domain_geocode(dom) == 'S') then
      nlim=n2
-  else if (geocode == 'F' .or. geocode == 'H') then
+  else if (domain_geocode(dom) == 'F' .or. domain_geocode(dom) == 'H') then
      nlim=n2/2
   end if
 
@@ -224,7 +231,7 @@ subroutine PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,xc,hgrids,&
      if(datacode=='G' .and. &
           ((nspin==2 .and. nproc > 1) .or. i3start <=0 .or. i3start+nxt-1 > n03 )) then
         !allocation of an auxiliary array for avoiding the shift 
-        call xc_energy(geocode,m1,m3,md1,md2,md3,nxc,nwb,nxt,nwbl,nwbr,nxcl,nxcr,&
+        call xc_energy(domain_geocode(dom),m1,m3,md1,md2,md3,nxc,nwb,nxt,nwbl,nwbr,nxcl,nxcr,&
              xc,hgrids(1),hgrids(2),hgrids(3),rhopot_G,pot_ion,sumpion,zf,zfionxc,&
              eexcuLOC,vexcuLOC,nproc,nspin)
         do ispin=1,nspin
@@ -246,7 +253,7 @@ subroutine PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,xc,hgrids,&
         !!          end do
         call f_free(rhopot_G)
      else
-        call xc_energy(geocode,m1,m3,md1,md2,md3,nxc,nwb,nxt,nwbl,nwbr,nxcl,nxcr,&
+        call xc_energy(domain_geocode(dom),m1,m3,md1,md2,md3,nxc,nwb,nxt,nwbl,nwbr,nxcl,nxcr,&
              xc,hgrids(1),hgrids(2),hgrids(3),rhopot(1+n01*n02*(i3start-1)),pot_ion,sumpion,zf,zfionxc,&
              eexcuLOC,vexcuLOC,nproc,nspin)
      end if
@@ -267,23 +274,23 @@ subroutine PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,xc,hgrids,&
   end if
 
   !this routine builds the values for each process of the potential (zf), multiplying by scal 
-  if(geocode == 'P') then
+  if(domain_geocode(dom) == 'P') then
      !no powers of hgrid because they are incorporated in the plane wave treatment
      scal=1.0_dp/real(n1*n2*n3,dp)
      !call P_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,karray,zf(1,1,1),&
      !     scal,hx,hy,hz,offset)
-  else if (geocode == 'S') then
+  else if (domain_geocode(dom) == 'S') then
      !only one power of hgrid 
      !factor of -4*pi for the definition of the Poisson equation
      scal=-16.0_dp*atan(1.0_dp)*real(hgrids(2),dp)/real(n1*n2*n3,dp)
      !call S_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,karray,zf(1,1,1),&
      !     scal) !,hx,hy,hz,ehartreeLOC)
-  else if (geocode == 'F' .or. geocode == 'H') then
+  else if (domain_geocode(dom) == 'F' .or. domain_geocode(dom) == 'H') then
      !hgrid=max(hx,hy,hz)
      scal=product(hgrids)/real(n1*n2*n3,dp)
      !call F_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,karray,zf(1,1,1),&
      !     scal)!,hgrid)!,ehartreeLOC)
-  else if (geocode == 'W') then
+  else if (domain_geocode(dom) == 'W') then
      !only one power of hgrid 
      !factor of -1/(2pi) already included in the kernel definition
      scal=-2.0_dp*hgrids(1)*hgrids(2)/real(n1*n2*n3,dp)
@@ -492,16 +499,19 @@ END SUBROUTINE PSolver
 !!    to 10^-20 and not to zero.
 !! @author Anders Bergman
 !! @date   March 2008
-subroutine PSolverNC(geocode,datacode,iproc,nproc,n01,n02,n03,n3d,xc,hgrids,&
+!subroutine PSolverNC(geocode,datacode,iproc,nproc,n01,n02,n03,n3d,xc,hgrids,&
+subroutine PSolverNC(dom,datacode,iproc,nproc,n01,n02,n03,n3d,xc,hgrids,&
      rhopot,karray,pot_ion,eh,exc,vxc,offset,sumpion,nspin)
   use module_base
   use module_xc
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use dictionaries, only: f_err_raise
   use dynamic_memory
+  use at_domain, only: domain
   implicit none
   !Arguments
-  character(len=1), intent(in) :: geocode  !< @copydoc poisson_solver::doc::geocode
+  type(domain), intent(in) :: dom !< data type for the simulation domain
+  !character(len=1), intent(in) :: geocode  !< @copydoc poisson_solver::doc::geocode
   character(len=1), intent(in) :: datacode !< @copydoc poisson_solver::doc::datacode
   logical, intent(in) :: sumpion           !< Logical value which states whether to sum pot_ion to the final result or not
                                            !!  if .true. rhopot will be the Hartree potential + pot_ion+vxci
@@ -592,7 +602,7 @@ subroutine PSolverNC(geocode,datacode,iproc,nproc,n01,n02,n03,n3d,xc,hgrids,&
      end if
      !substitution of the calling routine
      
-     call PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,xc,&
+     call PSolver(dom,datacode,iproc,nproc,n01,n02,n03,xc,&
           hgrids,&
           rho_diag,karray,pot_ion,eh,exc,vxc,offset,sumpion,2)
 
@@ -716,7 +726,8 @@ subroutine atomic_magnetic_moments(bitp,nrhodim,nat,rxyz,radii,rho,rho_at,m_at)
      rat_tmp=0.0_dp
      func=f_function_new(f_erf,scale=1.0_dp)
      do while(box_next_point(bitp))
-        r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
+        !r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
+        r=box_iter_distance(bitp,rxyz(:,iat))
         !smearing=0.5_gp*(1.0_dp-eval(func,r-radii(iat)))*bitp%mesh%volume_element
         smearing=.if. (r<radii(iat)) .then. bitp%mesh%volume_element .else. 0.0_gp
         rat_tmp=rat_tmp+smearing*rho(bitp%ind,1)
@@ -755,7 +766,8 @@ subroutine atomic_magnetic_field(bitp,npotdim,nat,rxyz,radii,B_at,pot)
      !iterate on the cell, centering of the atoms
      func=f_function_new(f_erf,scale=radii(iat))
      do while(box_next_point(bitp))
-        r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
+        !r=distance(bitp%mesh,bitp%rxyz,rxyz(:,iat))
+        r=box_iter_distance(bitp,rxyz(:,iat))
         !smearing=1.0_dp-eval(func,r)
         smearing=.if. (r<radii(iat)) .then. 1.0_gp .else. 0.0_gp
         !!!$ pot(bitp%ind,1)=pot(bitp%ind,1)+B_at(3,iat)*smearing

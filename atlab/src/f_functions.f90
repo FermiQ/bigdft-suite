@@ -578,7 +578,8 @@ module f_functions
       real(f_double) :: r2,r
 
       do while(box_next_point(bit))
-         r2=square_gd(bit%mesh,bit%rxyz)
+         !r2=square_gd(bit%mesh,bit%rxyz)
+         r2=box_iter_square_gd(bit)
          r = sqrt(r2)
          !f(bit%i,bit%j,bit%k) =factor*eval(func,r)
          f(bit%ind) =factor*eval(func,r)
@@ -623,7 +624,7 @@ module f_functions
       !local variables
       real(f_double) :: fx,fy,fz,fx1,fx2,fy1,fy2,fz1,fz2
 
-      if (.not. bit%mesh%orthorhombic) then
+      if (.not. bit%mesh%dom%orthorhombic) then
          do while(box_next_z(bit))
             fz=eval(funcs(3),bit%rxyz(3))
             fz1=diff(funcs(3),bit%rxyz(3))
@@ -636,9 +637,10 @@ module f_functions
                   fx=eval(funcs(1),bit%rxyz(1))
                   fx1=diff(funcs(1),bit%rxyz(1))
                   fx2=diff(funcs(1),bit%rxyz(1),order=2)
-                  f(bit%ind) = factor*((bit%mesh%gu(1,1)*fx2*fy*fz+bit%mesh%gu(2,2)*fx*fy2*fz+&
-                       bit%mesh%gu(3,3)*fx*fy*fz2)+&
-                       2.0_f_double*(bit%mesh%gu(1,2)*fx1*fy1*fz+bit%mesh%gu(1,3)*fx1*fy*fz1+bit%mesh%gu(2,3)*fx*fy1*fz1))
+                  f(bit%ind) = factor*((bit%mesh%dom%gu(1,1)*fx2*fy*fz+bit%mesh%dom%gu(2,2)*fx*fy2*fz+&
+                       bit%mesh%dom%gu(3,3)*fx*fy*fz2)+&
+                       2.0_f_double*(bit%mesh%dom%gu(1,2)*fx1*fy1*fz+&
+                       bit%mesh%dom%gu(1,3)*fx1*fy*fz1+bit%mesh%dom%gu(2,3)*fx*fy1*fz1))
                end do
             end do
          end do
@@ -664,46 +666,46 @@ module f_functions
 
     subroutine FD_first_der(geocode,n01,hx,u,du,nord)
           implicit none
-    !c..this routine computes 'nord' order accurate first derivatives 
+    !c..this routine computes 'nord' order accurate first derivatives
     !c..on a equally spaced grid with coefficients from 'Matematica' program.
-    
+
     !c..input:
-    !c..ngrid       = number of points in the grid, 
+    !c..ngrid       = number of points in the grid,
     !c..u(ngrid)    = function values at the grid points
-    
+
     !c..output:
     !c..du(ngrid)   = first derivative values at the grid points
-    
+
     !c..declare the pass
           character(len=1), intent(in) :: geocode
           integer, intent(in) :: n01,nord
           real(kind=8), intent(in) :: hx
           real(kind=8), dimension(n01) :: u
           real(kind=8), dimension(n01) :: du
-    
+
     !c..local variables
           integer :: n,m,n_cell
           integer :: i,j,i1,ii
           real(kind=8), dimension(-nord/2:nord/2,-nord/2:nord/2) :: c1D,c1DF
           logical :: perx
-    
+
           n = nord+1
           m = nord/2
           n_cell = n01
-    
+
           !buffers associated to the geocode
           !conditions for periodicity
           perx=(geocode /= 'F')
-    
+
           ! Beware that n_cell has to be > than n.
           if (n_cell.lt.n) then
            write(*,*)'ngrid in has to be setted > than n=nord + 1'
            stop
           end if
-    
+
           ! Setting of 'nord' order accurate first derivative coefficient from 'Matematica'.
           !Only nord=2,4,6,8,16
-    
+
           select case(nord)
           case(2,4,6,8,16)
            !O.K.
@@ -711,20 +713,20 @@ module f_functions
            write(*,*)'Only nord-order 2,4,6,8,16 accurate first derivative'
            stop
           end select
-    
+
           do i=-m,m
            do j=-m,m
             c1D(i,j)=0.d0
             c1DF(i,j)=0.d0
            end do
           end do
-    
+
           include 'FiniteDiffCorff.inc'
-    
+
           do i1=1,n01
-       
+
            du(i1) = 0.0d0
-       
+
            if (i1.le.m) then
             if (perx) then
              do j=-m,m
@@ -753,9 +755,9 @@ module f_functions
             end do
            end if
            du(i1)=du(i1)/hx
-       
+
           end do
-    
+
     end subroutine FD_first_der
 
 end module f_functions

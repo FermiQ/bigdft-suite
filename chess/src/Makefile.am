@@ -20,7 +20,7 @@ chess_linklib =
 chess_library = libCheSS-1.a @LIB_CHESS_DEPS@
 endif
 
-if BUILD_BINARIES 
+if BUILD_BINARIES
 binaries_sources = chess_toolbox
 else
 binaries_sources =
@@ -95,15 +95,14 @@ EXTRA_DIST = \
 subs_static_library = $(top_builddir)/sparsematrix/libsparsematrix.a \
                       $(top_builddir)/chesspexsi/libchesspexsi.a
 
-
 chess_toolbox_SOURCES = chess_toolbox.f90
-chess_toolbox_LDADD = $(chess_library) @LIB_FUTILE_LIBS@ @LINALG_LIBS@
+chess_toolbox_LDADD = $(chess_library) @LIB_ATLAB_LIBS@ @LINALG_LIBS@
 
 CLEANFILES = *.@MODULE_EXT@ $(chess_dynamic_library) $(chess_library_soname) libCheSS-1.so
 clean-local:
 	rm -rf tmp-libCheSS
 
-AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@ @MPI_INCLUDE@
+AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @LIB_ATLAB_CFLAGS@ @MPI_INCLUDE@
 
 if BUILD_DYNAMIC_LIBS
 LD_RPATH=-Wl,-rpath=$(DESTDIR)$(dynlibdir)

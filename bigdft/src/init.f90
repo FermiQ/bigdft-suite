@@ -18,6 +18,7 @@ subroutine createWavefunctionsDescriptors(iproc,hx,hy,hz,atoms,rxyz,&
   use yaml_output
   use module_interfaces, only: export_grids
   use locregs
+  use at_domain, only: domain_geocode
   implicit none
   !Arguments
   type(atoms_data), intent(in) :: atoms
@@ -67,7 +68,7 @@ subroutine createWavefunctionsDescriptors(iproc,hx,hy,hz,atoms,rxyz,&
   end if
   call wfd_from_grids(logrid_c,logrid_f,calculate_bounds,Glr)
 
-  if (atoms%astruct%geocode == 'P' .and. .not. Glr%hybrid_on .and. Glr%wfd%nvctr_c /= (n1+1)*(n2+1)*(n3+1) ) then
+  if (domain_geocode(atoms%astruct%dom) == 'P' .and. .not. Glr%hybrid_on .and. Glr%wfd%nvctr_c /= (n1+1)*(n2+1)*(n3+1) ) then
      if (iproc ==0) then
         call yaml_warning('The coarse grid does not fill the entire periodic box. '// &
              & 'Errors due to translational invariance breaking may occur')
@@ -95,7 +96,7 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
    use locregs
    use bounds, only: make_bounds, make_all_ib, make_bounds_per, make_all_ib_per
    use locregs
-   use box, only: cell_geocode
+   use at_domain, only: domain_geocode
    !use yaml_output
    implicit none
    !Arguments
@@ -119,7 +120,7 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
 
    !allocate kinetic bounds, only for free BC
 !!$   if (calculate_bounds .and. Glr%geocode == 'F' ) then
-   if (calculate_bounds .and. cell_geocode(Glr%mesh) == 'F' ) then
+   if (calculate_bounds .and. domain_geocode(Glr%mesh%dom) == 'F' ) then
       Glr%bounds%kb%ibyz_c = f_malloc_ptr((/ 1.to.2,0.to.n2,0.to.n3 /),id='Glr%bounds%kb%ibyz_c')
       Glr%bounds%kb%ibxz_c = f_malloc_ptr((/ 1.to.2,0.to.n1,0.to.n3 /),id='Glr%bounds%kb%ibxz_c')
       Glr%bounds%kb%ibxy_c = f_malloc_ptr((/ 1.to.2,0.to.n1,0.to.n2 /),id='Glr%bounds%kb%ibxy_c')
@@ -140,14 +141,14 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
    end if
 
 !!$   if (calculate_bounds .and. Glr%geocode == 'F') then
-   if (calculate_bounds .and. cell_geocode(Glr%mesh) == 'F' ) then
+   if (calculate_bounds .and. domain_geocode(Glr%mesh%dom) == 'F' ) then
       call make_bounds(n1,n2,n3,logrid_c,Glr%bounds%kb%ibyz_c,Glr%bounds%kb%ibxz_c,Glr%bounds%kb%ibxy_c)
    end if
 
    ! Do the fine region.
    call num_segkeys(n1,n2,n3,0,n1,0,n2,0,n3,logrid_f,Glr%wfd%nseg_f,Glr%wfd%nvctr_f)
 !!$   if (calculate_bounds .and. Glr%geocode == 'F') then
-   if (calculate_bounds .and. cell_geocode(Glr%mesh) == 'F' ) then
+   if (calculate_bounds .and. domain_geocode(Glr%mesh%dom) == 'F' ) then
       call make_bounds(n1,n2,n3,logrid_f,Glr%bounds%kb%ibyz_f,Glr%bounds%kb%ibxz_f,Glr%bounds%kb%ibxy_f)
    end if
 
@@ -182,7 +183,7 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
 
  !for free BC admits the bounds arrays
 !!$   if (calculate_bounds .and. Glr%geocode == 'F' ) then
-   if (calculate_bounds .and. cell_geocode(Glr%mesh) == 'F' ) then
+   if (calculate_bounds .and. domain_geocode(Glr%mesh%dom) == 'F' ) then
       !allocate grow, shrink and real bounds
       Glr%bounds%gb%ibzxx_c = f_malloc_ptr((/ 1.to.2, 0.to.n3, -14.to.2*n1+16 /),id='Glr%bounds%gb%ibzxx_c')
       Glr%bounds%gb%ibxxyy_c = f_malloc_ptr((/ 1.to.2, -14.to.2*n1+16, -14.to.2*n2+16 /),id='Glr%bounds%gb%ibxxyy_c')
@@ -210,7 +211,7 @@ subroutine wfd_from_grids(logrid_c, logrid_f, calculate_bounds, Glr)
    end if
 
 !!$   if (calculate_bounds .and. Glr%geocode == 'P' .and. Glr%hybrid_on) then
-   if (calculate_bounds .and. cell_geocode(Glr%mesh) == 'P' .and. Glr%hybrid_on) then
+   if (calculate_bounds .and. domain_geocode(Glr%mesh%dom) == 'P' .and. Glr%hybrid_on) then
       call make_bounds_per(n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,Glr%bounds,Glr%wfd)
       call make_all_ib_per(n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,&
          &   Glr%bounds%kb%ibxy_f,Glr%bounds%sb%ibxy_ff,Glr%bounds%sb%ibzzx_f,Glr%bounds%sb%ibyyzz_f,&
@@ -483,6 +484,7 @@ subroutine input_wf_empty(iproc, nproc, psi, hpsi, psit, orbs, &
   use public_enums
   use IObox
   use locregs
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iproc, nproc
   type(orbitals_data), intent(in) :: orbs
@@ -514,11 +516,11 @@ subroutine input_wf_empty(iproc, nproc, psi, hpsi, psit, orbs, &
         call yaml_map('Reading local potential from file',trim(band_structure_filename))
         !write(*,'(1x,a)')'Reading local potential from file:'//trim(band_structure_filename)
         call read_field_dimensions(trim(band_structure_filename),&
-             atoms%astruct%geocode,ndims,nspin)
+             domain_geocode(atoms%astruct%dom),ndims,nspin)
         denspot%Vloc_KS = f_malloc_ptr([ndims(1),ndims(2),ndims(3),input_spin],id='denspot%Vloc_KS')
         !> Read a density file using file format depending on the extension.
         call read_field(trim(band_structure_filename),&
-             atoms%astruct%geocode,ndims,hgrids,nspin,product(ndims),input_spin,denspot%Vloc_KS)
+             domain_geocode(atoms%astruct%dom),ndims,hgrids,nspin,product(ndims),input_spin,denspot%Vloc_KS)
         if (f_err_raise(nspin /= input_spin,&
              'The value nspin reading from the file is not the same',&
              err_name='BIGDFT_RUNTIME_ERROR')) return
@@ -1866,6 +1868,7 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
   use public_enums
   use psp_projectors, only: update_nlpsp
   use locreg_operations, only: confpot_data
+  use at_domain, only: domain_geocode
   implicit none
   !Arguments
   integer, intent(in) :: iproc,nproc,ixc
@@ -2259,7 +2262,7 @@ subroutine input_wf_diag(iproc,nproc,at,denspot,&
   etol=accurex/real(orbse%norbu,gp)
 
   !if (iproc == 0 .and. verbose > 1 .and. at%astruct%geocode=='F') write(*,'(1x,a,2(f19.10))') 'done. ekin_sum,eks:',energs%ekin,eks
-  if (iproc == 0 .and. get_verbose_level() > 1 .and. at%astruct%geocode=='F') &
+  if (iproc == 0 .and. get_verbose_level() > 1 .and. domain_geocode(at%astruct%dom)=='F') &
        call yaml_map('Expected kinetic energy',eks,fmt='(f19.10)')
   if (iproc==0) call yaml_newline()
 
@@ -2371,7 +2374,7 @@ contains
 
     if (iproc == 0) then
        !gaussian estimation valid only for Free BC
-       if (at%astruct%geocode == 'F') then
+       if (domain_geocode(at%astruct%dom) == 'F') then
           call yaml_newline()
           call yaml_mapping_open('Accuracy estimation for this run')
           call yaml_map('Energy',accurex,fmt='(1pe9.2)')
@@ -2440,8 +2443,10 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   use public_enums
   use orbitalbasis
   use box
+  use at_domain
   use f_enums
   use coeffs, only: calculate_density_kernel
+  use numerics, only: onehalf,pi
   implicit none
 
   !Arguments
@@ -2494,7 +2499,9 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
   integer :: ifrag_ref, max_nbasis_env,ispin
   real(gp) :: e_paw, e_pawdc, compch_sph, e_nl
   type(cell) :: mesh
+  type(domain) :: dom
   logical, dimension(3) :: peri
+  integer, dimension(3) :: nxyz
 
   interface
      subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, input, &
@@ -2843,18 +2850,24 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         call yaml_map('Policy','Wavefunctions Restart')
      end if
 
-     mesh=cell_new(atoms%astruct%geocode,[KSwfn%lzd%Glr%d%n1,KSwfn%lzd%Glr%d%n2,KSwfn%lzd%Glr%d%n3],&
-      KSwfn%lzd%hgrids)
+     !mesh=cell_new(atoms%astruct%geocode,[KSwfn%lzd%Glr%d%n1,KSwfn%lzd%Glr%d%n2,KSwfn%lzd%Glr%d%n3],&
+     ! KSwfn%lzd%hgrids)
+     nxyz=[KSwfn%lzd%Glr%d%n1,KSwfn%lzd%Glr%d%n2,KSwfn%lzd%Glr%d%n3]
+     !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(atoms%astruct%geocode),&
+     !       alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=nxyz*KSwfn%lzd%hgrids)
+     !mesh=cell_new(dom,nxyz,KSwfn%lzd%hgrids)
+     mesh=cell_new(atoms%astruct%dom,nxyz,KSwfn%lzd%hgrids)
+
       displ=0.0_gp
       do iat=1,atoms%astruct%nat
-         displ=displ+distance(mesh,rxyz(:,iat),rxyz_old(:,iat))**2
+         displ=displ+distance(mesh%dom,rxyz(:,iat),rxyz_old(:,iat))**2
       enddo
       displ=sqrt(displ)
 
 !!$     perx=(atoms%astruct%geocode /= 'F')
 !!$     pery=(atoms%astruct%geocode == 'P')
 !!$     perz=(atoms%astruct%geocode /= 'F')
-     peri=cell_periodic_dims(mesh)
+     peri=domain_periodic_dims(mesh%dom)
      perx=peri(1)
      pery=peri(2)
      perz=peri(3)
@@ -3632,7 +3645,7 @@ subroutine input_wf_memory_new(nproc, iproc, atoms, &
   use ao_inguess, only: atomic_info
   use module_types
   use locreg_operations
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
 
   !Global Variables
@@ -3670,7 +3683,7 @@ subroutine input_wf_memory_new(nproc, iproc, atoms, &
   call f_routine(id='input_wf_memory_new')
 
 !!$  if (lzd_old%Glr%geocode .ne. 'F') then
-  if (cell_geocode(lzd_old%Glr%mesh) .ne. 'F') then
+  if (domain_geocode(lzd_old%Glr%mesh%dom) .ne. 'F') then
      write(*,*) 'Not implemented for boundary conditions other than free'
      stop
   end if

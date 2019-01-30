@@ -59,7 +59,7 @@ AC_FC_WRAPPERS()
 AX_FC_DEFS()
 AX_FC_OPENMP()
 
-dnl Set if the module name are capitalized or not with the FC compiler. 
+dnl Set if the module name are capitalized or not with the FC compiler.
 AX_FC_MOD()
 AM_CONDITIONAL(CAPITALIZE, test "$ax_fc_mod_capitalize" = "yes")
 AC_SUBST(MODULE_EXT, $ax_fc_mod_ext)
@@ -94,7 +94,7 @@ AX_MPI()
 dnl Python YAML support.
 AX_PYYAML()
 
-AX_FLIB()
+AX_ATLAB()
 
 dnl Produce dynamic excecutables.
 AX_DYNAMIC_LIBRARIES([], [f_lib_initialize], [$LIB_FUTILE_LIBS])
@@ -106,7 +106,7 @@ AX_LINALG()
 AX_ETSF_IO()
 
 dnl Agregate all the optional libs.
-LIB_PSOLVER_DEPS="$LIBETSFIO_LIBS $LIB_FUTILE_LIBS"
+LIB_PSOLVER_DEPS="$LIB_ATLAB_LIBS"
 dnl if the futile libraries are dynamic add the dependencies
 if test $ax_FUTILE_static != "yes" ; then
   LIB_PSOLVER_DEPS="$LIB_PSOLVER_DEPS $LIBCUDA_LIBS $LINALG_LIBS $MPI_LDFLAGS $MPI_LIBS"

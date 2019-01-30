@@ -892,6 +892,8 @@ contains
       use compression
       use bounds
       use box
+      use at_domain
+      use numerics, only: onehalf,pi
       implicit none
       logical, intent(in) :: hybrid_flag
       character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
@@ -910,6 +912,7 @@ contains
       logical, dimension(3) :: peri,peri_glob
       integer, dimension(3) :: ndims
       real(gp), dimension(3) :: oxyz,hgrids
+      type(domain) :: dom
 
       call f_routine(id='init_lr')
 
@@ -943,7 +946,10 @@ contains
       ndims(3)=lr%d%n3i
 
       !this is the mesh in real space (ISF basis)
-      lr%mesh=cell_new(geocode,ndims,hgridsh)
+      !lr%mesh=cell_new(geocode,ndims,hgridsh)
+      dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims*hgridsh)
+      lr%mesh=cell_new(dom,ndims,hgridsh)
 
       call ext_buffers_coarse(peri(1),Lnbl1)
       call ext_buffers_coarse(peri(2),Lnbl2)
@@ -953,21 +959,31 @@ contains
       ndims(2)=2*lr%d%n2+2+2*Lnbl2
       ndims(3)=2*lr%d%n3+2+2*Lnbl3
       !this is the mesh in the fine scaling function
-      lr%mesh_fine=cell_new(geocode,ndims,hgridsh)
+      !lr%mesh_fine=cell_new(geocode,ndims,hgridsh)
+      dom=domain_null()
+      dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims*hgridsh)
+      lr%mesh_fine=cell_new(dom,ndims,hgridsh)
 
       ndims(1)=lr%d%n1+1
       ndims(2)=lr%d%n2+1
       ndims(3)=lr%d%n3+1
       hgrids=2.0_gp*hgridsh
-      lr%mesh_coarse=cell_new(geocode,ndims,hgrids) !we should write the number of points here
+      !lr%mesh_coarse=cell_new(geocode,ndims,hgrids) !we should write the number of points here
+      dom=domain_null()
+      dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims*hgrids)
+      lr%mesh_coarse=cell_new(dom,ndims,hgrids)
+
 
       Gnbl1=0
       Gnbl2=0
       Gnbl3=0
       if (present(global_geocode)) then
-         peri_glob(1)=(global_geocode /= 'F')
-         peri_glob(2)=(global_geocode == 'P')
-         peri_glob(3)=(global_geocode /= 'F')
+!!$         peri_glob(1)=(global_geocode /= 'F')
+!!$         peri_glob(2)=(global_geocode == 'P')
+!!$         peri_glob(3)=(global_geocode /= 'F')
+         peri_glob=bc_periodic_dims(geocode_to_bc(global_geocode))
          call ext_buffers(peri_glob(1),Gnbl1,Gnbr1)
          call ext_buffers(peri_glob(2),Gnbl2,Gnbr2)
          call ext_buffers(peri_glob(3),Gnbl3,Gnbr3)
@@ -1027,7 +1043,7 @@ contains
 
 
     subroutine correct_lr_extremes(lr,Glr,geocode,correct,nbox_lr,nbox)
-      use box, only: cell_geocode,cell_periodic_dims
+      use at_domain, only: domain_periodic_dims
       implicit none
       logical, intent(in) :: correct
       type(locreg_descriptors), intent(inout) :: lr
@@ -1071,7 +1087,7 @@ contains
       yperiodic = .false.
       zperiodic = .false.
 
-      peri=cell_periodic_dims(Glr%mesh)
+      peri=domain_periodic_dims(Glr%mesh%dom)
       if (peri(1)) then
          call correct_dimensions(isx,iex,Glr%ns1,Glr%d%n1,ln1,lr%outofzone(1),correct,xperiodic)
       else
@@ -1240,7 +1256,7 @@ contains
     !> initalize the box-related components of the localization regions
     subroutine lr_box(lr,Glr,hgrids,nbox,correction)
       use bounds, only: ext_buffers
-      use box, only: cell_geocode
+      use at_domain, only: domain_geocode
       implicit none
       !> Sub-box to iterate over the points (ex. around atoms)
       !! start and end points for each direction
@@ -1267,7 +1283,7 @@ contains
            Glr%d%nfl1,Glr%d%nfl2,Glr%d%nfl3,&
            Glr%d%nfu1,Glr%d%nfu2,Glr%d%nfu3,&
 !!$           .false.,nbox_lr(1,1),nbox_lr(1,2),nbox_lr(1,3),Glr%geocode)
-           .false.,nbox_lr(1,1),nbox_lr(1,2),nbox_lr(1,3),cell_geocode(Glr%mesh))
+           .false.,nbox_lr(1,1),nbox_lr(1,2),nbox_lr(1,3),domain_geocode(Glr%mesh%dom))
 
       ! Make sure that the extent of the interpolating functions grid for the
       ! locreg is not larger than the that of the global box.
@@ -1302,7 +1318,8 @@ contains
 
     !>get the offset of the isf description of the support function
     pure function get_isf_offset(lr,mesh_global) result(ioffset)
-      use box, only: cell,cell_periodic_dims
+      use box, only: cell
+      use at_domain, only: domain_periodic_dims
       use bounds, only: isf_box_buffers
       implicit none
       type(locreg_descriptors), intent(in) :: lr
@@ -1315,8 +1332,8 @@ contains
 
       !geocode_buffers
       !conditions for periodicity in the three directions
-      peri_local=cell_periodic_dims(lr%mesh)
-      peri_global=cell_periodic_dims(mesh_global)
+      peri_local=domain_periodic_dims(lr%mesh%dom)
+      peri_global=domain_periodic_dims(mesh_global%dom)
 
       nli=isf_box_buffers(peri_local,peri_global)
 

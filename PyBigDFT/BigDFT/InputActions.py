@@ -28,6 +28,7 @@ Note:
    set_xc
    set_hgrid
    set_rmult
+   set_wavefunction_convergence
    set_atomic_positions
    set_mesh_sizes
    optimize_geometry
@@ -48,7 +49,6 @@ Note:
    extract_virtual_states
    set_electronic_temperature
    calculate_tddft_coupling_matrix
-
 
 """
 
@@ -108,6 +108,15 @@ def set_hgrid(inp,hgrids=0.4):
        hgrid (float,list): list of the grid spacings in the three directions. It might also be a scalar, which implies the same spacing
     """
     __set__(inp,'dft','hgrids',hgrids)
+
+def set_wavefunction_convergence(inp,gnrm=1.0e-04):
+    """
+    Set the tolerance acceptance level for stopping the self-consistent iterations
+
+    Args:
+       gnrm (float): the tolerance level
+    """
+    __set__(inp,'dft','gnrm_cv',gnrm)
 
 def set_rmult(inp,rmult=None,coarse=5.0,fine=8.0):
     """

@@ -13,7 +13,7 @@ subroutine preconditionall(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero)
   use module_base
   use module_types
   use locregs
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: ncong
   real(gp), intent(in) :: hx,hy,hz
@@ -94,9 +94,9 @@ subroutine preconditionall(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero)
            !cases with no CG iterations, diagonal preconditioning
            !for Free BC it is incorporated in the standard procedure
 !!$           if (ncong == 0 .and. lr%geocode /= 'F') then
-           if (ncong == 0 .and. cell_geocode(lr%mesh_coarse) /= 'F') then
+           if (ncong == 0 .and. domain_geocode(lr%mesh_coarse%dom) /= 'F') then
 !!$              select case(lr%geocode)
-              select case(cell_geocode(lr%mesh_coarse))
+              select case(domain_geocode(lr%mesh_coarse%dom))
               case('F')
               case('S')
                  call prec_fft_slab(lr%d%n1,lr%d%n2,lr%d%n3, &
@@ -216,7 +216,7 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
   use yaml_output
   use locregs
   use locreg_operations
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iproc,nproc,ncong,npsidim
   real(gp), intent(in) :: hx,hy,hz
@@ -354,9 +354,9 @@ subroutine preconditionall2(iproc,nproc,orbs,Lzd,hx,hy,hz,ncong,npsidim,hpsi,con
            !cases with no CG iterations, diagonal preconditioning
            !for Free BC it is incorporated in the standard procedure
 !!$           if (ncong == 0 .and. Lzd%Llr(ilr)%geocode /= 'F') then
-           if (ncong == 0 .and. cell_geocode(Lzd%Llr(ilr)%mesh_coarse) /= 'F') then
+           if (ncong == 0 .and. domain_geocode(Lzd%Llr(ilr)%mesh_coarse%dom) /= 'F') then
 !!$              select case(Lzd%Llr(ilr)%geocode)
-              select case(cell_geocode(Lzd%Llr(ilr)%mesh_coarse))
+              select case(domain_geocode(Lzd%Llr(ilr)%mesh_coarse%dom))
               case('F')
               case('S')
                  call prec_fft_slab(Lzd%Llr(ilr)%d%n1,Lzd%Llr(ilr)%d%n2,Lzd%Llr(ilr)%d%n3, &
@@ -471,7 +471,8 @@ END SUBROUTINE preconditionall2
 ! > This function has been created also for the GPU-ported routines
 subroutine cprecr_from_eval(mesh,eval_zero,eval,cprecr)
   use module_base
-  use box, only: cell,cell_geocode
+  use box, only: cell
+  use at_domain, only: domain_geocode
   implicit none
 !!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   type(cell), intent(in) :: mesh
@@ -487,7 +488,7 @@ subroutine cprecr_from_eval(mesh,eval_zero,eval,cprecr)
 !!$     cprecr=sqrt(0.2d0**2+(eval-eval_zero)**2)
 !!$  end select
 
-  if (cell_geocode(mesh) == 'F') then
+  if (domain_geocode(mesh%dom) == 'F') then
      cprecr=sqrt(.2d0**2+min(0.d0,eval)**2)
   else
      cprecr=sqrt(0.2d0**2+(eval-eval_zero)**2)
@@ -586,7 +587,8 @@ subroutine finalise_precond_residue(mesh,hybrid_on,ncplx,wfd,scal,x)
   use module_base
   use module_types
   use compression
-  use box, only: cell,cell_geocode
+  use box, only: cell
+  use at_domain, only: domain_geocode
   implicit none
 !!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   type(cell), intent(in) :: mesh
@@ -601,13 +603,13 @@ subroutine finalise_precond_residue(mesh,hybrid_on,ncplx,wfd,scal,x)
   call f_routine(id='finalise_precond_residue')
 
 !!$  if (geocode == 'F') then
-  if (cell_geocode(mesh) == 'F') then
+  if (domain_geocode(mesh%dom) == 'F') then
      do idx=1,ncplx
         call wscalv_wrap(wfd%nvctr_c,wfd%nvctr_f,scal,x(1,idx))
      end do
 !!$  else if ((geocode == 'P' .and. .not. hybrid_on) .or. geocode == 'S') then
-  else if ((cell_geocode(mesh) == 'P' .and. .not. hybrid_on) .or. cell_geocode(mesh) == 'S' &
-             .or. cell_geocode(mesh) == 'W' ) then
+  else if ((domain_geocode(mesh%dom) == 'P' .and. .not. hybrid_on) .or. domain_geocode(mesh%dom) == 'S' &
+             .or. domain_geocode(mesh%dom) == 'W' ) then
      do idx=1,ncplx
         ! x=D^{-1/2}x'
         call wscal_per_self(wfd%nvctr_c,wfd%nvctr_f,scal,x(1,idx),&
@@ -627,7 +629,8 @@ subroutine calculate_rmr_new(mesh,hybrid_on,ncplx,wfd,scal,r,b,rmr_new)
   use module_base
   use module_types
   use compression
-  use box, only: cell,cell_geocode
+  use box, only: cell
+  use at_domain, only: domain_geocode
   implicit none
 !!$  character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
   type(cell), intent(in) :: mesh
@@ -646,9 +649,9 @@ subroutine calculate_rmr_new(mesh,hybrid_on,ncplx,wfd,scal,r,b,rmr_new)
 
 !!$  noscal = ((geocode == 'P' .and. .not. hybrid_on) .or. &
 !!$      geocode == 'F' .or. geocode == 'S')
-  noscal = ((cell_geocode(mesh) == 'P' .and. .not. hybrid_on) .or. &
-       cell_geocode(mesh) == 'F' .or. cell_geocode(mesh) == 'S'.or. &
-               cell_geocode(mesh) == 'W' )
+  noscal = ((domain_geocode(mesh%dom) == 'P' .and. .not. hybrid_on) .or. &
+       domain_geocode(mesh%dom) == 'F' .or. domain_geocode(mesh%dom) == 'S'.or. &
+               domain_geocode(mesh%dom) == 'W' )
 
   if (noscal) then
      call vcopy(ncplx*(wfd%nvctr_c+7*wfd%nvctr_f),r(1,1),1,b(1,1),1) 
@@ -671,7 +674,7 @@ subroutine precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
   use module_base
   use locregs
   use locreg_operations
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: ncplx
   real(gp), intent(in) :: hx,hy,hz,cprecr
@@ -692,7 +695,7 @@ subroutine precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
   call f_routine(id='precondition_preconditioner')
     
 !!$  if (lr%geocode == 'F') then
-  if (cell_geocode(lr%mesh) == 'F') then
+  if (domain_geocode(lr%mesh%dom) == 'F') then
      !using hx instead of hgrid for isolated bc
      fac_h=1.0_wp/real(hx,wp)**2
      h0=    1.5_wp*a2*fac_h
@@ -741,7 +744,7 @@ subroutine precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
      call f_zero(w%ypsig_f)
 
 !!$  else if (lr%geocode == 'P') then
-  else if (cell_geocode(lr%mesh) == 'P') then
+  else if (domain_geocode(lr%mesh%dom) == 'P') then
 
      call dimensions_fft(lr%d%n1,lr%d%n2,lr%d%n3,&
           nd1,nd2,nd3,n1f,n3f,n1b,n3b,nd1f,nd3f,nd1b,nd3b)
@@ -793,7 +796,7 @@ subroutine precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
 
 
 !!$  else if (lr%geocode == 'S') then
-  else if (cell_geocode(lr%mesh) == 'S') then
+  else if (domain_geocode(lr%mesh%dom) == 'S') then
 
      if (ncplx == 1) then
         call prepare_sdc_slab(lr%d%n1,lr%d%n3,w%modul1,w%modul3,&
@@ -828,7 +831,7 @@ subroutine precondition_preconditioner(lr,ncplx,hx,hy,hz,scal,cprecr,w,x,b)
         
      end do
 
-  else if (cell_geocode(lr%mesh) == 'W') then
+  else if (domain_geocode(lr%mesh%dom) == 'W') then
 
      if (ncplx == 1) then
         call prepare_sdc_wire(lr%d%n3,w%modul3,w%af,w%bf,w%cf,w%ef,hx,hy,hz)
@@ -876,7 +879,7 @@ subroutine precond_locham(ncplx,lr,hx,hy,hz,kx,ky,kz,&
   use module_base
   use locregs
   use locreg_operations
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: ncplx
   real(gp), intent(in) :: hx,hy,hz,cprecr,kx,ky,kz
@@ -893,7 +896,7 @@ subroutine precond_locham(ncplx,lr,hx,hy,hz,kx,ky,kz,&
   ipsif=lr%wfd%nvctr_c+min(1,lr%wfd%nvctr_f)
 
 !!$  if (lr%geocode == 'F') then
-  if (cell_geocode(lr%mesh) == 'F') then
+  if (domain_geocode(lr%mesh%dom) == 'F') then
      do idx=1,ncplx
 
         if (sseprecond) then
@@ -934,7 +937,7 @@ subroutine precond_locham(ncplx,lr,hx,hy,hz,kx,ky,kz,&
         end if
      end do
 !!$  else if (lr%geocode == 'P') then
-  else if (cell_geocode(lr%mesh) == 'P') then
+  else if (domain_geocode(lr%mesh%dom) == 'P') then
      if (lr%hybrid_on) then
 
         nf=(lr%d%nfu1-lr%d%nfl1+1)*(lr%d%nfu2-lr%d%nfl2+1)*(lr%d%nfu3-lr%d%nfl3+1)
@@ -963,7 +966,7 @@ subroutine precond_locham(ncplx,lr,hx,hy,hz,kx,ky,kz,&
         end if
      end if
 !!$  else if (lr%geocode == 'S') then
-  else if (cell_geocode(lr%mesh) == 'S') then
+  else if (domain_geocode(lr%mesh%dom) == 'S') then
      if (ncplx == 1) then
         call apply_hp_slab_sd_scal(lr%d%n1,lr%d%n2,lr%d%n3,&
              lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,&
@@ -977,7 +980,7 @@ subroutine precond_locham(ncplx,lr,hx,hy,hz,kx,ky,kz,&
              cprecr,hx,hy,hz,kx,ky,kz,x,y,w%psifscf,w%ww,scal) 
 
      end if
-  else if (cell_geocode(lr%mesh) == 'W') then
+  else if (domain_geocode(lr%mesh%dom) == 'W') then
      if (ncplx == 1) then
         call apply_hp_wire_sd_scal(lr%d%n1,lr%d%n2,lr%d%n3,&
              lr%wfd%nseg_c,lr%wfd%nvctr_c,lr%wfd%nseg_f,&

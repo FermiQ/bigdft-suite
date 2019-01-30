@@ -20,6 +20,8 @@ program PS_Check
   use yaml_strings
   use box
   use PSbox
+  use at_domain
+  use numerics, only: onehalf,pi
   implicit none
   !Length of the box
   character(len=*), parameter :: subname='PS_Check'
@@ -47,6 +49,7 @@ program PS_Check
   type(dictionary), pointer :: options,dict_input
   type(cell) :: mesh
   external :: gather_timings
+  type(domain) :: dom
 
   call f_lib_initialize() 
 
@@ -158,7 +161,10 @@ program PS_Check
   !allocate the rhopot also for complex routines
   rhopot=f_malloc(n01*n02*n03*2,id='rhopot')
 
-  mesh=cell_new(geocode,ndims,hgrids)
+  !mesh=cell_new(geocode,ndims,hgrids)
+  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims*hgrids)
+  mesh=cell_new(dom,ndims,hgrids)
 
 !!$  call test_functions_box(mesh,ispden,a_gauss,&
 !!$       density,potential,rhopot,pot_ion,offset)

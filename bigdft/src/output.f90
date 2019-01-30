@@ -337,7 +337,7 @@ END SUBROUTINE write_eigenvalues_data
 !> Writing rules, control if the last eigenvector is degenerate
 !! do this for each spin
 !! for each spin it is supposed that only the last group is not completely passed
-!! and also that the components of each of the group but the last are the same for up and 
+!! and also that the components of each of the group but the last are the same for up and
 !! down polarisation. Do not work properly in the other cases
 subroutine write_ig_eigenvectors(etol,orbse,nspin,norb,norbu,norbd)
    use module_base
@@ -983,8 +983,8 @@ subroutine print_atomic_variables(atoms, hmax, ixc)
         end do
      else
         mproj = 0
-        do l=1,4 
-           do i=1,3 
+        do l=1,4
+           do i=1,3
               if (atoms%psppar(l,i,ityp) /= 0.0_gp) mproj=mproj+2*l-1
            enddo
         enddo
@@ -1115,9 +1115,8 @@ subroutine print_atoms_and_grid(Glr, atoms, rxyz, hx, hy, hz)
   call yaml_comment('Grid properties',hfill='-')
   call yaml_map('Box Grid spacings',(/hx,hy,hz/),fmt='(f7.4)')
   call yaml_mapping_open('Sizes of the simulation domain')
-  call yaml_map('AU',(/atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),atoms%astruct%cell_dim(3)/),fmt='(1pg12.5)')
-  call yaml_map('Angstroem',(/atoms%astruct%cell_dim(1)*Bohr_Ang,&
-       atoms%astruct%cell_dim(2)*Bohr_Ang,atoms%astruct%cell_dim(3)*Bohr_Ang/),fmt='(1pg12.5)')
+  call yaml_map('AU',atoms%astruct%cell_dim,fmt='(1pg12.5)')
+  call yaml_map('Angstroem',atoms%astruct%cell_dim*Bohr_Ang,fmt='(1pg12.5)')
   call yaml_map('Grid Spacing Units',(/Glr%d%n1,Glr%d%n2,Glr%d%n3/),fmt='(i4)')
   call yaml_mapping_open('High resolution region boundaries (GU)',flow=.false.)
   call yaml_map('From',(/Glr%d%nfl1,Glr%d%nfl2,Glr%d%nfl3/),fmt='(i4)')
@@ -1137,6 +1136,7 @@ subroutine wtyaml(iunit,energy,rxyz,astruct,wrtforces,forces, &
   use yaml_strings
   use module_atoms, only: atomic_structure,frozen_itof
   use ao_inguess, only: charge_and_spol
+  use at_domain, only: domain_geocode
   use public_keys, only: ASTRUCT_UNITS,ASTRUCT_CELL,ASTRUCT_POSITIONS,&
        ASTRUCT_ATT_IGSPIN,ASTRUCT_ATT_IGCHRG,ASTRUCT_ATT_FROZEN
   implicit none
@@ -1180,7 +1180,7 @@ subroutine wtyaml(iunit,energy,rxyz,astruct,wrtforces,forces, &
   perx = .false.
   pery = .false.
   perz = .false.
-  BC :select case(astruct%geocode)
+  BC :select case(domain_geocode(astruct%dom))
   case('S')
      call yaml_sequence_open(ASTRUCT_CELL, flow=.true., unit = iunit)
      call yaml_sequence(yaml_toa(astruct%cell_dim(1)*factor), unit = iunit) !x

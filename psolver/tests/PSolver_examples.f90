@@ -23,6 +23,7 @@ program PSolver_examples
    use PStypes, only: build_cavity_from_rho,PS_allocate_cavity_workarrays
    use numerics
    use f_blas, only: f_dot
+   use at_domain
    implicit none
    type(coulomb_operator) :: pkernel !< @copydoc poisson_solver::coulomb_operator
    type(PSolver_energies) :: energies !< @copydoc poisson_solver::coulomb_operator::energies
@@ -70,6 +71,7 @@ program PSolver_examples
    real(kind=8), dimension(:,:,:), allocatable :: delta_rho,cc_rho,nabla2_rhopot
    real(kind=8), dimension(:,:,:,:), allocatable :: nabla_rho
    real(kind=8), dimension(:,:), allocatable :: depsdrho,dsurfdrho
+   type(domain) :: dom
  
 !GPEx------------------------------------------------------------------------
 ! How to run:
@@ -134,7 +136,10 @@ program PSolver_examples
    ! Set the mesh type, which contains all informations of the simulation cell
    ! (i.e. number of grid points "ndims", box mesh "hgrids", metric for
    ! non-orthorhombic, etc ...).  
-   mesh=cell_new(geocode,ndims,hgrids,alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+   !mesh=cell_new(geocode,ndims,hgrids,alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
+   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+            alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=ndims*hgrids)
+   mesh=cell_new(dom,ndims,hgrids)
 
    call mpiinit()
    iproc=mpirank()
@@ -383,7 +388,7 @@ contains
             end do
          end do
       end do
-      offset=offset*hx*hy*hz*sqrt(mesh%detgd) ! /// to be fixed ///
+      offset=offset*hx*hy*hz*sqrt(mesh%dom%detgd) ! /// to be fixed ///
       if (iproc==0) call yaml_map('offset',offset)
    end if
    pkernel%opt%potential_integral=offset

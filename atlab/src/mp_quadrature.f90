@@ -398,6 +398,7 @@ subroutine mp_gaussian_density(rloc, zion, multipole_preservingl, use_iterator,b
   use dynamic_memory
   use numerics, only: pi
   use dictionaries, only: f_err_throw
+  use at_domain, only: domain_periodic_dims
   implicit none
   ! Calling arguments
   logical,intent(in) :: multipole_preservingl, use_iterator
@@ -432,7 +433,8 @@ subroutine mp_gaussian_density(rloc, zion, multipole_preservingl, use_iterator,b
   hyh=boxit%mesh%hgrids(2)
   hzh=boxit%mesh%hgrids(3)
 
-  peri=cell_periodic_dims(boxit%mesh)
+  !peri=cell_periodic_dims(boxit%mesh)
+  peri=domain_periodic_dims(boxit%mesh%dom)
   perx=peri(1)
   pery=peri(2)
   perz=peri(3)

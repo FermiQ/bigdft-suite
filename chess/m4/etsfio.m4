@@ -19,6 +19,7 @@ AC_DEFUN([AX_ETSF_IO],
   AC_ARG_WITH(netcdf-libs, AS_HELP_STRING([--with-netcdf-libs], [Give the library to link with NetCDF (required by ETSF_IO) (default = -lnetcdff -lnetcdf).]),
               ac_netcdf_libs=$withval, ac_netcdf_libs="-lnetcdff -lnetcdf")
   if test "$etsfio" = "yes" ; then
+     AC_LANG_PUSH([Fortran])
      LDFLAGS_SVG="$LDFLAGS"
      LIBS_SVG="$LIBS"
      FCFLAGS_SVG="$FCFLAGS"
@@ -41,12 +42,12 @@ AC_DEFUN([AX_ETSF_IO],
      AC_LINK_IFELSE([[
   program main
     use etsf_io
-    
+
     type(etsf_groups_flags) :: groups
     type(etsf_dims) :: dims
     logical :: lstat
     type(etsf_io_low_error) :: error_data
-  
+
     call etsf_io_data_init("test", groups, dims, "test", "", lstat, error_data)
   end]], ax_have_etsf_io=yes, ax_have_etsf_io=no)
      AC_MSG_RESULT([$ax_have_etsf_io])
@@ -61,6 +62,7 @@ AC_DEFUN([AX_ETSF_IO],
      else
         ax_have_etsf_io="warn"
      fi
+     AC_LANG_POP([Fortran])
   fi
   AM_CONDITIONAL(HAVE_ETSF_IO, test "$ax_have_etsf_io" = "yes")
 ])

@@ -1702,14 +1702,14 @@
    BC                                  : Periodic
    Box                                 :  [  96,  108,  108 ]
    MPI tasks                           :  2
- Multipole analysis origin             :  [  9.606324E-02,  2.493530E-01, -1.976453E-01 ]
+ Multipole analysis origin             :  [  1.366485E+01,  1.666949E+01,  1.572744E+01 ]
  Electric Dipole Moment (AU):
-   P vector                            :  [ -8.961E+01,  1.0313E+02,  6.9467E+01 ]
-   norm(P)                             :  1.532690E+02
+   P vector                            :  [  3.987851E+01, -5.833111E+01,  4.242771E+01 ]
+   norm(P)                             :  8.24192059E+01
  Electric Dipole Moment (Debye):
-   P vector                            :  [ -2.2776E+02,  2.6213E+02,  1.7657E+02 ]
-   norm(P)                             :  3.895708E+02
- Spreads of the electronic density (AU):  [  7.984728E+00,  9.676575E+00,  9.260840E+00 ]
+   P vector                            :  [  1.013611E+02, -1.482629E+02,  1.078405E+02 ]
+   norm(P)                             :  2.09488706E+02
+ Spreads of the electronic density (AU):  [  7.791203E+00,  8.736394E+00,  9.099474E+00 ]
  Calculate local forces                :  Yes
  Calculate NLCC forces                 :  Yes
  Calculate Non Local forces            :  Yes

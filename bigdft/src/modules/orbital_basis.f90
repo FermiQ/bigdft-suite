@@ -861,7 +861,7 @@ contains
        lin_prec_conv_work,lin_prec_work)
     use module_base,only: bigdft_mpi,nrm2
     use locreg_operations, only: workarrays_quartic_convolutions,workarr_precond
-    use box, only: cell_geocode
+    use at_domain, only: domain_geocode
     implicit none
     integer, intent(in) :: ncong,ncplx
     real(gp), intent(in) :: eval,eval_zero
@@ -885,9 +885,9 @@ contains
     !cases with no CG iterations, diagonal preconditioning
     !for Free BC it is incorporated in the standard procedure
 !!$    if (ncong == 0 .and. lr%geocode /= 'F') then
-    if (ncong == 0 .and. cell_geocode(lr%mesh_coarse) /= 'F') then
+    if (ncong == 0 .and. domain_geocode(lr%mesh_coarse%dom) /= 'F') then
 !!$       select case(lr%geocode)
-       select case(cell_geocode(lr%mesh_coarse))
+       select case(domain_geocode(lr%mesh_coarse%dom))
        case('F')
        case('S')
           call prec_fft_slab(lr%d%n1,lr%d%n2,lr%d%n3, &

@@ -34,8 +34,9 @@ module rhopotential
     use public_enums, only: ELECTRONIC_DENSITY, KS_POTENTIAL
     use Poisson_Solver, except_dp => dp, except_gp => gp
     use yaml_output
-    use box
+    !use box
     use PSbox
+    use at_domain, only: domain_geocode
     implicit none
 
     ! Calling arguments
@@ -55,13 +56,15 @@ module rhopotential
     nullifyVXC=.false.
 
     ! rhov should be the electronic density
+    !todo: the sumrho for TMB should update the rhov_is status, in the linear scaling case
     !if (denspot%rhov_is /= ELECTRONIC_DENSITY) &
-    !     call f_err_throw('updatePotential: ELECTRONIC_DENSITY not available, control the operations on rhov',&
-    !     err_name='BIGDFT_RUNTIME_ERROR')
+    !      call f_err_throw('updatePotential: ELECTRONIC_DENSITY not available, control the operations on rhov',&
+    !    err_name='BIGDFT_RUNTIME_ERROR')
 
     if(nspin==4) then
        !this wrapper can be inserted inside the poisson solver
-       call PSolverNC(cell_geocode(denspot%dpbox%mesh),'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
+       !call PSolverNC(domain_geocode(denspot%dpbox%mesh%dom),'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
+       call PSolverNC(denspot%dpbox%mesh%dom,'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
             denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),&
             denspot%dpbox%mesh%ndims(3),&
             denspot%dpbox%n3d,denspot%xc,&
@@ -82,7 +85,7 @@ module rhopotential
           nullifyVXC=.true.
        end if
 
-       call XC_potential(cell_geocode(denspot%dpbox%mesh),'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
+       call XC_potential(domain_geocode(denspot%dpbox%mesh%dom),'D',denspot%pkernel%mpi_env%iproc,denspot%pkernel%mpi_env%nproc,&
             denspot%pkernel%mpi_env%mpi_comm,&
             denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),denspot%xc,&
             denspot%dpbox%mesh%hgrids,&
@@ -883,6 +886,7 @@ module rhopotential
           rho,exc,vxc,nspin,rhocore,rhohat,potxc,xcstr,dvxcdrho)
        use module_base
        use box
+       use at_domain, only: domain_geocode
        use module_dpbox
        use Poisson_Solver, except_dp => dp, except_gp => gp
        !Idem
@@ -947,7 +951,7 @@ module rhopotential
           nxc=0
        else
           !here istart and iend are provided as input variables
-          call xc_dimensions(cell_geocode(dpbox%mesh),xc_isgga(xcObj),xcObj%ixc/=13,&
+          call xc_dimensions(domain_geocode(dpbox%mesh%dom),xc_isgga(xcObj),xcObj%ixc/=13,&
                dpbox%i3s+dpbox%i3xcsh-1,dpbox%i3s+dpbox%i3xcsh-1+dpbox%n3p,&
                dpbox%mesh%ndims(3),nxc,nxcl,nxcr,nwbl,nwbr,i3s_fake,i3xcsh_fake)
        end if
@@ -1008,7 +1012,7 @@ module rhopotential
           !in parallel and spin-polarised, since ABINIT routines need to calculate
           !the XC terms for spin up and then spin down
           !part which have to be modified for non-orthorhombic cells
-          call calc_gradient(cell_geocode(dpbox%mesh),dpbox%mesh%ndims(1), dpbox%mesh%ndims(2),&
+          call calc_gradient(domain_geocode(dpbox%mesh%dom),dpbox%mesh%ndims(1), dpbox%mesh%ndims(2),&
                nxt,nwb,nwbl,nwbr,rho(1,1),nspin,&
                dpbox%mesh%hgrids(1),dpbox%mesh%hgrids(2),dpbox%mesh%hgrids(3),gradient,rhocore)
        else
@@ -1022,7 +1026,7 @@ module rhopotential
        end if
 
        if (dpbox%n3p>0) then
-          call xc_energy_new(cell_geocode(dpbox%mesh),dpbox%mesh%ndims(1), dpbox%mesh%ndims(2),&
+          call xc_energy_new(domain_geocode(dpbox%mesh%dom),dpbox%mesh%ndims(1), dpbox%mesh%ndims(2),&
                nxc,nwb,nxt,nwbl,nwbr,nxcl,nxcr,&
                xcObj,dpbox%mesh%hgrids(1),dpbox%mesh%hgrids(2),dpbox%mesh%hgrids(3),&
                rho(1,1),gradient,vxci,&
@@ -1084,7 +1088,7 @@ module rhopotential
        end if
 
        !XC-stress term
-       if (cell_geocode(dpbox%mesh) == 'P') then
+       if (domain_geocode(dpbox%mesh%dom) == 'P') then
           if (associated(rhocore)) then
              call calc_rhocstr(rhocstr,nxc,nxt,dpbox%mesh%ndims(1), dpbox%mesh%ndims(2),&
                   dpbox%i3xcsh,nspin,potxc,rhocore)
@@ -1155,6 +1159,7 @@ module rhopotential
        use module_atoms
        use dynamic_memory
        use yaml_output
+       use at_domain, only: distance
        implicit none
        type(atomic_structure), intent(in) :: astruct
        type(cell), intent(in) :: mesh
@@ -1185,7 +1190,7 @@ module rhopotential
           call astruct_neighbours_iter(nnit, atit%iat)
           do while(astruct_neighbours_next(nnit, jat))
              !set the radius as the distance bw the atom iat and its nearest
-             r=distance(mesh,rxyz(1,atit%iat),rxyz(1,jat))
+             r=distance(mesh%dom,rxyz(1,atit%iat),rxyz(1,jat))
              call cfd_set_radius(cfd,atit%iat,0.5_gp*r)
              cycle loop_at
           end do

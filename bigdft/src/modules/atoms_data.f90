@@ -1173,7 +1173,8 @@ contains
        write(comment, "(A)") comment_
     end if
     if (present(fxyz)) then
-       if (associated(fxyz_)) then
+
+      if (associated(fxyz_)) then
           !fxyz = f_malloc_ptr(src = fxyz_, id = "fxyz") not needed anymore
           fxyz => fxyz_
        else
@@ -1186,75 +1187,21 @@ contains
 
   END SUBROUTINE set_astruct_from_file
 
-
   subroutine set_astruct_from_openbabel(astruct, obfile)
-    use dictionaries
-    use yaml_strings, only: f_char_ptr
-    use yaml_output
-    use f_utils
+    use at_babel
+    use dictionaries, only: dict_free
     implicit none
     type(atomic_structure), intent(out) :: astruct
     character(len = *), intent(in) :: obfile
+    type(dictionary), pointer :: dict
 
-    type(dictionary), pointer :: dict,indict,outdict
-
-    interface
-       subroutine openbabel_load(d, f)!,ln)
-         use dictionaries
-         implicit none
-         type(dictionary), pointer :: d
-         !character(len = *), intent(in) :: f
-         character, dimension(*), intent(in) :: f
-         !integer, intent(in) :: ln
-       end subroutine openbabel_load
-       subroutine openbabel_formats(indict,outdict)
-         use dictionaries, only: dictionary
-         implicit none
-         type(dictionary), pointer :: indict,outdict
-       end subroutine openbabel_formats
-    end interface
-
-    call dict_init(dict)
-    call openbabel_load(dict,f_char_ptr(trim(obfile)))!,len(obfile))
-    call openbabel_formats(indict,outdict)
-
-    call yaml_map('Supported input formats',indict)
-    call yaml_map('Supported output formats',outdict)
-    call dict_free(indict,outdict)
-
-      call yaml_map('Parsed posinp dict from openbabel',dict)
-
+      call load_dict_from_openbabel(dict,obfile)
     ! giuseppe line
     !call analyse_posinp_dict(dict)
 
     call astruct_set_from_dict(dict, astruct)
     call dict_free(dict)
   end subroutine set_astruct_from_openbabel
-
-
-  subroutine dump_dict_with_openbabel(dict,dict_types,fout)
-    use dictionaries
-    use yaml_strings, only: f_char_ptr
-    implicit none
-    type(dictionary), pointer :: dict,dict_types
-    character(len=*), intent(in) :: fout
-    !local variables
-
-    interface
-       subroutine openbabel_dump(d, dt, f)!,ln)
-         use dictionaries
-         implicit none
-         type(dictionary), pointer :: d,dt
-         !character(len = *), intent(in) :: f
-         character, dimension(*), intent(in) :: f
-         !integer, intent(in) :: ln
-       end subroutine openbabel_dump
-    end interface
-
-    call openbabel_dump(dict,dict_types,f_char_ptr(trim(fout)))! fout,len_trim(fout))
-
-  end subroutine dump_dict_with_openbabel
-
 
   subroutine analyse_posinp_dict(dict)
     use dictionaries
@@ -1313,6 +1260,7 @@ contains
     use yaml_output
     use yaml_strings, only: f_strcpy
     use internal_coordinates, only : xyzint
+    use at_babel
     implicit none
     character(len=*), intent(in) :: filename,comment
     type(atomic_structure), intent(in) :: astruct
@@ -1435,7 +1383,7 @@ contains
     use numerics, only: Bohr_Ang
     use dictionaries
     use yaml_strings
-    use box, only: geocode_to_bc,bc_periodic_dims
+    use at_domain, only: geocode_to_bc,bc_periodic_dims
     use ao_inguess, only: charge_and_spol
     use yaml_output !tmp
 
@@ -1462,8 +1410,9 @@ contains
     case('angstroem','angstroemd0')
        call set(dict // ASTRUCT_UNITS, 'angstroem')
        factor=Bohr_Ang
-    case('reduced') ! Old way to store reduced positions.
-       call set(dict // ASTRUCT_UNITS, 'reduced')
+    case('reduced')
+      ! Old way to store reduced positions.
+      ! call set(dict // ASTRUCT_UNITS, 'reduced')
        reduced = .true.
     case('atomic','atomicd0','bohr','bohrd0')
        ! Default, store nothing
@@ -1477,7 +1426,7 @@ contains
     do i=1,3
        if (peri(i)) then
           call set(dict // ASTRUCT_CELL // (i-1), yaml_toa(astruct%cell_dim(i)*factor(i)))
-          if (reduced) factor(i) = 1._gp / astruct%cell_dim(i)
+          !if (reduced) factor(i) = 1._gp / astruct%cell_dim(i)
        else
           call set(dict // ASTRUCT_CELL // (i-1), '.inf')
        end if
@@ -1537,7 +1486,11 @@ contains
     end if
 
     if (len_trim(astruct%inputfile_format) > 0) &
-         & call set(dict // ASTRUCT_PROPERTIES // "format", astruct%inputfile_format)
+         call set(dict // ASTRUCT_PROPERTIES // "format", astruct%inputfile_format)
+
+    if (reduced) &
+         call set(dict // ASTRUCT_PROPERTIES // ASTRUCT_REDUCED,&
+                  reduced)
 
     call f_release_routine()
 

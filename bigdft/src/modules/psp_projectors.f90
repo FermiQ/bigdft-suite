@@ -91,6 +91,7 @@ contains
   subroutine pregion_size(mesh,rxyz,radius,rmult,nl1,nu1,nl2,nu2,nl3,nu3)
     !use module_base, only: gp
     use box
+    use at_domain, only: domain_periodic_dims
     implicit none
     type(cell), intent(in) :: mesh
     real(gp), intent(in) :: rmult,radius
@@ -125,7 +126,7 @@ contains
 !!$    nu2=floor(real(cymax/hy,kind=8) + eps_mach)
 !!$    nu3=floor(real(czmax/hz,kind=8) + eps_mach)
 
-    peri=cell_periodic_dims(mesh)
+    peri=domain_periodic_dims(mesh%dom)
     if (peri(1)) then
        if (nl1 < 0 .or. nu1 >= mesh%ndims(1)) then
           nl1=0
@@ -201,6 +202,7 @@ contains
     use locregs
     use box
     use compression
+    use at_domain, only: domain_geocode
     implicit none
     type(atomic_projectors), intent(in) :: atproj
     type(cell), intent(in) :: gmesh
@@ -255,13 +257,13 @@ contains
        !shift of the locreg for the origin of the
        !coordinate system
        fmesh = gmesh
-       fmesh%bc = 0 ! Free in every directions
+       fmesh%dom%bc = 0 ! Free in every directions
        nbox = box_nbox_from_cutoff(fmesh, atproj%rxyz, atproj%radius + &
             & maxval(gmesh%hgrids) * eps_mach)
        geocode = 'F'
-       if (any((nbox(2, :) - nbox(1, :)) > gmesh%ndims(:) .and. gmesh%bc(:) == 1)) then
+       if (any((nbox(2, :) - nbox(1, :)) > gmesh%ndims(:) .and. gmesh%dom%bc(:) == 1)) then
           ! Projector does not fit inside the global mesh.
-          geocode = cell_geocode(gmesh)
+          geocode = domain_geocode(gmesh%dom)
           nbox(1, :) = 0
           nbox(2, :) = gmesh%ndims(:) - 1
           nboxf(1, 1) = nl1
@@ -277,7 +279,7 @@ contains
        call init_lr(plr, geocode, 0.5_gp * gmesh%hgrids, &
             & nbox(2,1), nbox(2,2), nbox(2,3), &
             & nboxf(1,1), nboxf(1,2), nboxf(1,3), nboxf(2,1), nboxf(2,2), nboxf(2,3), &
-            & .false., nbox(1,1), nbox(1,2), nbox(1,3), cell_geocode(gmesh))
+            & .false., nbox(1,1), nbox(1,2), nbox(1,3), domain_geocode(gmesh%dom))
 
        !also the fact of allocating pointers with size zero has to be discussed
        !for the moments the bounds are not needed for projectors

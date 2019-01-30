@@ -53,7 +53,7 @@ AC_FC_WRAPPERS()
 AX_FC_DEFS()
 AX_FC_OPENMP()
 
-dnl Set if the module name are capitalized or not with the FC compiler. 
+dnl Set if the module name are capitalized or not with the FC compiler.
 AX_FC_MOD()
 AM_CONDITIONAL(CAPITALIZE, test "$ax_fc_mod_capitalize" = "yes")
 AC_SUBST(MODULE_EXT, $ax_fc_mod_ext)
@@ -95,7 +95,7 @@ AC_MSG_CHECKING([for CheSS binaries build])
 AC_MSG_RESULT([$ac_build_bin_utilities])
 
 
-AX_FLIB()
+AX_ATLAB()
 
 dnl Produce dynamic excecutables.
 AX_DYNAMIC_LIBRARIES([], [f_lib_initialize], [$LIB_FUTILE_LIBS])
@@ -126,10 +126,9 @@ fi
 AM_CONDITIONAL(HAVE_MINPACK, test $ax_have_minpack = "yes")
 
 AX_LINALG()
-AX_ETSF_IO()
 
 dnl Agregate all the optional libs.
-LIB_CHESS_DEPS="$LIBETSFIO_LIBS $LIB_FUTILE_LIBS $PEXSI_LINKLINE"
+LIB_CHESS_DEPS="$LIB_ATLAB_LIBS $PEXSI_LINKLINE"
 dnl if the futile libraries are dynamic add the dependencies
 if test $ax_FUTILE_static != "yes" ; then
   LIB_CHESS_DEPS="$LIB_CHESS_DEPS $LIBCUDA_LIBS $LINALG_LIBS $MPI_LDFLAGS $MPI_LIBS"
@@ -189,8 +188,6 @@ Options:
    | MPI2 support:           $ac_with_mpi2
   With PEXSI:                $ax_have_pexsi
   With MINPACK:              $ax_have_minpack
-  With ETSF_IO:              $ax_have_etsf_io
-   | include dir.:           $LIBETSFIO_INCLUDE
 
 Installation paths:
   Source code location:      ${srcdir}
@@ -206,9 +203,6 @@ if test x"$ac_use_mpi" = x"warn" -o x"$ax_have_etsf_io" = x"warn" -o x"$withscal
   echo "Warnings:"
   if test x"$ac_use_mpi" = x"warn" ; then
     echo "  MPI:                       disabled by tests"
-  fi
-  if test x"$ax_have_etsf_io" = x"warn" ; then
-    echo "  ETSF_IO:                   disabled by tests"
   fi
   if test x"$withscalapack" = x"warn" ; then
     echo "  Scalapack binding:         disabled by tests"

@@ -1418,7 +1418,8 @@ module bounds
 !!$    end subroutine geocode_buffers
 
     pure function locreg_mesh_coarse_origin(mesh) result(or)
-      use box, only: cell,cell_r,cell_periodic_dims
+      use box, only: cell,cell_r
+      use at_domain, only: domain_periodic_dims
       use module_defs, only: gp
       implicit none
       type(cell), intent(in) :: mesh
@@ -1429,7 +1430,7 @@ module bounds
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      peri=cell_periodic_dims(mesh)
+      peri=domain_periodic_dims(mesh%dom)
       do i=1,3
          call ext_buffers_coarse(peri(i),nbli)
          or(i)=cell_r(mesh,nbli+1,dim=i)
@@ -1439,7 +1440,8 @@ module bounds
 
 
     pure function locreg_mesh_origin(mesh) result(or)
-      use box, only: cell,cell_r,cell_periodic_dims
+      use box, only: cell,cell_r
+      use at_domain, only: domain_periodic_dims
       use module_defs, only: gp
       implicit none
       type(cell), intent(in) :: mesh
@@ -1450,7 +1452,7 @@ module bounds
 
       !buffers associated to the geocode
       !conditions for periodicity in the three directions
-      peri=cell_periodic_dims(mesh)
+      peri=domain_periodic_dims(mesh%dom)
       do i=1,3
          call ext_buffers(peri(i),nbli,nbri)
          or(i)=cell_r(mesh,nbli+1,dim=i)
@@ -1482,7 +1484,8 @@ module bounds
     !> return the shapes of the localisation region
     !!useful to allocate the array psifscf
     pure function locreg_mesh_shape(mesh,highres) result(ndims)
-      use box, only: cell,cell_periodic_dims
+      use box, only: cell
+      use at_domain, only: domain_periodic_dims
       implicit none
       type(cell), intent(in) :: mesh
       logical, intent(in), optional :: highres
@@ -1493,7 +1496,7 @@ module bounds
       logical, dimension(3) :: peri
       hr=.false.
       if (present(highres)) hr=highres
-      peri=cell_periodic_dims(mesh)
+      peri=domain_periodic_dims(mesh%dom)
       do i=1,3
          call ext_buffers_coarse(peri(i),nb)
          if (hr) then

@@ -105,7 +105,7 @@ subroutine scfloop_main(acell, epot, fcart, grad, itime, me, natom, rprimd, xred
   use yaml_output
   use module_input_keys, only: inputpsiid_set_policy
   use public_enums, only: ENUM_MEMORY
-  use box, only: bc_periodic_dims,geocode_to_bc
+  use at_domain, only: domain_periodic_dims
   implicit none
 
   integer, intent(in) :: natom, itime, me
@@ -143,7 +143,8 @@ subroutine scfloop_main(acell, epot, fcart, grad, itime, me, natom, rprimd, xred
   !scfloop_obj%inputs%inputPsiId=1
   call inputpsiid_set_policy(ENUM_MEMORY,scfloop_obj%inputs%inputPsiId)
   ! need to transform xred into xcart
-  peri=bc_periodic_dims(geocode_to_bc(scfloop_obj%atoms%astruct%geocode))
+  !peri=bc_periodic_dims(geocode_to_bc(scfloop_obj%atoms%astruct%geocode))
+  peri=domain_periodic_dims(scfloop_obj%atoms%astruct%dom)
   do i = 1, scfloop_obj%atoms%astruct%nat, 1
      do j=1,3
         if (peri(j)) then
@@ -247,6 +248,7 @@ subroutine read_velocities(iproc,filename,atoms,vxyz)
   use scfloop_API
   use module_base
   use module_types
+  use at_domain, only: domain_geocode
   implicit none
   character(len=*), intent(in) :: filename
   integer, intent(in) :: iproc
@@ -338,7 +340,7 @@ subroutine read_velocities(iproc,filename,atoms,vxyz)
         enddo
      else if (units == 'reduced') then 
         vxyz(1,iat)=vxyz(1,iat)*atoms%astruct%cell_dim(1)
-        if (atoms%astruct%geocode == 'P') vxyz(2,iat)=vxyz(2,iat)*atoms%astruct%cell_dim(2)
+        if (domain_geocode(atoms%astruct%dom) == 'P') vxyz(2,iat)=vxyz(2,iat)*atoms%astruct%cell_dim(2)
         vxyz(3,iat)=vxyz(3,iat)*atoms%astruct%cell_dim(3)
      endif
   enddo
@@ -350,6 +352,7 @@ subroutine wtvel(filename,vxyz,atoms,comment)
   use module_base
   use module_types
   use module_atoms, only: write_xyz_bc
+  use at_domain, only: domain_geocode
   implicit none
   character(len=*), intent(in) :: filename,comment
   type(atoms_data), intent(in) :: atoms
@@ -373,7 +376,7 @@ subroutine wtvel(filename,vxyz,atoms,comment)
 
   write(iunit,'(i6,2x,a,2x,a)') atoms%astruct%nat,trim(units),comment  
 
-  call write_xyz_bc(iunit,atoms%astruct%geocode,factor,atoms%astruct%cell_dim)
+  call write_xyz_bc(iunit,domain_geocode(atoms%astruct%dom),factor,atoms%astruct%cell_dim)
 
 !!$  if (atoms%astruct%geocode == 'P') then
 !!$     write(iunit,'(a,3(1x,1pe24.17))') 'periodic',&

@@ -1362,6 +1362,7 @@ contains
     use module_atoms, only: atoms_data
     use dictionaries, only: f_err_raise
     use yaml_strings, only: yaml_toa
+    use at_domain, only: domain_geocode
 
     implicit none
 
@@ -1411,7 +1412,7 @@ contains
             & return
     end if
     !   ic corrections November 12th 2013
-    if (f_err_raise(atoms%astruct%geocode /= 'F', &
+    if (f_err_raise(domain_geocode(atoms%astruct%dom) /= 'F', &
          & 'Dispersion is availble for isolated systems only.', &
          & err_name='BIGDFT_RUNTIME_ERROR')) &
          & return

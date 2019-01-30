@@ -34,6 +34,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   use chess_base, only: chess_init
   use module_dpbox, only: dpbox_set
   use rhopotential, only: set_cfd_data
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iproc,nproc 
   logical, intent(in) :: dry_run, dump
@@ -111,7 +112,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
           in%SIC%approach, in%nspin)
 
      ! Create the Poisson solver kernels.
-     call system_initKernels(.true.,iproc,nproc,atoms%astruct%geocode,in,denspot)
+     call system_initKernels(.true.,iproc,nproc,domain_geocode(atoms%astruct%dom),in,denspot)
      call system_createKernels(in,denspot, (get_verbose_level() > 1))
      if (denspot%pkernel%method .hasattr. 'rigid') then
         call epsilon_cavity(atoms,rxyz,denspot%pkernel)
@@ -140,7 +141,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   !!write(*,*) 'orbs%norbdp', orbs%norbdp
   !!write(*,*) 'orbs%norbp', orbs%norbp
   orbs%occup(1:orbs%norb*orbs%nkpts) = in%gen_occup
-  if (dump .and. iproc==0) call print_orbitals(orbs, atoms%astruct%geocode)
+  if (dump .and. iproc==0) call print_orbitals(orbs, domain_geocode(atoms%astruct%dom))
 
   ! See if linear scaling should be activated and build the correct Lzd 
   call check_linear_and_create_Lzd(iproc,nproc,in%linear,Lzd,atoms,orbs,in%nspin,rxyz)
@@ -397,7 +398,7 @@ subroutine system_initialization(iproc,nproc,dump,inputpsi,input_wf_format,dry_r
   end if
 
   !calculate the irreductible zone for this region, if necessary.
-  call set_symmetry_data(atoms%astruct%sym,atoms%astruct%geocode, &
+  call set_symmetry_data(atoms%astruct%sym,domain_geocode(atoms%astruct%dom), &
        & Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i, in%nspin)
 
   ! A message about dispersion forces.
@@ -1173,6 +1174,7 @@ subroutine system_properties(iproc,nproc,in,atoms,orbs)!,radii_cf)
   use module_types
   use module_interfaces, only: orbitals_descriptors
   use public_enums
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iproc,nproc
   type(input_variables), intent(in) :: in
@@ -1195,7 +1197,7 @@ subroutine system_properties(iproc,nproc,in,atoms,orbs)!,radii_cf)
   call orbitals_descriptors(iproc, nproc,in%gen_norb,in%gen_norbu,in%gen_norbd,in%nspin,nspinor,&
        in%gen_nkpt,in%gen_kpt,in%gen_wkpt,orbs,LINEAR_PARTITION_NONE)
   orbs%occup(1:orbs%norb*orbs%nkpts) = in%gen_occup
-  if (iproc==0) call print_orbitals(orbs, atoms%astruct%geocode)
+  if (iproc==0) call print_orbitals(orbs, domain_geocode(atoms%astruct%dom))
 
   !Check if orbitals and electrons
   if (orbs%norb*orbs%nkpts == 0) &
@@ -2426,6 +2428,7 @@ subroutine paw_init(iproc, paw, at, rxyz, d, dpbox, nspinor, npsidim, norb, nkpt
   use m_pawfgrtab, only: pawfgrtab_init
   use abi_interfaces_add_libpaw, only: abi_initrhoij, abi_wvl_nhatgrid
   use abi_interfaces_geometry, only: abi_metric
+  use at_domain, only: domain_geocode
   implicit none
   type(paw_objects), intent(out) :: paw
   type(atoms_data), intent(in) :: at
@@ -2485,7 +2488,7 @@ subroutine paw_init(iproc, paw, at, rxyz, d, dpbox, nspinor, npsidim, norb, nkpt
      atindx1(i) = i
   end do
   !ucvol = product(denspot%dpbox%mesh%ndims) * product(denspot%dpbox%mesh%hgrids)
-  call abi_wvl_nhatgrid(atindx1, at%astruct%geocode, dpbox%mesh%hgrids, dpbox%i3s + dpbox%i3xcsh, &
+  call abi_wvl_nhatgrid(atindx1, domain_geocode(at%astruct%dom), dpbox%mesh%hgrids, dpbox%i3s + dpbox%i3xcsh, &
        & size(at%pawtab), at%astruct%nat, nattyp, at%astruct%ntypes, &
        & d%n1, d%n1i, d%n2, d%n2i, d%n3, dpbox%n3pi, &
        & optcut, optgr0, optgr1, optgr2, optrad, &

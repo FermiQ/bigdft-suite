@@ -67,7 +67,7 @@ def combine_dicts(dest,src):
     res=dest
     res["Path"].append(src["Path"])
     for key in src:
-        if key!="Path": 
+        if key!="Path":
             val = src[key]
             if key in res:
                 try:
@@ -90,7 +90,7 @@ def get_mantissa_and_exp(val):
   if float(int(exponent)) != exponent: exponent = int(exponent)-1
   exponent = int(exponent)
   mantissa = val/10**(exponent)
-  assert( abs(mantissa*10**exponent - val) < 10.e-16)
+  assert( abs(mantissa*10**exponent - val) < 10.e-12)
   return mantissa,exponent
 
 def excess_round_float(val,digits):
@@ -173,7 +173,7 @@ def compare_seq(seq, ref, tols, always_fails=False,keyword=[]):
                 else:
                     ktmp=[ j for j in keyword]
                     ktmp.append([i])
-                (failed, newtols) = compare(seq[i], ref[i], tols[0], always_fails, 
+                (failed, newtols) = compare(seq[i], ref[i], tols[0], always_fails,
                                             ktmp)#"%s[%d]" % (keyword,i))
                 # Add to the tolerance dictionary a failed result
                 if failed:
@@ -414,7 +414,7 @@ class Pouet:
         self.input = input
         self.output = None
         self.style = "ascii"
-        self.config = os.path.join(path, config)
+        self.config = os.path.join(os.path.dirname(yaml_hl.__file__), config)
 
 # Color options: one for the general text
 options = Pouet()
@@ -464,7 +464,7 @@ def fatal_error(reports, message='Error in reading datas, Yaml Standard violated
     #hl.highlight()
     sys.exit(0)
 
-    
+
 if __name__ == "__main__":
     parser = parse_arguments()
     (args, argtmp) = parser.parse_args()

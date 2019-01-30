@@ -27,7 +27,7 @@ program frequencies
    use dictionaries, only: f_err_throw
    use abi_interfaces_numeric, only: abi_sort_dp
    use module_Atoms, only: move_this_coordinate
-   use box, only: bc_periodic_dims,geocode_to_bc
+   use at_domain, only: domain_periodic_dims
    implicit none
 
    !Parameters
@@ -204,7 +204,8 @@ program frequencies
    !Number of considered degrees of freedom
    nfree = 0
    !get the periodic dimension
-   peri=bc_periodic_dims(geocode_to_bc(runObj%atoms%astruct%geocode))
+   !peri=bc_periodic_dims(geocode_to_bc(runObj%atoms%astruct%geocode))
+   peri=domain_periodic_dims(runObj%atoms%astruct%dom)
 
    ! Loop over the atoms for the degrees of freedom
    do iat=1,runObj%atoms%astruct%nat

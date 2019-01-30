@@ -63,8 +63,8 @@ PS_Basics:
     Keys to ignore:
       - Max diff at
 GPS_PCG: &PCGref
-  Computed Hartree energy: 2.6e-06
-  Diff of expected-computed Hartree energy: 2.6e-6
+  Computed Hartree energy: 4.1e-06
+  Diff of expected-computed Hartree energy: 4.1e-6
   Integral of the density in the nonvacuum region: 8.0e-11
   res: 5.5e-06
   Value: 2.0e-06 
@@ -77,6 +77,8 @@ GPS_PCG: &PCGref
   IntSur soft-sphere cavity: 2.1044854747742647e-10
   IntVol sccs cavity: 2.50e-08
   IntVol soft-sphere cavity: 2.1957191620458616e-10
+  Keys to ignore:
+    - itermax
 GPS_PI:
   offset: 2.6e-10
   dipole: 4.35e-09

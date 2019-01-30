@@ -65,6 +65,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   use forces_linear
   use orbitalbasis
   use locregs
+  use at_domain, only: domain_geocode
   implicit none
   logical, intent(in) :: calculate_strten
   logical, intent(in) :: refill_proj
@@ -133,13 +134,13 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   case(0)
      !cubic version of nonlocal forces
      call nonlocal_forces(Glr,atoms,ob,nlpsp,paw,fxyz,&
-          calculate_strten .and. (atoms%astruct%geocode == 'P'),strtens(1,2))
+          calculate_strten .and. (domain_geocode(atoms%astruct%dom) == 'P'),strtens(1,2))
   case(1)
      !linear version of nonlocal forces
      !fxyz_tmp = fxyz
      call nonlocal_forces_linear(iproc,nproc,tmb%npsidim_orbs,tmb%lzd%glr,hx,hy,hz,atoms,rxyz,&
           tmb%orbs,nlpsp,tmb%lzd,tmb%psi,tmb%linmat%smat(3),tmb%linmat%kernel_,fxyz,refill_proj,&
-          calculate_strten .and. (atoms%astruct%geocode == 'P'),strtens(1,2))
+          calculate_strten .and. (domain_geocode(atoms%astruct%dom) == 'P'),strtens(1,2))
      !fxyz_tmp = fxyz - fxyz_tmp
      !do iat=1,atoms%astruct%nat
      !    write(1000+iproc,'(a,2i8,3es15.6)') 'iproc, iat, fxyz(:,iat)', iproc, iat, fxyz(:,iat)
@@ -153,7 +154,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   if (iproc == 0 .and. get_verbose_level() > 1) call yaml_map('Calculate Non Local forces',(nlpsp%nprojel > 0))
 
   !LG: can we relax the constraint for psolver taskgroups in the case of stress tensors?
-  if (atoms%astruct%geocode == 'P' .and. psolver_groupsize == nproc .and. calculate_strten) then
+  if (domain_geocode(atoms%astruct%dom) == 'P' .and. psolver_groupsize == nproc .and. calculate_strten) then
      if (imode==0) then
         ! Otherwise psi is not available
         call local_hamiltonian_stress(ob%orbs,Glr,hx,hy,hz,psi,strtens(1,3))
@@ -195,7 +196,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   ! Add up all the force contributions and the density matrix if needed
   if (nproc > 1) then
      call fmpi_allreduce(sendbuf=fxyz,op=FMPI_SUM,comm=bigdft_mpi%mpi_comm)
-     if (atoms%astruct%geocode == 'P' .and. calculate_strten) &
+     if (domain_geocode(atoms%astruct%dom) == 'P' .and. calculate_strten) &
           call fmpi_allreduce(strtens,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
      call fmpi_allreduce(charge,1,FMPI_SUM,comm=bigdft_mpi%mpi_comm)
      if (associated(nlpsp%gamma_mmp)) &
@@ -237,7 +238,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
           /real(0.5_gp*hx*0.5_gp*hy*0.5_gp*hz,gp)**2.0_gp/real(Glr%d%n1i*Glr%d%n2i*Glr%d%n3i,dp)**2.0_gp
   end if
 
-  if (atoms%astruct%geocode == 'P') then
+  if (domain_geocode(atoms%astruct%dom) == 'P') then
      if (iproc==0) call yaml_map('Stress Tensor calculated',calculate_strten)
      if (calculate_strten) then
         ucvol=atoms%astruct%cell_dim(1)*atoms%astruct%cell_dim(2)*atoms%astruct%cell_dim(3) !orthorombic cell
@@ -535,6 +536,7 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
   use gaussians
   use bounds, only: ext_buffers
   use box
+  use at_domain, only: square_gd
   implicit none
   !Arguments
   type(atoms_data), intent(in) :: at
@@ -699,7 +701,7 @@ subroutine local_forces(iproc,at,rxyz,hxh,hyh,hzh,&
         !gaussian part
         xp=gaussian_radial_value(g,rxyz(1,atit%iat),dpbox%bitp)/g%factors(1)
         dpbox%bitp%tmp=dpbox%bitp%rxyz_nbox-rxyz(:,atit%iat) ! instead ofclosest_r(dpbox%bitp%mesh,dpbox%bitp%rxyz,rxyz(1,atit%iat))
-        r2=square_gd(dpbox%bitp%mesh,dpbox%bitp%tmp)
+        r2=square_gd(dpbox%bitp%mesh%dom,dpbox%bitp%tmp)
         arg=r2*rlocinvsq
         tt=0.d0
         if (nloc /= 0) then
@@ -3799,7 +3801,7 @@ subroutine symmetrise_forces(fxyz, astruct)
   use yaml_output
   use abi_interfaces_numeric, only: abi_mati3inv
   use module_base, only: f_err_throw
-  use box, only: bc_periodic_dims,geocode_to_bc
+  use at_domain, only: domain_periodic_dims
 
   implicit none
 
@@ -3830,7 +3832,7 @@ subroutine symmetrise_forces(fxyz, astruct)
      call abi_mati3inv(sym(:,:,isym), symrec(:,:,isym))
   end do
 
-  peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+  peri=domain_periodic_dims(astruct%dom)
   alat=1.d0
   where(peri) alat=astruct%cell_dim
 

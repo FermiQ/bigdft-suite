@@ -29,7 +29,7 @@ endif
 
 CLEANFILES = *.@MODULE_EXT@
 
-AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@ @MPI_INCLUDE@
+AM_FCFLAGS = -I. -I$(srcdir) -I$(top_builddir)/includes @LIB_FUTILE_CFLAGS@ @MPI_INCLUDE@
 
 #dependencies
 $(modules): $(libchesspexsi_a_OBJECTS)

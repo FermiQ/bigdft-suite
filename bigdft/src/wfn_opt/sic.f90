@@ -19,7 +19,7 @@ subroutine PZ_SIC_potential(nspin,nspinor,hfac,spinval,lr,xc,&
   use module_xc
   use locreg_operations
   use locregs
-  use box, only: cell_geocode,cell_periodic_dims
+  use at_domain, only: domain_geocode,domain_periodic_dims
   implicit none
   integer, intent(in) :: nspinor,nspin
   real(gp), intent(in) :: hfac,spinval
@@ -124,7 +124,7 @@ subroutine PZ_SIC_potential(nspin,nspinor,hfac,spinval,lr,xc,&
 !!$                hfac,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhopoti)
 !!$        end select
 
-        if (cell_geocode(lr%mesh) == 'F') then
+        if (domain_geocode(lr%mesh%dom) == 'F') then
            call partial_density_free(.false.,nproc,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
                 npsir,nspinn,lr%d%n3i,&
                 hfac,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhopoti,lr%bounds%ibyyzz_r)
@@ -138,12 +138,13 @@ subroutine PZ_SIC_potential(nspin,nspinor,hfac,spinval,lr,xc,&
      !here the density should be transformed into a potential which is associated to the orbital
      if(nspinor==4) then
         !this wrapper can be inserted inside the XC_potential routine
-        call PSolverNC(cell_geocode(lr%mesh),'D',0,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,lr%d%n3i,&
+        !call PSolverNC(domain_geocode(lr%mesh%dom),'D',0,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,lr%d%n3i,&
+        call PSolverNC(lr%mesh%dom,'D',0,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,lr%d%n3i,&
              xc,hgridsh,&
              rhopoti,pkernel%kernel,rhopoti,ehi,eexi,vexi,0.d0,.false.,4)
         !the potential is here ready to be applied to psir
      else
-        call XC_potential(cell_geocode(lr%mesh),'D',0,1,bigdft_mpi%mpi_comm,&
+        call XC_potential(domain_geocode(lr%mesh%dom),'D',0,1,bigdft_mpi%mpi_comm,&
              lr%d%n1i,lr%d%n2i,lr%d%n3i,xc,hgridsh,&
              rhopoti,eexi,vexi,nspin,rhocore_fake,rhocore_fake,vSICi,xcstr) 
 
@@ -181,12 +182,12 @@ subroutine PZ_SIC_potential(nspin,nspinor,hfac,spinval,lr,xc,&
 !!$             rhopoti(1,ispin),eSICi)
 !!$     end select
 
-     peri=cell_periodic_dims(lr%mesh)
+     peri=domain_periodic_dims(lr%mesh%dom)
      free=1
      where (peri) free=0
 
      !apply the potential to the psir wavefunction and calculate potential energy
-     if (cell_geocode(lr%mesh) == 'F') then
+     if (domain_geocode(lr%mesh%dom) == 'F') then
         call apply_potential(lr%d%n1,lr%d%n2,lr%d%n3,1,1,1,0,nspinor,npsir,vpsir,&
              rhopoti(1,ispin),eSICi,&
              lr%bounds%ibyyzz_r) !optional
@@ -227,7 +228,7 @@ subroutine NK_SIC_potential(lr,orbs,xc,fref,hgrids,pkernel,psi,poti,eSIC_DC,pota
   use Poisson_Solver, except_dp => dp, except_gp => gp
   use locreg_operations
   use locregs
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   real(gp), intent(in) :: fref
   type(locreg_descriptors), intent(in) :: lr
@@ -302,7 +303,7 @@ subroutine NK_SIC_potential(lr,orbs,xc,fref,hgrids,pkernel,psi,poti,eSIC_DC,pota
      !print *,'here',poti(1,1),deltarho(1,1)
 
      !put the XC potential in the wxd term, which is the same for all the orbitals
-     call XC_potential(cell_geocode(lr%mesh),'D',0,1,bigdft_mpi%mpi_comm,&
+     call XC_potential(domain_geocode(lr%mesh%dom),'D',0,1,bigdft_mpi%mpi_comm,&
           lr%d%n1i,lr%d%n2i,lr%d%n3i,xc,hgrids,&
           deltarho,eexu,vexu,orbs%nspin,rhocore_fake,rhocore_fake,wxd,xcstr)
 
@@ -376,7 +377,7 @@ subroutine NK_SIC_potential(lr,orbs,xc,fref,hgrids,pkernel,psi,poti,eSIC_DC,pota
         !if (savewxd) call xc_clean_rho(lr%d%n1i*lr%d%n2i*lr%d%n3i*orbs%nspin,deltarho,1)
 
         !calculate its vXC and fXC
-        call XC_potential(cell_geocode(lr%mesh),'D',0,1,bigdft_mpi%mpi_comm,&
+        call XC_potential(domain_geocode(lr%mesh%dom),'D',0,1,bigdft_mpi%mpi_comm,&
              lr%d%n1i,lr%d%n2i,lr%d%n3i,xc,hgrids,&
              deltarho,eexi,vexi,orbs%nspin,rhocore_fake,rhocore_fake,vxci,xcstr,fxci)
 
@@ -441,7 +442,7 @@ subroutine NK_SIC_potential(lr,orbs,xc,fref,hgrids,pkernel,psi,poti,eSIC_DC,pota
            call xc_clean_rho(xc,lr%d%n1i*lr%d%n2i*lr%d%n3i*orbs%nspin,deltarho,1)
 
            !calculate its XC potential
-           call XC_potential(cell_geocode(lr%mesh),'D',0,1,bigdft_mpi%mpi_comm,&
+           call XC_potential(domain_geocode(lr%mesh%dom),'D',0,1,bigdft_mpi%mpi_comm,&
                 lr%d%n1i,lr%d%n2i,lr%d%n3i,xc,hgrids,&
                 deltarho,eexi,vexi,orbs%nspin,rhocore_fake,rhocore_fake,vxci,xcstr) 
            !saves the values for the double-counting term
@@ -545,7 +546,7 @@ subroutine psir_to_rhoi(fi,spinval,nspinrho,nspinor,lr,psir,rhoi)
   use module_types
   use module_interfaces, only: partial_density_free
   use locregs
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: nspinrho,nspinor
   real(gp), intent(in) :: fi      !< fi occupation number times k-point weigth divided by the volume unit
@@ -591,7 +592,7 @@ subroutine psir_to_rhoi(fi,spinval,nspinrho,nspinor,lr,psir,rhoi)
 !!$             fi,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhoi)
 !!$     end select
 
-     if (cell_geocode(lr%mesh) == 'F') then
+     if (domain_geocode(lr%mesh%dom) == 'F') then
         call partial_density_free(.false.,1,lr%d%n1i,lr%d%n2i,lr%d%n3i,&
              npsir,nspinrho,lr%d%n3i,&
              fi,nscarr_fake,spinval,psir(1,icomplex*npsir+1),rhoi,lr%bounds%ibyyzz_r)

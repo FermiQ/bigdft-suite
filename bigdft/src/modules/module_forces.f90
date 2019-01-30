@@ -144,7 +144,7 @@ subroutine clean_forces_dft(iproc,astruct,rxyz,fxyz,fnoise)
   use module_base
   use module_atoms
   use yaml_output
-  use box, only: bc_periodic_dims,geocode_to_bc
+  use at_domain, only: domain_periodic_dims,domain_geocode
   implicit none
   !Arguments
   integer, intent(in) :: iproc
@@ -212,13 +212,15 @@ subroutine clean_forces_dft(iproc,astruct,rxyz,fxyz,fnoise)
 !!$     write(*,'(a,1x,1pe24.17)') 'translational force along z=', sumz  
   end if
   
-  peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+  !peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+  peri=domain_periodic_dims(astruct%dom)
+
   do iat=1,astruct%nat
      if (.not. peri(1)) fxyz(1,iat)=fxyz(1,iat)-sumx
      if (.not. peri(2)) fxyz(2,iat)=fxyz(2,iat)-sumy
      if (.not. peri(3)) fxyz(3,iat)=fxyz(3,iat)-sumz
   enddo
-  if (astruct%geocode == 'F') then
+  if (domain_geocode(astruct%dom) == 'F') then
 !!$     do iat=1,astruct%nat
 !!$        fxyz(1,iat)=fxyz(1,iat)-sumx
 !!$        fxyz(2,iat)=fxyz(2,iat)-sumy
@@ -226,11 +228,11 @@ subroutine clean_forces_dft(iproc,astruct,rxyz,fxyz,fnoise)
 !!$     enddo
      
      call elim_torque_reza(astruct%nat,rxyz,fxyz)     
-  else if (astruct%geocode == 'S') then
+  else if (domain_geocode(astruct%dom) == 'S') then
 !!$     do iat=1,astruct%nat
 !!$        fxyz(2,iat)=fxyz(2,iat)-sumy
 !!$     enddo
-  else if (astruct%geocode == 'W') then
+  else if (domain_geocode(astruct%dom) == 'W') then
      fxyz_notorque = f_malloc(src=fxyz,id='fxyz_notorque')
      do iat=1,astruct%nat
         fxyz_notorque(3,iat)=0.0_gp
@@ -264,7 +266,7 @@ subroutine clean_forces_dft(iproc,astruct,rxyz,fxyz,fnoise)
      call yaml_map('maxval', fmax2,fmt='(1pe20.12)')
      call yaml_map('fnrm2',  fnrm2,fmt='(1pe20.12)')
      call yaml_mapping_close()
-     if (astruct%geocode /= 'P') then
+     if (domain_geocode(astruct%dom) /= 'P') then
         call yaml_mapping_open('Raw forces norm (Ha/Bohr)',flow=.true.)
         call yaml_map('maxval', fmax1,fmt='(1pe20.12)')
         call yaml_map('fnrm2',  fnrm1,fmt='(1pe20.12)')

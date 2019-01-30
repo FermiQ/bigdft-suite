@@ -17,6 +17,8 @@ program Fock_Operator_Program
   use box
   use PSbox
   use f_blas, only: f_dot
+  use at_domain
+  use numerics, only: onehalf,pi
   implicit none
   !Order of interpolating scaling function
   real(kind=8), parameter :: a_gauss = 1.0, a2 = a_gauss**2
@@ -39,6 +41,7 @@ program Fock_Operator_Program
   real(f_double), dimension(:,:,:), allocatable :: potential,pot_ion
   real(f_double), dimension(:,:,:,:), allocatable :: psir,dpsir
   external :: gather_timings  
+  type(domain) :: dom
 
   call f_lib_initialize() 
 
@@ -105,7 +108,12 @@ program Fock_Operator_Program
   !ionic potential
   pot_ion = f_malloc(nxyz,id='pot_ion')
 
-  mesh=cell_new(geocode,nxyz,hgrids)
+  !mesh=cell_new(geocode,nxyz,hgrids)
+  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=nxyz*hgrids)
+  mesh=cell_new(dom,nxyz,hgrids)
+
+
   call test_functions_new(mesh,1,a_gauss,& !_box
        density,potential,rhopot,pot_ion,offset)
   !calculate the expected hartree energy

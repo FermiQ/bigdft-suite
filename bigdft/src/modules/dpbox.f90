@@ -14,6 +14,7 @@ module module_dpbox
   use module_base
   use bounds, only: ext_buffers
   use box
+  use at_domain, only: domain_geocode
 
   implicit none
 
@@ -184,7 +185,7 @@ contains
     call mpi_environment_set(dpbox%mpi_env,iproc,nproc,mpi_comm,npsolver_groupsize)
     igpu=0
     call denspot_communications(dpbox%mpi_env%iproc,dpbox%mpi_env%nproc,igpu,xc,&
-         nspin,cell_geocode(dpbox%mesh),SICapproach,dpbox)
+         nspin,domain_geocode(dpbox%mesh%dom),SICapproach,dpbox)
 
     !set the iterators for the density and the potential
     i3sp=dpbox%nscatterarr(dpbox%mpi_env%iproc,3)+1

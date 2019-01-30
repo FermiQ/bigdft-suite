@@ -25,7 +25,9 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   use compression
   use orbitalbasis
   use psp_projectors
-  use box, only: cell_geocode, cell, cell_new
+  use box, only: cell, cell_new
+  use at_domain
+  use numerics, only: onehalf,pi
   implicit none
   type(atoms_data), intent(in) :: at
   type(orbitals_data), intent(in) :: orbs
@@ -53,6 +55,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   type(ket) :: psi_it
   type(DFT_PSP_projector_iter) :: psp_it
   type(cell) :: mesh
+  type(domain) :: dom
   logical, dimension(:,:,:), allocatable :: logrid_c,logrid_f
   integer, dimension(:,:,:), allocatable :: ibbyz_c,ibbyz_f,ibbxz_c,ibbxz_f,ibbxy_c,ibbxy_f
   real(kind=8), dimension(:,:), allocatable :: wrkallred
@@ -97,7 +100,7 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
 
   ! Create new structure with modified grid sizes
 !!$  call init_lr(lr,Glr%geocode,0.5*hgrid,nb1,nb2,nb3,&
-  call init_lr(lr,cell_geocode(Glr%mesh),0.5*hgrid,nb1,nb2,nb3,&
+  call init_lr(lr,domain_geocode(Glr%mesh%dom),0.5*hgrid,nb1,nb2,nb3,&
        Glr%d%nfl1,Glr%d%nfl2,Glr%d%nfl3,Glr%d%nfu1,Glr%d%nfu2,Glr%d%nfu3,&
        .true.,bnds=Glr%bounds)
  
@@ -176,7 +179,14 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
   ibbyyzz_r = f_malloc((/ 1.to.2, -14.to.2*nb2+16, -14.to.2*nb3+16 /),id='ibbyyzz_r')
 
   ! coarse grid quantities
-  mesh = cell_new('F', [nb1+1, nb2+1, nb3+1], hgrid)
+  !mesh = cell_new('F', [nb1+1, nb2+1, nb3+1], hgrid)
+  !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum('F'),&
+  !          alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[nb1+1, nb2+1, nb3+1]*hgrid)
+  !mesh=cell_new(dom,[nb1+1, nb2+1, nb3+1],hgrid)
+  if (domain_geocode(at%astruct%dom) /= 'F') call f_err_throw('Geocode has to be F to set mesh here',&
+       err_name='BIGDFT_RUNTIME_ERROR')
+  mesh=cell_new(at%astruct%dom,[nb1+1, nb2+1, nb3+1],hgrid)
+
   call fill_logrid(mesh,0,nb1,0,nb2,0,nb3,nbuf,at%astruct%nat,at%astruct%ntypes,at%astruct%iatype,txyz, & 
        at%radii_cf(1,1),crmult,logrid_c)
   call num_segkeys(nb1,nb2,nb3,0,nb1,0,nb2,0,nb3,logrid_c,nsegb_c,nvctrb_c)

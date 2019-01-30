@@ -1,0 +1,16 @@
+---
+Default tolerances:
+ Epsilon: 1.1e-11
+ 
+Keys to ignore:
+ - Groups per proc
+ - Memory* 
+ - Orbital repartition*
+ - Walltime since initialization
+ - Max No. of dictionaries used
+ - Number of omp threads
+numerics_check:
+  Cube integral error 150: 2.4e-06
+  Numerical cube integral 150: 0.15
+  Patterns to ignore:
+    - Normal loop

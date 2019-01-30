@@ -532,8 +532,8 @@
 ---
  Reference Paper             : The Journal of Chemical Physics 137, 134108 (2012)
  Version Number              : PSolver 1.8
- Timestamp of this run       : 2017-10-26 15:13:49.965
- Root process Hostname       : maia.cluster.bc2.ch
+ Timestamp of this run       : 2019-01-28 13:35:08.886
+ Root process Hostname       : login10.cluster.bc2.ch
  Boundary Conditions         : Wire
  Multiprocessor run: &MPIrun
     #----------------------------------------------------------------- Kernel Initialization
@@ -556,36 +556,38 @@
        minres                : 1.e-8 #            Convergence threshold of the loop
        pb_method             : none #             Defines the method for the Poisson Boltzmann Equation
      MPI tasks               :  1
-     OpenMP threads per MPI task:  12
+     OpenMP threads per MPI task:  16
    Poisson Kernel Creation:
      Boundary Conditions     : Wire
      Memory Requirements per MPI task:
        Density (MB)          :  1.48
        Kernel (MB)           :  0.79
        Full Grid Arrays (MB) :  1.37
+   hgrids                    :  [  0.196078431372549,  0.1818181818181818,  0.15625 ]
    Number of Spins           :  1 #---------------------------------------------- nspden: 1
    Poisson Solver:
      BC                      : Wires
      Box                     :  [  51,  55,  64 ]
      MPI tasks               :  1
-   Energies: {Hartree:  3.220007507425E+00}
+   Energies: {Hartree:  7.121112829810E+00}
    Comparison with a reference run:
      ANALYTIC:
-       Difference in Inf. Norm:  1.484344274585E-09
+       Difference in Inf. Norm:  5.288429738570E-08
         #WARNING: Calculation possibly wrong, check if the diff is meaningful
-       Max. diff coordinates :  [  1,  2,  1 ]
-       Result                :  1.484344274585E-09
-       Original              : -0.000000000000E+000
+       Max. diff coordinates :  [  26,  28,  1 ]
+       Result                :  1.939819652123E+00
+       Original              :  1.939819705008E+000
      Global data:
        ANACOMPLET:
          Difference in Inf. Norm:  0.000000000000E+00
        Energy differences:
          Hartree             :  0.000000000000E+00
+         charge              :  1.570796326795E+01
        COMPLETE:
          Difference in Inf. Norm:  0.000000000000E+00
          Max. diff coordinates:  [  1,  1,  1 ]
-         Result              :  1.444754601714E-09
-         Original            :  1.444754601714E-009
+         Result              : -6.144991370647E+00
+         Original            : -6.144991370647E+000
        Energy differences:
          Hartree             :  0.000000000000E+00
      Distributed data:
@@ -593,11 +595,12 @@
          Difference in Inf. Norm:  0.000000000000E+00
        Energy differences:
          Hartree             :  0.000000000000E+00
+         charge              :  1.570796326795E+01
        COMPLETE:
          Difference in Inf. Norm:  0.000000000000E+00
          Max. diff coordinates:  [  1,  1,  1 ]
-         Result              :  1.444754601714E-09
-         Original            :  1.444754601714E-009
+         Result              : -6.144991370647E+00
+         Original            : -6.144991370647E+000
        Energy differences:
          Hartree             :  0.000000000000E+00
  Complex run:
@@ -605,44 +608,44 @@
      CPLXREAL:
        Difference in Inf. Norm:  0.000000000000E+00
        Max. diff coordinates :  [  1,  1,  1 ]
-       Result                :  1.444754601714E-09
-       Original              :  1.444754601714E-009
+       Result                : -6.144991370647E+00
+       Original              : -6.144991370647E+000
      CPLXIMAG:
        Difference in Inf. Norm:  0.000000000000E+00
        Max. diff coordinates :  [  1,  1,  1 ]
-       Result                :  1.444754601714E-09
-       Original              :  1.444754601714E-009
+       Result                : -6.144991370647E+00
+       Original              : -6.144991370647E+000
      Energy differences:
        Hartree               :  0.000000000000E+00
    Distributed data:
      CPLXREAL:
        Difference in Inf. Norm:  0.000000000000E+00
        Max. diff coordinates :  [  1,  1,  1 ]
-       Result                :  1.444754601714E-09
-       Original              :  1.444754601714E-009
+       Result                : -6.144991370647E+00
+       Original              : -6.144991370647E+000
      CPLXIMAG:
        Difference in Inf. Norm:  0.000000000000E+00
        Max. diff coordinates :  [  1,  1,  1 ]
-       Result                :  1.444754601714E-09
-       Original              :  1.444754601714E-009
+       Result                : -6.144991370647E+00
+       Original              : -6.144991370647E+000
      Energy differences:
        Hartree               :  0.000000000000E+00
  Monoprocess run             : *MPIrun
  Timings for root process:
-   CPU time (s)              :  13.78
-   Elapsed time (s)          :  12.19
+   CPU time (s)              :  8.98
+   Elapsed time (s)          :  2.57
   #-------------------------------- Warnings obtained during the run, check their relevance!
  WARNINGS:
  - Calculation possibly wrong, check if the diff is meaningful
  Memory Consumption Report:
-   Tot. No. of Allocations             :  14375
-   Tot. No. of Deallocations           :  14375
+   Tot. No. of Allocations             :  14391
+   Tot. No. of Deallocations           :  14391
    Remaining Memory (B)                :  0
    Memory occupation:
-     Peak Value (MB)                   :  21.032
+     Peak Value (MB)                   :  21.593
      for the array                     : zt
      in the routine                    : G_PoissonSolver
-     Memory Peak of process            : 33.444 MB
- Walltime since initialization         :  00:00:12.255266139
+     Memory Peak of process            : 80.612 MB
+ Walltime since initialization         :  00:00:02.865941912
  Max No. of dictionaries used          :  604 #( 241 still in use)
  Number of dictionary folders allocated:  1

@@ -209,7 +209,7 @@ module locregs_init
       use module_types
       !use module_interfaces, except_this_one => determine_locregSphere_parallel
       use communications, only: communicate_locreg_descriptors_keys
-      use box, only: cell_geocode,cell_periodic_dims
+      use at_domain, only: domain_geocode,domain_periodic_dims
       implicit none
       integer, intent(in) :: iproc,nproc
       integer, intent(in) :: nlr
@@ -264,7 +264,7 @@ module locregs_init
 !!$      Gperx=(Glr%geocode /= 'F')
 !!$      Gpery=(Glr%geocode == 'P')
 !!$      Gperz=(Glr%geocode /= 'F')
-      peri=cell_periodic_dims(Glr%mesh)
+      peri=domain_periodic_dims(Glr%mesh%dom)
       Gperx=peri(1) 
       Gpery=peri(2)
       Gperz=peri(3)
@@ -345,7 +345,7 @@ module locregs_init
       call timing(iproc,'calc_bounds   ','ON') 
       do ilr=1,nlr
 !             if (Llr(ilr)%geocode=='F' .and. (calculateBounds(ilr) .or. ilr==llr_on_all_mpi) ) then
-         if (cell_geocode(Llr(ilr)%mesh) =='F' .and. (calculateBounds(ilr)  .or. ilr==llr_on_all_mpi) ) &
+         if (domain_geocode(Llr(ilr)%mesh%dom) =='F' .and. (calculateBounds(ilr)  .or. ilr==llr_on_all_mpi) ) &
               call ensure_locreg_bounds(Llr(ilr))
              !then
              !!write(*,*) 'calling locreg_bounds, ilr', ilr
@@ -369,6 +369,7 @@ module locregs_init
       use module_base
       use module_types
       use box
+      use at_domain, only: domain_geocode
       implicit none
       integer, intent(in) :: iproc,nproc
       integer, intent(in) :: nlr
@@ -437,7 +438,7 @@ module locregs_init
          ! Sould check if nfu works properly... also relative to locreg!!
          !if the localisation region is isolated build also the bounds
 !!$         if (Llr(ilr)%geocode=='F') then
-         if (cell_geocode(Llr(ilr)%mesh) == 'F') then
+         if (domain_geocode(Llr(ilr)%mesh%dom) == 'F') then
             ! Check whether the bounds shall be calculated. Do this only if the currect process handles
             ! orbitals in the current localization region.
             if(calculateBounds(ilr)) call ensure_locreg_bounds(Llr(ilr))
@@ -746,6 +747,7 @@ module locregs_init
       use module_base
       use module_types
       use box
+      use at_domain, only: domain_geocode
       implicit none
       integer, intent(in) :: iproc
       integer, intent(in) :: nlr
@@ -815,7 +817,7 @@ module locregs_init
 
          !If not, then don't use linear input guess (set linear to false)
 !!$         if(warningx .and. warningy .and. warningz .and. (Glr%geocode .ne. 'F')) then
-         if(warningx .and. warningy .and. warningz .and. (cell_geocode(Glr%mesh) .ne. 'F')) then
+         if(warningx .and. warningy .and. warningz .and. (domain_geocode(Glr%mesh%dom) .ne. 'F')) then
             linear = .false.
             if(iproc == 0) then
                write(*,*)'Not using the linear scaling input guess, because localization'

@@ -30,7 +30,8 @@ module multipole
     subroutine interaction_multipoles_ions(iproc, mesh, ep, at, eion, fion)
       use module_atoms
       use yaml_output, only: yaml_map
-      use box, only: cell,closest_r,rxyz_ortho,square_gd
+      use box, only: cell
+      use at_domain, only: rxyz_ortho,square_gd
       implicit none
 
       ! Calling arguments
@@ -60,8 +61,8 @@ module multipole
          ityp=atit%ityp!at%astruct%iatype(iat)
          do impl=1,ep%nmpl
             rc=atit%rxyz-ep%mpl(impl)%rxyz
-            dr = rxyz_ortho(mesh,rc)
-            r2 = square_gd(mesh,rc)
+            dr = rxyz_ortho(mesh%dom,rc)
+            r2 = square_gd(mesh%dom,rc)
             r = sqrt(r2)
 !!$             r = sqrt((at%astruct%rxyz(1,iat)-ep%mpl(impl)%rxyz(1))**2 + &
 !!$                  (at%astruct%rxyz(2,iat)-ep%mpl(impl)%rxyz(2))**2 + &
@@ -104,7 +105,8 @@ module multipole
     subroutine ionic_energy_of_external_charges(iproc, mesh, ep, at, eion)
       use module_types, only: atoms_data
       use yaml_output, only: yaml_map
-      use box, only: cell,closest_r,rxyz_ortho,square_gd
+      use box, only: cell
+      use at_domain, only: square_gd
       implicit none
 
       ! Calling arguments
@@ -148,7 +150,7 @@ module multipole
                           qqj = -1.0_gp*ep%mpl(jmpl)%qlm(0)%q(1)
                       end if
                       rc = ep%mpl(impl)%rxyz-ep%mpl(jmpl)%rxyz
-                      r2 = square_gd(mesh,rc)
+                      r2 = square_gd(mesh%dom,rc)
                       r = sqrt(r2)
                       !r = sqrt((ep%mpl(impl)%rxyz(1)-ep%mpl(jmpl)%rxyz(1))**2 + &
                       !         (ep%mpl(impl)%rxyz(2)-ep%mpl(jmpl)%rxyz(2))**2 + &
@@ -187,6 +189,7 @@ module multipole
       use io, only: plot_density
 !      use bounds, only: geocode_buffers
       use box
+      use at_domain, only: domain_periodic_dims
       use gaussians
       use module_atoms, only: atomic_cores_charge_density
       implicit none
@@ -275,7 +278,7 @@ module multipole
 !!$      pery=(at%astruct%geocode == 'P')
 !!$      perz=(at%astruct%geocode /= 'F')
 
-      peri=cell_periodic_dims(denspot%dpbox%mesh)
+      peri=domain_periodic_dims(denspot%dpbox%mesh%dom)
       perx=peri(1)
       pery=peri(2)
       perz=peri(3)
@@ -330,7 +333,7 @@ module multipole
       perif(1) = .false.
       perif(2) = .false.
       perif(3) = .false.
-      nbuf=isf_box_buffers(perif, cell_periodic_dims(denspot%dpbox%mesh))
+      nbuf=isf_box_buffers(perif, domain_periodic_dims(denspot%dpbox%mesh%dom))
       nl1=nbuf(1)
       nl2=nbuf(2)
       nl3=nbuf(3)
@@ -1839,6 +1842,7 @@ module multipole
       use orbitalbasis
 !!$      use bounds, only: geocode_buffers
       use box
+      use at_domain
       implicit none
       integer, intent(in) :: l, m, nphi
       type(cell), intent(in) :: mesh_global
@@ -1873,7 +1877,7 @@ module multipole
 !!$      perx=(geocode /= 'F')
 !!$      pery=(geocode == 'P')
 !!$      perz=(geocode /= 'F')
-      peri=cell_periodic_dims(mesh_global)
+      peri=domain_periodic_dims(mesh_global%dom)
 
       !first search the maximum sizes of psir array
       npsir=1
@@ -1913,10 +1917,10 @@ module multipole
             !$ ithread=omp_get_thread_num()
             !$ call box_iter_split(bit,nthread,ithread)
             do while (box_next_point(bit))
-                rc=closest_r(psi_it%lr%mesh,bit%rxyz,lrcntr)
-                rxyz=rxyz_ortho(psi_it%lr%mesh,rc)
+                rc=closest_r(psi_it%lr%mesh%dom,bit%rxyz,lrcntr)
+                rxyz=rxyz_ortho(psi_it%lr%mesh%dom,rc)
                 if (sphere) then
-                   if (square_gd(psi_it%lr%mesh,rc)>rmax**2) cycle
+                   if (square_gd(psi_it%lr%mesh%dom,rc)>rmax**2) cycle
                 end if
                 tt = solid_harmonic(0, l, m, rxyz(1), rxyz(2), rxyz(3))
                 tt = tt*sqrt(4.d0*pi/real(2*l+1,gp))
@@ -1986,6 +1990,7 @@ module multipole
       use orbitalbasis
 !!$      use bounds, only: geocode_buffers
       use box
+      use at_domain
       implicit none
       integer, intent(in) :: lmax
       type(cell), intent(in) :: mesh_global
@@ -2020,7 +2025,7 @@ module multipole
 !!$      perx=(geocode /= 'F')
 !!$      pery=(geocode == 'P')
 !!$      perz=(geocode /= 'F')
-      peri=cell_periodic_dims(mesh_global)
+      peri=domain_periodic_dims(mesh_global%dom)
 
       !first search the maximum sizes of psir array
       npsir=1
@@ -2056,10 +2061,10 @@ module multipole
 !!$            !$omp firstprivate(bit)
 !!$            !$ call box_iter_split(bit,omp_get_num_threads(),omp_get_thread_num())
             do while (box_next_point(bit))
-                rc=closest_r(psi_it%lr%mesh,bit%rxyz,lrcntr)
-                rxyz=rxyz_ortho(psi_it%lr%mesh,rc)
+                rc=closest_r(psi_it%lr%mesh%dom,bit%rxyz,lrcntr)
+                rxyz=rxyz_ortho(psi_it%lr%mesh%dom,rc)
                 if (sphere) then
-                   if (square_gd(psi_it%lr%mesh,rc)>rmax**2) cycle
+                   if (square_gd(psi_it%lr%mesh%dom,rc)>rmax**2) cycle
                 end if
                 do l=0,lmax
                    do m=-l,l
@@ -2253,7 +2258,8 @@ module multipole
       !use Poisson_Solver, only: H_potential
       use Poisson_Solver, except_dp => dp
       use foe_base, only: foe_data
-      use box
+      use box, only: cell
+      use at_domain, only: bc_periodic_dims, geocode_to_bc
       use io, only: get_sparse_matrix_format
       implicit none
       ! Calling arguments
@@ -3636,7 +3642,7 @@ module multipole
    use yaml_output
 !!$   use bounds, only: geocode_buffers
    use orbitalbasis
-   use box, only: cell_geocode
+   use at_domain, only: domain_geocode
    implicit none
    ! Calling arguments
    integer,intent(in) :: iproc, nproc, nphi, nphir
@@ -3680,7 +3686,7 @@ module multipole
 
    do ilr=1,lzd%nlr
 !!$       if (lzd%Llr(ilr)%geocode/='F') then
-       if (cell_geocode(lzd%Llr(ilr)%mesh) /='F') then
+       if (domain_geocode(lzd%Llr(ilr)%mesh%dom) /='F') then
            call f_err_throw('support function locregs must always have free BC')
        end if
    end do
@@ -4431,6 +4437,7 @@ module multipole
  subroutine calculate_gaussian_1D(is, ie, idim, mesh, shift, ep, gaussian_array, nonzero_startend)
    use module_base
    use box
+   use at_domain, only: domain_periodic_dims
    use bounds, only: isf_box_buffers
    use multipole_base, only: lmax, external_potential_descriptors
    implicit none
@@ -4460,7 +4467,7 @@ module multipole
    ! Calculate the boundaries of the Gaussian to be calculated. To make it simple, take always the maximum:
    ! - free BC: entire box
    ! - periodic BC: half of the box size, with periodic wrap around
-   peri=cell_periodic_dims(mesh)
+   peri=domain_periodic_dims(mesh%dom)
    if (.not.peri(idim)) then
        js = 0
        je = 0
@@ -4802,28 +4809,32 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
 
 !!$  !call center_of_charge(at,at%astruct%rxyz,charge_center_cores)
 !!$  call f_zero(charge_center_cores)
-!!$  call f_multipoles_create(mp_cores,1)!,center=charge_center_cores)
-!!$  call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
-!!$       charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
-!!$  qtot=get_monopole(mp_cores)
-!!$  dipole_cores=get_dipole(mp_cores)
-!!$  !this defines the origin of the coordinate system
-!!$  if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
-!!$  call f_multipoles_release(mp_cores)
-!!$
-!!$  !now the cores dipole should become zero
-!!$
-  qtot=0.d0
-  call f_zero(dipole_cores)!(1:3)=0._gp
-  call f_zero(charge_center_cores)
-  do iat=1,at%astruct%nat
-     !write(*,*) 'iat, rxyz(1:3,iat)',iat, rxyz(1:3,iat)
-     q=at%nelpsp(at%astruct%iatype(iat))
-     dipole_cores(1:3)=dipole_cores(1:3)+q * rxyz(1:3,iat)
-     qtot=qtot+q
-  end do
+  charge_center_cores=0.5_gp*at%astruct%cell_dim
+  call core_multipoles(charge_center_cores)
+  qtot=get_monopole(mp_cores)
+  dipole_cores=get_dipole(mp_cores)
+
   !this defines the origin of the coordinate system
-  if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
+  if (qtot /=0.0_gp) charge_center_cores= charge_center_cores + dipole_cores/qtot
+  call f_multipoles_release(mp_cores)
+  !now the cores dipole should become zero, unless there are wrapping of atoms around the
+  !structure.
+  !therefore recalculate the dipole of the cores.
+  call core_multipoles(charge_center_cores)
+  dipole_cores=get_dipole(mp_cores)
+
+  !qtot=0.d0
+  !call f_zero(dipole_cores)!(1:3)=0._gp
+  !call f_zero(charge_center_cores)
+  !do iat=1,at%astruct%nat
+  !     !write(*,*) 'iat, rxyz(1:3,iat)',iat, rxyz(1:3,iat)
+  !     q=at%nelpsp(at%astruct%iatype(iat))
+  !   dipole_cores(1:3)=dipole_cores(1:3)+q * rxyz(1:3,iat)
+  !     qtot=qtot+q
+  !end do
+
+  !this defines the origin of the coordinate system
+  !if (qtot /=0.0_gp) charge_center_cores=dipole_cores/qtot
 
   !!write(*,*) 'dipole_cores',dipole_cores
   !!write(*,*) 'nc3',nc3
@@ -4843,90 +4854,32 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   end if
   qtot=-get_monopole(mp_electrons)
 
-!!$  !calculate electronic dipole and thus total dipole of the system
-!!$  call f_zero(dipole_el)!   (1:3)=0._gp
-!!$  do ispin=1,nspin
-!!$     !the iterator here is on the potential distribution
-!!$     do while(box_next_point(dpbox%bitp))
-!!$        q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
-!!$        qtot=qtot+q
-!!$        dipole_el=dipole_el+q*(dpbox%bitp%rxyz-charge_center_cores)
-!!$     end do
-!!$  end do
-
-!!$  call fmpi_allreduce(qtot, 1, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-!!$  call fmpi_allreduce(dipole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-
   if (present(dipole)) dipole = dipole_el
 
   !quadrupole should be calculated with the shifted positions!
   quadrupole_if: if (calculate_quadrupole) then
 
      !now reset the multipole quantities
-     call f_multipoles_create(mp_cores,2,center=charge_center_cores)
-     call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
-          charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
+     !call f_multipoles_create(mp_cores,2,center=charge_center_cores)
+     !call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh,&
+     !    charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
      quadropole_cores=get_quadrupole(mp_cores)
-
-!!$      call f_zero(quadropole_cores)!(1:3,1:3)=0._gp
-!!$      do iat=1,at%astruct%nat
-!!$         q=at%nelpsp(at%astruct%iatype(iat))
-!!$         tmpdip=rxyz(:,iat)-charge_center_cores
-!!$         tt=square_gd(dpbox%mesh,tmpdip)
-!!$          do i=1,3
-!!$             ri=rxyz(i,iat)-charge_center_cores(i)
-!!$             do j=1,3
-!!$                rj=rxyz(j,iat)-charge_center_cores(j)
-!!$                if (i==j) then
-!!$                   delta_term = tt
-!!$                else
-!!$                   delta_term=0.d0
-!!$                end if
-!!$                quadropole_cores(j,i) = quadropole_cores(j,i) + q*(3.d0*rj*ri-delta_term)
-!!$             end do
-!!$          end do
-!!$       end do
-
-!!$     call f_zero(quadropole_el)
-!!$      do ispin=1,nspin
-!!$         do while(box_next_point(dpbox%bitp))
-!!$            q= - rho(dpbox%bitp%i,dpbox%bitp%j,dpbox%bitp%k-dpbox%bitp%i3s+1,ispin) *dpbox%mesh%volume_element
-!!$            tmpdip=dpbox%bitp%rxyz-charge_center_cores
-!!$            tt=square_gd(dpbox%mesh,tmpdip)
-!!$            do i=1,3
-!!$               ri=dpbox%bitp%rxyz(i)-charge_center_cores(i)
-!!$               do j=1,3
-!!$                  rj=dpbox%bitp%rxyz(j)-charge_center_cores(j)
-!!$                  if (i==j) then
-!!$                     delta_term = tt
-!!$                  else
-!!$                     delta_term=0.d0
-!!$                  end if
-!!$                  quadropole_el(j,i) = quadropole_el(j,i) + q*(3.d0*rj*ri-delta_term)
-!!$               end do
-!!$            end do
-!!$         end do
-!!$      end do
-
-      quadropole_el=-get_quadrupole(mp_electrons)
-
-!!$      call fmpi_allreduce(quadropole_el, FMPI_SUM, comm=bigdft_mpi%mpi_comm)
-      tmpquadrop=quadropole_cores+quadropole_el
-
-      if (present(quadrupole)) quadrupole = tmpquadrop
+     quadropole_el=-get_quadrupole(mp_electrons)
+     tmpquadrop=quadropole_cores+quadropole_el
+     if (present(quadrupole)) quadrupole = tmpquadrop
 
   end if quadrupole_if
 
-  tmpdip=dipole_el !dipole_cores+ !should not be needed as it is now in  if (present(dipole)) dipole(1:3) = tmpdip(1:3)
+  tmpdip=dipole_el+dipole_cores!+ !should not be needed as it is now in  if (present(dipole)) dipole(1:3) = tmpdip(1:3)
   if(bigdft_mpi%iproc==0 .and. .not.quiet) then
      call yaml_map('Multipole analysis origin',charge_center_cores,fmt='(1pe14.6)')
      call yaml_mapping_open('Electric Dipole Moment (AU)')
-       call yaml_map('P vector',tmpdip(1:3),fmt='(1pe15.6)')
+       call yaml_map('P vector',tmpdip,fmt='(1pe15.6)')
        call yaml_map('norm(P)',sqrt(sum(tmpdip**2)),fmt='(1pe16.8)')
      call yaml_mapping_close()
      tmpdip=tmpdip/Debye_AU  ! au2debye
      call yaml_mapping_open('Electric Dipole Moment (Debye)')
-       call yaml_map('P vector',tmpdip(1:3),fmt='(1pe15.6)')
+       call yaml_map('P vector',tmpdip,fmt='(1pe15.6)')
        call yaml_map('norm(P)',sqrt(sum(tmpdip**2)),fmt='(1pe16.8)')
      call yaml_mapping_close()
 
@@ -4945,6 +4898,17 @@ subroutine calculate_dipole_moment(dpbox,nspin,at,rxyz,rho,calculate_quadrupole,
   call f_multipoles_release(mp_electrons)
 
   call f_release_routine()
+
+contains
+
+  subroutine core_multipoles(center)
+    implicit none
+    real(gp), dimension(3), intent(in) :: center
+    call f_multipoles_create(mp_cores,2,center=center)
+    call vector_multipoles(mp_cores,at%astruct%nat,rxyz,dpbox%mesh%dom,&
+        charges=real(at%nelpsp,dp),lookup=at%astruct%iatype)
+  end subroutine core_multipoles
+
 
 END SUBROUTINE calculate_dipole_moment
 
@@ -5775,6 +5739,7 @@ END SUBROUTINE calculate_dipole_moment
     use PStypes, only: coulomb_operator
     use PSbox, only: PS_gather
     use box
+    use at_domain, only: distance
     use module_types, only: atoms_data
     use module_atoms, only: atoms_iterator, atoms_iter, atoms_iter_next
     implicit none
@@ -5953,8 +5918,8 @@ END SUBROUTINE calculate_dipole_moment
        internal = (z>=zmin .and. z<=zmax)
        if (.not. internal) then
           tmp=[0.0_gp,0.0_gp,z]
-          if (distance(boxit%mesh,tmp,rmin) > min_distance .and. &
-               distance(boxit%mesh,tmp,rmax) > min_distance) cycle
+          if (distance(boxit%mesh%dom,tmp,rmin) > min_distance .and. &
+               distance(boxit%mesh%dom,tmp,rmax) > min_distance) cycle
        end if
        call f_increment(nat_check)
        atlist(nat_check)=atit%iat
@@ -5965,7 +5930,7 @@ END SUBROUTINE calculate_dipole_moment
     box_loop: do while (box_next_point(boxit))
        do iat=1,nat_check
           !if there is only one atom which is close to this point exclude it
-          if (distance(boxit%mesh,boxit%rxyz,rxyz(:,atlist(iat))) < min_distance) then
+          if (distance(boxit%mesh%dom,boxit%rxyz,rxyz(:,atlist(iat))) < min_distance) then
               cycle box_loop
           end if
        end do
@@ -6198,7 +6163,8 @@ END SUBROUTINE calculate_dipole_moment
     box_loop: do while(box_next_point(boxit))
        icnt=icnt+1
        do iat=1,nat
-          if (distance(boxit%mesh,boxit%rxyz,rxyz(:,iat)) <= min_distance) cycle box_loop
+          !if (distance(boxit%mesh,boxit%rxyz,rxyz(:,iat)) <= min_distance) cycle box_loop
+          if (box_iter_distance(boxit,rxyz(:,iat)) <= min_distance) cycle box_loop
        end do
        igood=igood+1
        ! Farther away from the atoms than the minimal distance

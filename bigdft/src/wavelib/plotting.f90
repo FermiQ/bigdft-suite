@@ -10,6 +10,7 @@ subroutine plot_density_cube_old(filename,iproc,nproc,n1,n2,n3,n1i,n2i,n3i,n3p,n
      hxh,hyh,hzh,at,rxyz,ngatherarr,rho)
   use module_base
   use module_types
+  use at_domain, only: domain_geocode
   implicit none
   character(len=*), intent(in) :: filename
   integer, intent(in) :: iproc,n1i,n2i,n3i,n3p,n1,n2,n3,nspin,nproc
@@ -29,7 +30,7 @@ subroutine plot_density_cube_old(filename,iproc,nproc,n1,n2,n3,n1i,n2i,n3i,n3p,n
 
   !conditions for periodicity in the three directions
   !value of the buffer in the x and z direction
-  call gridcorrection(nbx,nby,nbz,nl1,nl2,nl3,at%astruct%geocode)
+  call gridcorrection(nbx,nby,nbz,nl1,nl2,nl3,domain_geocode(at%astruct%dom))
 !!$  if (at%astruct%geocode /= 'F') then
 !!$     nl1=1
 !!$     nl3=1
@@ -273,7 +274,7 @@ subroutine plot_wf(units_provided,orbname,nexpo,at,factor,lr,hgrids,rxyz,psi, &
   use module_types, only: atoms_data
   use locreg_operations
   use IObox, only: dump_field
-  use box, only: cell_geocode
+  use at_domain, only: domain_geocode
   implicit none
   !Arguments
   logical,intent(in) :: units_provided
@@ -329,7 +330,7 @@ subroutine plot_wf(units_provided,orbname,nexpo,at,factor,lr,hgrids,rxyz,psi, &
   psir = f_malloc(lr%d%n1i*lr%d%n2i*lr%d%n3i,id='psir')
   !initialisation
 !!$  if (lr%geocode == 'F') call f_zero(psir)
-  if (cell_geocode(lr%mesh) == 'F') call f_zero(psir)
+  if (domain_geocode(lr%mesh%dom) == 'F') call f_zero(psir)
 
   call daub_to_isf(lr,w,psi,psir)
 
