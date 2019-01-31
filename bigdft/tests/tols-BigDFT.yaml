@@ -570,7 +570,8 @@ base:
   history length: 1.001
 
 Davidson-SiH4:
-  e_virtual: 1.7e-11
+  e_vrt: 5.0e-10
+  e_virtual: 5.0e-11
   Eigenvalues and eigenstate residue: 1.8e-10
 
 SIC_PZ:
