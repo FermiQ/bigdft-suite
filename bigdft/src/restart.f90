@@ -96,9 +96,10 @@ subroutine reformatmywaves(iproc,orbs,at,&
 
 
   !mesh=cell_new(at%astruct%geocode,[n1+1,n2+1,n3+1],[hx,hy,hz])
-  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1+1,n2+1,n3+1]*[hx,hy,hz])
-  mesh=cell_new(dom,[n1+1,n2+1,n3+1],[hx,hy,hz])
+  !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
+  !          alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1+1,n2+1,n3+1]*[hx,hy,hz])
+  !mesh=cell_new(dom,[n1+1,n2+1,n3+1],[hx,hy,hz])
+  mesh=cell_new(at%astruct%dom,[n1+1,n2+1,n3+1],[hx,hy,hz])
 
   !conditions for periodicity in the three directions
 !!$  perx=(at%astruct%geocode /= 'F')
