@@ -17,13 +17,14 @@
           BIGDFT_INPUT_FILE_ERROR, BIGDFT_INPUT_VARIABLES_ERROR
       use dictionaries, dict_set => set
       use dynamic_memory
-      use at_domain, only: geocode_to_bc,bc_periodic_dims
-      use numerics, only: Bohr_Ang
+      use numerics, only: Bohr_Ang,onehalf,pi
       use module_base, only: bigdft_mpi
       use yaml_parse, only: yaml_parse_from_string
       use yaml_strings, only: yaml_toa,f_strcpy
       use yaml_output, only: yaml_warning
       use public_keys, only: ASTRUCT_REDUCED
+      use at_domain
+      use f_enums, only: f_enumerator
       implicit none
       !Arguments
       integer, intent(in) :: ifile
@@ -57,9 +58,11 @@
       logical :: disableTrans
       character(len = max_field_length) :: errmess
       logical, dimension(3) :: peri
-      integer, dimension(3) :: bc ! to be inserted in the astruct datatype
+      !integer, dimension(3) :: bc ! to be inserted in the astruct datatype
       real(gp), dimension(3) :: acell
       type(dictionary), pointer :: dict
+      type(f_enumerator), dimension(3) :: bc !boundary conditions of the system
+      type(f_enumerator) :: units_enum
 
       if(present(disableTrans_))then
         disableTrans=disableTrans_
@@ -114,6 +117,13 @@
          lpsdbl=.false.
       end if
 
+      select case(astruct%units)
+      case('angstroem','angstroemd0')
+        units_enum=ANGSTROEM_UNITS
+      case default
+        units_enum=ATOMIC_UNITS
+      end select
+
       !read from positions of .xyz format, but accepts also the old .ascii format
       call getLine(line, ifile, eof)
       if (f_err_raise(eof,"Unexpected end of file '"//trim(filename)//"'.",err_id=BIGDFT_INPUT_FILE_ERROR)) return
@@ -144,15 +154,19 @@
          select case(trim(tatonam))
          case('periodic')
             astruct%geocode='P'
+            bc=[PERIODIC_BC,PERIODIC_BC,PERIODIC_BC]
          case('surface')
             astruct%geocode='S'
+            bc=[PERIODIC_BC,FREE_BC,PERIODIC_BC]
 !            astruct%cell_dim(2)=0.0_gp
          case('wire')
             astruct%geocode='W'
+            bc=[FREE_BC,FREE_BC,PERIODIC_BC]
 !            astruct%cell_dim(1)=0.0_gp
 !            astruct%cell_dim(2)=0.0_gp
          case default !otherwise free bc
             astruct%geocode='F'
+            bc=[FREE_BC,FREE_BC,FREE_BC]
 !            astruct%cell_dim(1)=0.0_gp
 !            astruct%cell_dim(2)=0.0_gp
 !            astruct%cell_dim(3)=0.0_gp
@@ -174,6 +188,7 @@
             end select
          end if
          astruct%geocode='F'
+         bc=[FREE_BC,FREE_BC,FREE_BC]
          alat1d0=0.0_gp
          alat2d0=0.0_gp
          alat3d0=0.0_gp
@@ -223,8 +238,10 @@
          return
       end select
 
-      bc=geocode_to_bc(astruct%geocode) !should become a variable of astruct
-      peri=bc_periodic_dims(bc)
+      !bc=geocode_to_bc(astruct%geocode) !should become a variable of astruct
+      astruct%dom=domain_new(units=units_enum,bc=bc,&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=astruct%cell_dim)
+      peri=domain_periodic_dims(astruct%dom)
 
       call astruct_set_n_atoms(astruct, iat)
 
@@ -389,8 +406,9 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLi
   use dictionaries, dict_set=>set
   use yaml_parse
   use yaml_output
-  use at_domain, only: geocode_to_bc,bc_periodic_dims
   use public_keys, only: ASTRUCT_REDUCED
+  use at_domain
+  use f_enums, only: f_enumerator
   implicit none
   integer, intent(in) :: ifile
   character(len=*), intent(in) :: filename
@@ -425,6 +443,8 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLi
   logical :: disableTrans
   logical, dimension(3) :: peri
   type(dictionary), pointer :: dict
+  type(f_enumerator), dimension(3) :: bc !boundary conditions of the system
+  type(f_enumerator) :: units_enum
 
   if(present(disableTrans_))then
     disableTrans=disableTrans_
@@ -465,6 +485,7 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLi
   reduced = .false.
   forces = .false.
   astruct%geocode = 'P'
+  bc=[PERIODIC_BC,PERIODIC_BC,PERIODIC_BC]
   iat     = 0
   do i = 4, nlines, 1
      write(line, "(a256)") adjustl(lines(i))
@@ -477,10 +498,22 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLi
         if (index(line, 'angstroem') > 0)   write(astruct%units, "(A)") "angstroem"
         if (index(line, 'angstroemd0') > 0) write(astruct%units, "(A)") "angstroemd0"
         if (index(line, 'reduced') > 0)     reduced = .true.
-        if (index(line, 'periodic') > 0) astruct%geocode = 'P'
-        if (index(line, 'surface') > 0)  astruct%geocode = 'S'
-        if (index(line, 'wire') > 0)  astruct%geocode = 'W'
-        if (index(line, 'freeBC') > 0)   astruct%geocode = 'F'
+        if (index(line, 'periodic') > 0) then
+            astruct%geocode = 'P'
+            bc=[PERIODIC_BC,PERIODIC_BC,PERIODIC_BC]
+        end if
+        if (index(line, 'surface') > 0) then
+            astruct%geocode = 'S'
+            bc=[PERIODIC_BC,FREE_BC,PERIODIC_BC]
+        end if
+        if (index(line, 'wire') > 0) then
+            astruct%geocode = 'W'
+            bc=[FREE_BC,FREE_BC,PERIODIC_BC]
+        end if
+        if (index(line, 'freeBC') > 0) then
+            astruct%geocode = 'F'
+            bc=[FREE_BC,FREE_BC,FREE_BC]
+        end if
      else if (line(1:9) == "#metaData" .or. line(1:9) == "!metaData") then
         if (index(line, 'totalEnergy') > 0) then
            read(line(index(line, 'totalEnergy') + 12:), *, iostat = i_stat) energy
@@ -548,9 +581,20 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLi
      astruct%cell_dim(3) = astruct%cell_dim(3) / Bohr_Ang
   endif
 
+  select case(astruct%units)
+  case('angstroem','angstroemd0')
+     units_enum=ANGSTROEM_UNITS
+  case default
+     units_enum=ATOMIC_UNITS
+  end select
+
+  !peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+  astruct%dom=domain_new(units=units_enum,bc=bc,&
+        alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=astruct%cell_dim)
+  peri=domain_periodic_dims(astruct%dom)
+
   call astruct_set_n_atoms(astruct, iat)
 
-  peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
 
   ntyp=0
   iat = 1
@@ -692,10 +736,11 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
       BIGDFT_INPUT_VARIABLES_ERROR, BIGDFT_INPUT_FILE_ERROR
   use dictionaries, only: f_err_raise, max_field_length, f_err_throw
   use dynamic_memory
-  use numerics, only: pi_param => pi, Bohr_Ang, Radian_Degree
+  use numerics, only: pi_param => pi, Bohr_Ang, Radian_Degree, onehalf
   use yaml_strings, only: yaml_toa
   use at_domain, only: geocode_to_bc,bc_periodic_dims
   use internal_coordinates, only: internal_to_cartesian
+  use f_enums, only: f_enumerator
   implicit none
   integer, intent(in) :: iproc,ifile
   type(atomic_structure), intent(inout) :: astruct
@@ -717,7 +762,6 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
   character(len=226) :: extra
   character(len=256) :: line
   logical :: lpsdbl, eof
-  logical, dimension(3) :: peri
   integer :: iat,ityp,ntyp,i,ierrsfx,nchrg, nspol,idir
   ! To read the file posinp (avoid differences between compilers)
   real(kind=4) :: rx,ry,rz,alat1,alat2,alat3
@@ -727,6 +771,8 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
   character(len=20), dimension(100) :: atomnames
   logical :: disableTrans
   character(len = max_field_length) :: errmess
+  type(f_enumerator), dimension(3) :: bc !boundary conditions of the system
+  type(f_enumerator) :: units_enum
 
   if(present(disableTrans_))then
     disableTrans=disableTrans_
@@ -768,6 +814,13 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
   if (f_err_raise(eof,"Unexpected end of file",err_id=BIGDFT_INPUT_FILE_ERROR)) return
 
 
+  select case(astruct%units)
+  case('angstroem','angstroemd0')
+    units_enum=ANGSTROEM_UNITS
+  case default
+    units_enum=ATOMIC_UNITS
+  end select
+
 !!!  !old format, still here for backward compatibility
 !!!  !admits only simple precision calculation
 !!!  read(line,*,iostat=ierror) rx,ry,rz,tatonam
@@ -788,12 +841,16 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
      select case(trim(tatonam))
      case('periodic')
         astruct%geocode='P'
+        bc=[PERIODIC_BC,PERIODIC_BC,PERIODIC_BC]
      case('surface')
         astruct%geocode='S'
+        bc=[PERIODIC_BC,FREE_BC,PERIODIC_BC]
      case('wire')
         astruct%geocode='W'
+        bc=[FREE_BC,FREE_BC,PERIODIC_BC]
      case default
         astruct%geocode='F'
+        bc=[FREE_BC,FREE_BC,FREE_BC]
      end select
      where (.not. bc_periodic_dims(geocode_to_bc(astruct%geocode))) astruct%cell_dim=0.0_gp
 !!$     if (trim(tatonam)=='periodic') then
@@ -814,6 +871,7 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
      end if
   else
      astruct%geocode='F'
+     bc=[FREE_BC,FREE_BC,FREE_BC]
      alat1d0=0.0_gp
      alat2d0=0.0_gp
      alat3d0=0.0_gp
@@ -844,6 +902,10 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
      call f_err_throw('length units in input file unrecognized, recognized units are angstroem or atomic = bohr',&
           err_id=BIGDFT_INPUT_VARIABLES_ERROR)
   end select
+
+  astruct%dom=domain_new(units=units_enum,bc=bc,&
+       alpha_bc=onehalf*pi_param,beta_ac=onehalf*pi_param,&
+       gamma_ab=onehalf*pi_param,acell=astruct%cell_dim)
 
   call astruct_set_n_atoms(astruct, iat)
 

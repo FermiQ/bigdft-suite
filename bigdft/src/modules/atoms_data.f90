@@ -1190,7 +1190,7 @@ contains
     character(len = *), intent(in) :: obfile
     type(dictionary), pointer :: dict
 
-      call load_dict_from_openbabel(dict,obfile)
+    call load_dict_from_openbabel(dict,obfile)
     ! giuseppe line
     !call analyse_posinp_dict(dict)
 
@@ -1381,7 +1381,7 @@ contains
     use numerics, only: Bohr_Ang
     use dictionaries
     use yaml_strings
-    use at_domain, only: geocode_to_bc,bc_periodic_dims
+    use at_domain, only: geocode_to_bc,bc_periodic_dims,domain_periodic_dims
     use ao_inguess, only: charge_and_spol
     use yaml_output !tmp
 
@@ -1420,7 +1420,9 @@ contains
        reduced = astruct%properties .get. ASTRUCT_REDUCED
     end if
 
-    peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+    !peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+    peri=domain_periodic_dims(astruct%dom)
+
     do i=1,3
        if (peri(i)) then
           call set(dict // ASTRUCT_CELL // (i-1), yaml_toa(astruct%cell_dim(i)*factor(i)))
