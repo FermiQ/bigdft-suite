@@ -24,7 +24,7 @@
       use yaml_output, only: yaml_warning
       use public_keys, only: ASTRUCT_REDUCED
       use at_domain
-      use f_enums, only: f_enumerator
+      use f_enums
       implicit none
       !Arguments
       integer, intent(in) :: ifile
@@ -211,7 +211,7 @@
     !!!  end if
 
       !reduced coordinates are possible only with periodic units
-      if (f_err_raise( (reduced .and. astruct%geocode == 'F'), &
+      if (f_err_raise( (reduced .and. all(bc==FREE_BC)), &
            & 'Reduced coordinates are not allowed with isolated BC', &
            err_id=BIGDFT_INPUT_VARIABLES_ERROR)) return
 
@@ -740,7 +740,7 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
   use yaml_strings, only: yaml_toa
   use at_domain, only: geocode_to_bc,bc_periodic_dims
   use internal_coordinates, only: internal_to_cartesian
-  use f_enums, only: f_enumerator
+  use f_enums
   implicit none
   integer, intent(in) :: iproc,ifile
   type(atomic_structure), intent(inout) :: astruct
@@ -852,7 +852,8 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
         astruct%geocode='F'
         bc=[FREE_BC,FREE_BC,FREE_BC]
      end select
-     where (.not. bc_periodic_dims(geocode_to_bc(astruct%geocode))) astruct%cell_dim=0.0_gp
+     !where (.not. bc_periodic_dims(geocode_to_bc(astruct%geocode))) astruct%cell_dim=0.0_gp
+     where (.not. bc==PERIODIC_BC) astruct%cell_dim=0.0_gp
 !!$     if (trim(tatonam)=='periodic') then
 !!$        astruct%geocode='P'
 !!$     else if (trim(tatonam)=='surface') then
@@ -879,7 +880,7 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
 !!!  end if
 
   !reduced coordinates are possible only with periodic units
-  if (f_err_raise( (trim(astruct%units) == 'reduced' .and. astruct%geocode == 'F'), &
+  if (f_err_raise( (trim(astruct%units) == 'reduced' .and. all(bc==FREE_BC)), &
          & 'Reduced coordinates are not allowed with isolated BC', &
          err_id=BIGDFT_INPUT_VARIABLES_ERROR)) return
 
@@ -983,7 +984,8 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
         enddo
      else if (astruct%units == 'reduced') then
         astruct%rxyz(1,iat)=astruct%rxyz(1,iat)*astruct%cell_dim(1)
-        if (astruct%geocode == 'P') astruct%rxyz(2,iat)=astruct%rxyz(2,iat)*astruct%cell_dim(2)
+        !if (astruct%geocode == 'P') astruct%rxyz(2,iat)=astruct%rxyz(2,iat)*astruct%cell_dim(2)
+        if (domain_geocode(astruct%dom) == 'P') astruct%rxyz(2,iat)=astruct%rxyz(2,iat)*astruct%cell_dim(2)
         astruct%rxyz(3,iat)=astruct%rxyz(3,iat)*astruct%cell_dim(3)
      endif
   enddo
@@ -1077,7 +1079,7 @@ END SUBROUTINE archiveGetLine
 subroutine rxyz_inside_box(astruct,rxyz)
   use module_defs, only: gp
   use dynamic_memory, only: f_memcpy, f_routine, f_release_routine
-  use at_domain, only: geocode_to_bc,bc_periodic_dims
+  use at_domain, only: domain_periodic_dims
   implicit none
   !> description of the atomic structure
   type(atomic_structure), intent(inout) :: astruct
@@ -1094,7 +1096,8 @@ subroutine rxyz_inside_box(astruct,rxyz)
   rxyz_ => astruct%rxyz
   if (present(rxyz)) rxyz_ => rxyz
 
-  peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+  !peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+  peri=domain_periodic_dims(astruct%dom)
 
   !atoms inside the box.
   do iat=1,astruct%nat
@@ -1549,6 +1552,7 @@ subroutine wtxyz(iunit,energy,rxyz,astruct,comment)
   use numerics, only: Bohr_Ang
   use yaml_output
   use yaml_strings, only: yaml_toa
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iunit
   character(len=*), intent(in) :: comment
@@ -1591,7 +1595,8 @@ subroutine wtxyz(iunit,energy,rxyz,astruct,comment)
 
   adv = "yes"
   if (associated(astruct%properties)) adv = "no "
-  call write_xyz_bc(iunit,astruct%geocode,factor,astruct%cell_dim,advance=adv)
+  !call write_xyz_bc(iunit,astruct%geocode,factor,astruct%cell_dim,advance=adv)
+  call write_xyz_bc(iunit,domain_geocode(astruct%dom),factor,astruct%cell_dim,advance=adv)
 !!$  select case(astruct%geocode)
 !!$  case('P')
 !!$     write(iunit,'(a,3(1x,1pe24.17))', advance = adv)'periodic',&
@@ -1680,6 +1685,7 @@ subroutine wtascii(iunit,energy,rxyz,astruct,comment)
   use numerics, only: Bohr_Ang
   use yaml_output
   use yaml_strings, only: yaml_toa
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iunit
   character(len=*), intent(in) :: comment
@@ -1717,7 +1723,8 @@ subroutine wtascii(iunit,energy,rxyz,astruct,comment)
 
   write(iunit, "(A,A)") "#keyword: ", trim(units)
   if (trim(astruct%units) == "reduced") write(iunit, "(A,A)") "#keyword: reduced"
-  select case(astruct%geocode)
+  !select case(astruct%geocode)
+  select case(domain_geocode(astruct%dom))
   case('P')
      write(iunit, "(A)") "#keyword: periodic"
   case('S')
@@ -1740,7 +1747,8 @@ subroutine wtascii(iunit,energy,rxyz,astruct,comment)
   end if
 
   if (trim(astruct%units) == "reduced") then
-     select case(astruct%geocode)
+     !select case(astruct%geocode)
+     select case(domain_geocode(astruct%dom))
      case('P')
         factor(1) = 1._gp / astruct%cell_dim(1)
         factor(2) = 1._gp / astruct%cell_dim(2)
@@ -1820,6 +1828,7 @@ subroutine wtint(iunit,energy,rxyz,astruct,comment,na,nb,nc)
   use module_base, only: f_err_throw
   use yaml_output
   use yaml_strings, only: yaml_toa
+  use at_domain, only: domain_geocode
   implicit none
   integer, intent(in) :: iunit
   character(len=*), intent(in) :: comment
@@ -1868,7 +1877,8 @@ subroutine wtint(iunit,energy,rxyz,astruct,comment,na,nb,nc)
      write(iunit,'(i6,2x,a,2x,a,2x,a)') astruct%nat,trim(units),trim(angle),trim(comment)
   end if
 
-  select case(astruct%geocode)
+  !select case(astruct%geocode)
+  select case(domain_geocode(astruct%dom))
   case('P')
      call f_err_throw("Internal coordinates not implemented for periodic BC", err_id=BIGDFT_RUNTIME_ERROR)
      write(iunit,'(a,3(1x,1pe24.17))')'periodic',&

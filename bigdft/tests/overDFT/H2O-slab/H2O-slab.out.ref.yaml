@@ -368,9 +368,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #-------------------------------------------------------------------------- Atom Positions
  Atomic structure:
-   Units                               : angstroem
-   Cell: [ 3.0, .inf,  3.0]
-   Positions:
+   units                               : angstroem
+   cell: [ 3.0, .inf,  3.0]
+   positions:
    - O: [ 1.500000000,  3.175927499,  1.500000000] # [  9.00,  17.15,  9.00 ] 0001
    - H: [ 0.7285000086,  3.796846488,  1.500000000] # [  4.37,  20.50,  9.00 ] 0002
    - H: [ 2.271500111,  3.796846488,  1.500000000] # [  13.63,  20.50,  9.00 ] 0003
@@ -711,9 +711,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------------------------------------- Atom Positions
  Atomic structure:
-   Units                               : angstroem
-   Cell: [ 3.0, .inf,  3.0]
-   Positions:
+   units                               : angstroem
+   cell: [ 3.0, .inf,  3.0]
+   positions:
    - O: [ 1.500371484,  3.178673312,  1.500044429] # [  9.00,  17.16,  9.00 ] 0001
    - H: [ 0.7311490639,  3.795698859,  1.499042103] # [  4.39,  20.49,  8.99 ] 0002
    - H: [ 2.269758294,  3.797994118,  1.500995098] # [  13.62,  20.51,  9.01 ] 0003
@@ -988,9 +988,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------------------------------------- Atom Positions
  Atomic structure:
-   Units                               : angstroem
-   Cell: [ 3.0, .inf,  3.0]
-   Positions:
+   units                               : angstroem
+   cell: [ 3.0, .inf,  3.0]
+   positions:
    - O: [ 1.500743694,  3.181398454,  1.500088851] # [  9.00,  17.18,  9.00 ] 0001
    - H: [ 0.7337598494,  3.794554825,  1.498083446] # [  4.40,  20.49,  8.99 ] 0002
    - H: [ 2.268043408,  3.799138152,  1.501991007] # [  13.61,  20.51,  9.01 ] 0003
@@ -1265,9 +1265,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------------------------------------- Atom Positions
  Atomic structure:
-   Units                               : angstroem
-   Cell: [ 3.0, .inf,  3.0]
-   Positions:
+   units                               : angstroem
+   cell: [ 3.0, .inf,  3.0]
+   positions:
    - O: [ 1.500743694,  3.181398454,  1.500088851] # [  9.00,  17.18,  9.00 ] 0001
    - H: [ 0.7337598494,  3.794554825,  1.498083446] # [  4.40,  20.49,  8.99 ] 0002
    - H: [ 2.268043408,  3.799138152,  1.501991007] # [  13.61,  20.51,  9.01 ] 0003
@@ -1398,11 +1398,18 @@
    Box                                 :  [  36,  113,  36 ]
    MPI tasks                           :  2
  Electric Dipole Moment (AU):
-   P vector                            :  [  5.2648E-02,  3.7549E-01,  2.0658E-02 ]
-   norm(P)                             :  3.797298E-01
+   P vector                            :  [ -5.219675E-02,  3.754945E-01, -2.074688E-02 ]
+   norm(P)                             :  3.79672301E-01
  Electric Dipole Moment (Debye):
-   P vector                            :  [  1.3382E-01,  9.5441E-01,  5.2508E-02 ]
-   norm(P)                             :  9.651769E-01
+   P vector                            :  [ -1.326709E-01,  9.544117E-01, -5.273330E-02 ]
+   norm(P)                             :  9.65030640E-01
+ Quadrupole Moment (AU):
+   Q matrix:
+   -  [ 4.3242E+00, -1.2359E-01,  1.5839E-02]
+   -  [-1.2359E-01, -2.4858E+00, -2.9104E-02]
+   -  [ 1.5839E-02, -2.9104E-02, -1.8384E+00]
+   trace                               : -2.66E-15
+ Spreads of the electronic density (AU):  [  9.502605E-01,  9.554124E-01,  7.964993E-01 ]
  Writing electronic density in file    : electronic_density
  Writing Hartree potential in file     : hartree_potential
  Calculate local forces: Yes

@@ -409,8 +409,8 @@
    PSP XC                              : "XC: Teter 93"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    -  {H: [ 4.548867099,  3.810075919,  3.810075919],  # [  19.10,  16.00,  16.00 ] 0001
  IGSpin:  1}
    -  {H: [ 3.785673973,  3.810075919,  3.810075919],  # [  15.90,  16.00,  16.00 ] 0002
@@ -700,8 +700,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    -  {H: [ 4.550284801,  3.810075919,  3.810075919],  # [  19.11,  16.00,  16.00 ] 0001
  IGSpin:  1}
    -  {H: [ 3.784256271,  3.810075919,  3.810075919],  # [  15.89,  16.00,  16.00 ] 0002
@@ -939,8 +939,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    -  {H: [ 4.550250204,  3.810075919,  3.810075919],  # [  19.11,  16.00,  16.00 ] 0001
  IGSpin:  1}
    -  {H: [ 3.784290868,  3.810075919,  3.810075919],  # [  15.89,  16.00,  16.00 ] 0002
@@ -1159,8 +1159,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    -  {H: [ 4.550149678,  3.810075919,  3.810075919],  # [  19.11,  16.00,  16.00 ] 0001
  IGSpin:  1}
    -  {H: [ 3.784391394,  3.810075919,  3.810075919],  # [  15.89,  16.00,  16.00 ] 0002
@@ -1387,8 +1387,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    -  {H: [ 4.549992692,  3.810075919,  3.810075919],  # [  19.11,  16.00,  16.00 ] 0001
  IGSpin:  1}
    -  {H: [ 3.784548380,  3.810075919,  3.810075919],  # [  15.89,  16.00,  16.00 ] 0002
@@ -1615,8 +1615,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    -  {H: [ 4.549794098,  3.810075919,  3.810075919],  # [  19.11,  16.00,  16.00 ] 0001
  IGSpin:  1}
    -  {H: [ 3.784746974,  3.810075919,  3.810075919],  # [  15.89,  16.00,  16.00 ] 0002
@@ -1843,8 +1843,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    -  {H: [ 4.549572735,  3.810075919,  3.810075919],  # [  19.11,  16.00,  16.00 ] 0001
  IGSpin:  1}
    -  {H: [ 3.784968337,  3.810075919,  3.810075919],  # [  15.89,  16.00,  16.00 ] 0002

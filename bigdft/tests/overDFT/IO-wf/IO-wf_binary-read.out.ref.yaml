@@ -336,9 +336,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #-------------------------------------------------------------------------- Atom Positions
  Atomic structure:
-   Units                               : angstroem
-   Cell                                :  [  4.5,  4.5,  4.5 ]
-   Positions:
+   units                               : angstroem
+   cell                                :  [  4.5,  4.5,  4.5 ]
+   positions:
    -  {O: [ 0.000000000,  0.000000000,  0.000000000],  # [  0.00,  0.00,  0.00 ] 0001
  IGSpin:  2}
    -  {O: [ 0.000000000,  0.000000000,  1.208000000],  # [  0.00,  0.00,  8.05 ] 0002
@@ -516,12 +516,19 @@
    Box                                 :  [  60,  60,  60 ]
    MPI tasks                           :  2
  Electric Dipole Moment (AU):
-   P vector                            :  [ -4.7057E+01, -4.6605E+01, -2.5197E+01 ]
-   norm(P)                             :  7.086106E+01
+   P vector                            :  [ -3.916061E-02, -4.408433E-02, -1.502055E-02 ]
+   norm(P)                             :  6.08489811E-02
  Electric Dipole Moment (Debye):
-   P vector                            :  [ -1.1961E+02, -1.1846E+02, -6.4045E+01 ]
-   norm(P)                             :  1.801108E+02
- Calculate local forces: Yes
+   P vector                            :  [ -9.953634E-02, -1.120512E-01, -3.817843E-02 ]
+   norm(P)                             :  1.54662668E-01
+ Quadrupole Moment (AU):
+   Q matrix:
+   -  [ 7.9272E-01, -8.8818E-04, -2.6015E-03]
+   -  [-8.8818E-04,  3.6410E+00, -1.5995E-03]
+   -  [-2.6015E-03, -1.5995E-03, -4.4337E+00]
+   trace                               : -1.78E-14
+ Spreads of the electronic density (AU):  [  8.15677E-01,  7.656420E-01,  1.453719E+00 ]
+ Calculate local forces                :  Yes
  Calculate Non Local forces            :  Yes
  Average noise forces: {x:  3.54968579E-01, y:  3.05738968E-01, z:  4.41957974E-01, 
                     total:  6.44054236E-01}
