@@ -2,18 +2,19 @@ EXTRA_DIST = \
 	op2p_check.ref.yaml \
 	linalg_check.ref.yaml \
 	example.f90 \
-	mpi_check.f90 \
 	mpi_layer.f90
 
+CHECK_PROGS = linalg_check
+if USE_MPI
+CHECK_PROGS += op2p_check mpi_check
+endif
 
-check_PROGRAMS = op2p_check linalg_check mpi_check
+check_PROGRAMS = $(CHECK_PROGS)
 
 check: regtest report #op2p_check.report.yaml $(check_PROGRAMS)
 
 report:
 	@if test $(MAKELEVEL) = 0 ; then python $(top_builddir)/tests/report.py ; fi
-
-EXTRA_PROGRAMS = mpi_check
 
 CLEANFILES = *.out.yaml *.report.yaml *.@MODULE_EXT@ report_remarks
 
@@ -53,11 +54,16 @@ regtest: op2p_check linalg_check
 	python $(top_srcdir)/tests/f_regtest.py --fldiff=$(top_builddir)/tests/fldiff_yaml.py --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir)
 
 define F_REGTEST_INSTRUCTIONS
+if USE_MPI
 - op2p_check:
    runs:
     - $(run_parallel) ./op2p_check -o [10,10,10,10] -n 100
     - $(run_parallel) ./op2p_check -o [100,100] -n 1000
     - $(run_parallel) ./op2p_check -o [201,201] -n 2000
+- mpi_check:
+   runs:
+    - $(run_parallel) ./mpi_check
+endif
 - linalg_check:
    runs:
     - OMP_NUM_THREADS=1 ./linalg_check -o 75 -v 10000
@@ -65,8 +71,5 @@ define F_REGTEST_INSTRUCTIONS
     - ./linalg_check -o 75 -v 10000 -s Yes
     - ./linalg_check -o 75 -v 10000 -c 2
     - ./linalg_check -o 75 -v 10000 -c 2 -s Yes
-- mpi_check:
-   runs:
-    - $(run_parallel) ./mpi_check
 endef
 export F_REGTEST_INSTRUCTIONS
