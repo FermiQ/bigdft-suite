@@ -63,6 +63,7 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer 
 
     //free(fname);
 
+
     if (!pFormat || (pFormat->Flags() & NOTREADABLE))
       {
         err_throw_by_name("Unknown format for OpenBabel.",
@@ -86,6 +87,17 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer 
       err_throw_by_name("Error while reading OpenBabel format.",
                         "BIGDFT_INPUT_VARIABLES_ERROR");
     return;
+  }
+
+  /* Store the filename and the format into a properties f90_dictionary */
+  {
+    f90_dictionary_pointer dict_properties;
+    dict_init(&dict_properties);
+    dict_set_string(&dict_properties, "source", filename);
+    std::string file = filename;
+    std::string::size_type extPos = file.rfind('.');
+    dict_set_string(&dict_properties, "format", (file.substr(extPos + 1, file.size())).c_str() );
+    dict_set_dict(dict_posinp, "properties", &dict_properties);
   }
 
   /* Store if the file is periodic or not. */
@@ -114,7 +126,7 @@ extern "C" void FC_FUNC_(openbabel_load, OPENBABEL_LOAD)(f90_dictionary_pointer 
       vect[0] = 0.;
       vect[1] = 0.;
       vect[2] = 0.;
-    } 
+    }
   /* the units for openbabel formats is supposed to be angstroem unless otherwise specified */
   dict_set_string(dict_posinp, "units", "angstroem");
   /* retrieve positions */
@@ -162,7 +174,7 @@ extern "C" void FC_FUNC_(openbabel_dump, OPENBABEL_DUMP)(f90_dictionary_pointer 
   /* Ensure output file */
   /*char *fname = (char*)malloc(sizeof(char) * (*flen + 1));
   memcpy(fname, filename, sizeof(char) * *flen);
-  fname[*flen] = '\0'; 
+  fname[*flen] = '\0';
   std::ofstream fout(fname); */
 
   std::ofstream fout(filename);
@@ -204,7 +216,7 @@ extern "C" void FC_FUNC_(openbabel_dump, OPENBABEL_DUMP)(f90_dictionary_pointer 
       c.Set(rprimdFull[2]);
       cell=new OpenBabel::OBUnitCell;
       cell->SetData(a, b, c);
-      mol.SetData(cell);    
+      mol.SetData(cell);
     }
 
   /*iterate on atoms */
@@ -240,7 +252,7 @@ extern "C" void FC_FUNC_(openbabel_dump, OPENBABEL_DUMP)(f90_dictionary_pointer 
                         "BIGDFT_RUNTIME_ERROR");
       return;
     }
-  
+
   fout.close();
- 
+
 }

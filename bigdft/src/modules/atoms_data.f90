@@ -1134,18 +1134,18 @@ contains
        call astruct_set_from_dict(yaml_file_dict//0, astruct, comment_)
        call dict_free(yaml_file_dict)
        call f_strcpy(src='yaml',dest=astruct%inputfile_format)
-    case(BABEL_SOURCE)
 
+    case(BABEL_SOURCE)
        call set_astruct_from_openbabel(astruct, trim(filename))
-       !get atomic extension
-       l=index(filename,'.',back=.true.)+1
-       call f_strcpy(src=filename(l:),dest=astruct%inputfile_format)
+       call f_strcpy(src='',dest=comment_)
+       energy_=UNINITIALIZED(energy_)
 
     case default
        call f_err_throw(err_msg="The specified format '" // trim(astruct%inputfile_format) // "' is not recognised."// &
             & " The format should be 'yaml', 'int', 'ascii' or 'xyz'.",err_id=BIGDFT_INPUT_FILE_ERROR)
 
     end select
+
     !if an error or both (f_open_file and read) have been produced return
     if (f_err_check()) return
 
