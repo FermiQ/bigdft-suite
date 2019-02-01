@@ -399,6 +399,11 @@ SiH4-collocation:
  EKS: 5e-8
  Q matrix: 5e-8
 
+H2O-slab:
+ Keys to ignore:
+   - NonLocal PSP Parameters
+ 
+
 H2O-bader:
  Epsilon: 3.0e-11
  EKS: 6.0e-11

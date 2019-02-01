@@ -1961,7 +1961,7 @@ contains
       ! Temporary assignation before removal - WARNING, reduced coordinates have to be still defined
       units = astruct%dom%units
       if (reduced) units=2 !LG: oh my god an explicit number here...
-      astruct%cell_dim=astruct%dom%acell
+      astruct%cell_dim=astruct%dom%acell   ! to be checked
       astruct%geocode=domain_geocode(astruct%dom)
       astruct%units=dict_get(dict,ASTRUCT_UNITS,default='bohr')
 

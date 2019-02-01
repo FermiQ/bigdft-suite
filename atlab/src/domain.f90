@@ -92,7 +92,7 @@ module at_domain
   public :: rxyz_ortho,distance,closest_r
   public :: dotp_gu,dotp_gd,square_gu,square_gd
   public :: domain_geocode,bc_periodic_dims,geocode_to_bc,domain_periodic_dims
-  public :: geocode_to_bc_enum
+  public :: geocode_to_bc_enum,make_domain_with_free_BC
 
 contains
 
@@ -308,6 +308,17 @@ contains
     !here we should verify that the the inverse metric times the metric is the identity
 
   end function domain_new
+
+  function make_domain_with_free_BC(dom_pbc) result(dom)
+    implicit none
+    type(domain), intent(in) :: dom_pbc
+    type(domain) :: dom
+ 
+    dom=dom_pbc
+    dom%bc=[FREE,FREE,FREE]
+    where (dom%bc==FREE) dom%acell=0.0_gp
+
+  end function make_domain_with_free_BC
 
   subroutine abc_to_angrad_and_acell(abc,angrad,acell)
     implicit none

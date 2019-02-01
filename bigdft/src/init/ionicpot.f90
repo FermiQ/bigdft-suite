@@ -106,6 +106,8 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
      rprimd(2,2)=at%astruct%cell_dim(2)
      rprimd(3,3)=at%astruct%cell_dim(3)
 
+     !rprimd=at%astruct%dom%abc
+
      !calculate the metrics and the volume
      call abi_metric(gmet,gprimd,-1,rmet,rprimd,ucvol)
 

@@ -3291,8 +3291,7 @@ contains
     case('P')
        call yaml_map('Boundary Conditions','Periodic',advance='no')
        call yaml_comment('Code: '//domain_geocode(atoms%astruct%dom))
-       call yaml_map('Box Sizes (AU)',(/atoms%astruct%cell_dim(1),atoms%astruct%cell_dim(2),&
-            atoms%astruct%cell_dim(3)/),fmt='(1pe12.5)')
+       call yaml_map('Box Sizes (AU)',atoms%astruct%cell_dim,fmt='(1pe12.5)') !to be done for the others
     case('S')
        call yaml_map('Boundary Conditions','Surface',advance='no')
        call yaml_comment('Code: '//domain_geocode(atoms%astruct%dom))

@@ -3,19 +3,19 @@
 module constraints
       implicit none
       type, public :: cons_data
-          integer                    ::  nconstraints              
-          integer                    ::  algorithm                
-          integer                    ::  diis_size     
-          integer, DIMENSION(:,:), POINTER :: CONSTRAINTS_TYPE(:)
-          integer, DIMENSION(:,:), POINTER :: COORDINATE_ATOMLIST(:,:)
-          REAL(KIND=8), DIMENSION(:,:), POINTER :: TARG(:)
-          REAL(KIND=8), DIMENSION(:,:), POINTER :: cc(:)
-          REAL(KIND=8), DIMENSION(:,:), POINTER :: ffcv(:,:)
-          REAL(KIND=8), DIMENSION(:,:), POINTER :: sigma(:,:)
-          REAL(KIND=8), DIMENSION(:,:), POINTER :: sigma_gd(:,:)
-          REAL(KIND=8), DIMENSION(:,:), POINTER :: dt2bym(:)
-          real(kind=8)               ::  const_conv                
-          integer                    ::  fflage
+      integer                    ::  nconstraints=0              
+          integer                    ::  algorithm=0                
+          integer                    ::  diis_size=0     
+          integer, DIMENSION(:), POINTER :: CONSTRAINTS_TYPE => null()
+          integer, DIMENSION(:,:), POINTER :: COORDINATE_ATOMLIST => null()
+          REAL(KIND=8), DIMENSION(:), POINTER :: TARG => null()
+          REAL(KIND=8), DIMENSION(:), POINTER :: cc => null()
+          REAL(KIND=8), DIMENSION(:,:), POINTER :: ffcv => null()
+          REAL(KIND=8), DIMENSION(:,:), POINTER :: sigma => null()
+          REAL(KIND=8), DIMENSION(:,:), POINTER :: sigma_gd => null()
+          REAL(KIND=8), DIMENSION(:), POINTER :: dt2bym => null()
+          real(kind=8)               ::  const_conv = 0.0_8               
+          integer                    ::  fflage =0
           
       end type 
       contains
