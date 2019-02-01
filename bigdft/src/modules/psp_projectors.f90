@@ -202,7 +202,7 @@ contains
     use locregs
     use box
     use compression
-    use at_domain, only: domain_geocode
+    use at_domain, only: domain_geocode,domain,change_domain_BC
     implicit none
     type(atomic_projectors), intent(in) :: atproj
     type(cell), intent(in) :: gmesh
@@ -218,7 +218,8 @@ contains
     integer, dimension(2,3) :: nbox, nboxf
     double precision, parameter :: eps_mach=1.d-12
     type(cell) :: fmesh
-    character(len = 1) :: geocode
+    !character(len = 1) :: geocode
+    type(domain) :: dom
 
     call nullify_locreg_descriptors(plr)
     call atomic_projector_iter_new(iter, atproj)
@@ -260,10 +261,12 @@ contains
        fmesh%dom%bc = 0 ! Free in every directions
        nbox = box_nbox_from_cutoff(fmesh, atproj%rxyz, atproj%radius + &
             & maxval(gmesh%hgrids) * eps_mach)
-       geocode = 'F'
+       !geocode = 'F'
+       dom=change_domain_BC(gmesh%dom,geocode='F')
        if (any((nbox(2, :) - nbox(1, :)) > gmesh%ndims(:) .and. gmesh%dom%bc(:) == 1)) then
           ! Projector does not fit inside the global mesh.
-          geocode = domain_geocode(gmesh%dom)
+          !geocode = domain_geocode(gmesh%dom)
+          dom=gmesh%dom
           nbox(1, :) = 0
           nbox(2, :) = gmesh%ndims(:) - 1
           nboxf(1, 1) = nl1
@@ -276,7 +279,8 @@ contains
           nboxf = box_nbox_from_cutoff(fmesh, atproj%rxyz, atproj%fine_radius + &
                & maxval(gmesh%hgrids) * eps_mach)
        end if
-       call init_lr(plr, geocode, 0.5_gp * gmesh%hgrids, &
+       !call init_lr(plr, geocode, 0.5_gp * gmesh%hgrids, &
+       call init_lr(plr, dom, 0.5_gp * gmesh%hgrids, &
             & nbox(2,1), nbox(2,2), nbox(2,3), &
             & nboxf(1,1), nboxf(1,2), nboxf(1,3), nboxf(2,1), nboxf(2,2), nboxf(2,3), &
             & .false., nbox(1,1), nbox(1,2), nbox(1,3), domain_geocode(gmesh%dom))

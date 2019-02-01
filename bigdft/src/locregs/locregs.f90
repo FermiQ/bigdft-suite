@@ -887,7 +887,8 @@ contains
     end function grid_init
 
     !> Create the localisation region information for cubic code
-    subroutine init_lr(lr,geocode,hgridsh,n1,n2,n3,nfl1,nfl2,nfl3,nfu1,nfu2,nfu3,&
+    !subroutine init_lr(lr,geocode,hgridsh,n1,n2,n3,nfl1,nfl2,nfl3,nfu1,nfu2,nfu3,&
+    subroutine init_lr(lr,dom,hgridsh,n1,n2,n3,nfl1,nfl2,nfl3,nfu1,nfu2,nfu3,&
          hybrid_flag,isx,isy,isz,global_geocode,wfd,bnds)
       use compression
       use bounds
@@ -896,7 +897,8 @@ contains
       use numerics, only: onehalf,pi
       implicit none
       logical, intent(in) :: hybrid_flag
-      character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+      !character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+      type(domain), intent(in) :: dom !<data type for the simulation domain
       integer, intent(in) :: n1,n2,n3,nfl1,nfl2,nfl3,nfu1,nfu2,nfu3
       real(gp), dimension(3), intent(in) :: hgridsh
       character(len=1), intent(in), optional :: global_geocode
@@ -912,7 +914,7 @@ contains
       logical, dimension(3) :: peri,peri_glob
       integer, dimension(3) :: ndims
       real(gp), dimension(3) :: oxyz,hgrids
-      type(domain) :: dom
+      type(domain) :: dom_tmp
 
       call f_routine(id='init_lr')
 
@@ -937,7 +939,8 @@ contains
 !!$      peri(2)=geocode == 'P'
 !!$      peri(3)=geocode /= 'F'
 
-      peri=bc_periodic_dims(geocode_to_bc(geocode))
+      !peri=bc_periodic_dims(geocode_to_bc(geocode))
+      peri=domain_periodic_dims(dom)
 
       lr%d=grid_init(peri,n1,n2,n3,nfl1,nfl2,nfl3,nfu1,nfu2,nfu3,&
          lr%ns1,lr%ns2,lr%ns3)
@@ -947,9 +950,11 @@ contains
 
       !this is the mesh in real space (ISF basis)
       !lr%mesh=cell_new(geocode,ndims,hgridsh)
-      dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims*hgridsh)
-      lr%mesh=cell_new(dom,ndims,hgridsh)
+      !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+      !      alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims*hgridsh)
+      dom_tmp=dom
+      dom_tmp%acell=ndims*hgridsh
+      lr%mesh=cell_new(dom_tmp,ndims,hgridsh)
 
       call ext_buffers_coarse(peri(1),Lnbl1)
       call ext_buffers_coarse(peri(2),Lnbl2)
@@ -960,20 +965,24 @@ contains
       ndims(3)=2*lr%d%n3+2+2*Lnbl3
       !this is the mesh in the fine scaling function
       !lr%mesh_fine=cell_new(geocode,ndims,hgridsh)
-      dom=domain_null()
-      dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims*hgridsh)
-      lr%mesh_fine=cell_new(dom,ndims,hgridsh)
+      !dom=domain_null()
+      !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+      !      alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims*hgridsh)
+      dom_tmp=dom
+      dom_tmp%acell=ndims*hgridsh
+      lr%mesh_fine=cell_new(dom_tmp,ndims,hgridsh)
 
       ndims(1)=lr%d%n1+1
       ndims(2)=lr%d%n2+1
       ndims(3)=lr%d%n3+1
       hgrids=2.0_gp*hgridsh
       !lr%mesh_coarse=cell_new(geocode,ndims,hgrids) !we should write the number of points here
-      dom=domain_null()
-      dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims*hgrids)
-      lr%mesh_coarse=cell_new(dom,ndims,hgrids)
+      !dom=domain_null()
+      !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+      !      alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims*hgrids)
+      dom_tmp=dom
+      dom_tmp%acell=ndims*hgrids
+      lr%mesh_coarse=cell_new(dom_tmp,ndims,hgrids)
 
 
       Gnbl1=0
@@ -1006,7 +1015,7 @@ contains
       if (present(wfd)) lr%wfd=wfd !it just associates the pointers
 
       !this is a point where the geocode is stull used
-      if (geocode == 'F' .and. present(bnds)) lr%bounds=bnds
+      if (domain_geocode(dom) == 'F' .and. present(bnds)) lr%bounds=bnds
 
       !here we have to put the modifications of the origin for the
       !iterator of the lr. get_isf_offset should be used as
@@ -1042,13 +1051,15 @@ contains
     end subroutine correct_dimensions
 
 
-    subroutine correct_lr_extremes(lr,Glr,geocode,correct,nbox_lr,nbox)
-      use at_domain, only: domain_periodic_dims
+    !subroutine correct_lr_extremes(lr,Glr,geocode,correct,nbox_lr,nbox)
+    subroutine correct_lr_extremes(lr,Glr,dom,correct,nbox_lr,nbox)
+      use at_domain
       implicit none
       logical, intent(in) :: correct
       type(locreg_descriptors), intent(inout) :: lr
       type(locreg_descriptors), intent(in) :: Glr
-      character(len=1), intent(out) :: geocode
+      !character(len=1), intent(out) :: geocode
+      type(domain), intent(out) :: dom
       integer, dimension(2,3), intent(out) :: nbox_lr
       integer, dimension(2,3), intent(in), optional :: nbox
       !local variables
@@ -1081,7 +1092,8 @@ contains
       ln2 = iey-isy
       ln3 = iez-isz
 
-      geocode='F'
+      !geocode='F'
+      dom=change_domain_BC(Glr%mesh%dom,geocode='F')
 
       xperiodic = .false.
       yperiodic = .false.
@@ -1109,9 +1121,13 @@ contains
          iez=min(iez,Glr%ns3+Glr%d%n3)
          lr%outofzone(3) = 0
       end if
-      if (zperiodic) geocode = 'W'
-      if (xperiodic .and. zperiodic) geocode = 'S'
-      if (xperiodic .and. yperiodic .and. zperiodic) geocode = 'P'
+      !if (zperiodic) geocode = 'W'
+      if (zperiodic) dom=change_domain_BC(Glr%mesh%dom,geocode='W')
+      !if (xperiodic .and. zperiodic) geocode = 'S'
+      if (xperiodic .and. zperiodic) dom=change_domain_BC(Glr%mesh%dom,geocode='S')
+      !if (xperiodic .and. yperiodic .and. zperiodic) geocode = 'P'
+      if (xperiodic .and. yperiodic .and. zperiodic) &
+         dom=change_domain_BC(Glr%mesh%dom,geocode='P')
 
 !!$      !assign the starting/ending points and outofzone for the different
 !!$      ! geometries
@@ -1238,14 +1254,19 @@ contains
     !initialize the parts of lr that can be initialized from a load from a
     !traditional restart. The output files have to be redefined such that
     !this routine would not need to be called
-    subroutine reset_lr(lr,geocode,hgrids,nbox,global_geocode)
+    !subroutine reset_lr(lr,geocode,hgrids,nbox,global_geocode)
+    subroutine reset_lr(lr,dom,hgrids,nbox,global_geocode)
+      use at_domain, only: domain
       implicit none
-      character(len=1), intent(in) :: geocode,global_geocode
+      type(domain), intent(in) :: dom !<data type for the simulation domain
+      !character(len=1), intent(in) :: geocode
+      character(len=1), intent(in) :: global_geocode
       real(gp), dimension(3), intent(in) :: hgrids
       integer, dimension(2,3), intent(in) :: nbox !fine box of the environmental region
       type(locreg_descriptors), intent(inout) :: lr
 
-      call init_lr(lr,geocode,0.5_gp*hgrids,&
+      !call init_lr(lr,geocode,0.5_gp*hgrids,&
+      call init_lr(lr,dom,0.5_gp*hgrids,&
            lr%ns1+lr%d%n1,lr%ns2+lr%d%n2,lr%ns3+lr%d%n3,&
            nbox(1,1),nbox(1,2),nbox(1,3),&
            nbox(2,1),nbox(2,2),nbox(2,3),&
@@ -1256,7 +1277,7 @@ contains
     !> initalize the box-related components of the localization regions
     subroutine lr_box(lr,Glr,hgrids,nbox,correction)
       use bounds, only: ext_buffers
-      use at_domain, only: domain_geocode
+      use at_domain, only: domain_geocode,domain
       implicit none
       !> Sub-box to iterate over the points (ex. around atoms)
       !! start and end points for each direction
@@ -1266,20 +1287,23 @@ contains
       integer, dimension(2,3), intent(in), optional :: nbox
       logical, intent(in), optional :: correction
       !local variables
-      character(len=1) :: geocode
+      !character(len=1) :: geocode
       logical :: correct
       integer, dimension(2,3) :: nbox_lr
       real(gp), dimension(3) :: hgridsh
+      type(domain) :: dom
 
       call f_routine(id='lr_box')
 
       correct=.false.
       if (present(correction)) correct=correction
 
-      call correct_lr_extremes(lr,Glr,geocode,correct,nbox_lr,nbox)
+      !call correct_lr_extremes(lr,Glr,geocode,dom,correct,nbox_lr,nbox)
+      call correct_lr_extremes(lr,Glr,dom,correct,nbox_lr,nbox)
 
       hgridsh=0.5_gp*hgrids
-      call init_lr(lr,geocode,hgridsh,nbox_lr(2,1),nbox_lr(2,2),nbox_lr(2,3),&
+      !call init_lr(lr,geocode,hgridsh,nbox_lr(2,1),nbox_lr(2,2),nbox_lr(2,3),&
+      call init_lr(lr,dom,hgridsh,nbox_lr(2,1),nbox_lr(2,2),nbox_lr(2,3),&
            Glr%d%nfl1,Glr%d%nfl2,Glr%d%nfl3,&
            Glr%d%nfu1,Glr%d%nfu2,Glr%d%nfu3,&
 !!$           .false.,nbox_lr(1,1),nbox_lr(1,2),nbox_lr(1,3),Glr%geocode)

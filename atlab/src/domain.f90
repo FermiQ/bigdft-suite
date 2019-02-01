@@ -92,7 +92,7 @@ module at_domain
   public :: rxyz_ortho,distance,closest_r
   public :: dotp_gu,dotp_gd,square_gu,square_gd
   public :: domain_geocode,bc_periodic_dims,geocode_to_bc,domain_periodic_dims
-  public :: geocode_to_bc_enum,make_domain_with_free_BC
+  public :: geocode_to_bc_enum,change_domain_BC
 
 contains
 
@@ -309,16 +309,30 @@ contains
 
   end function domain_new
 
-  function make_domain_with_free_BC(dom_pbc) result(dom)
+  function change_domain_BC(dom_in,geocode) result(dom)
     implicit none
-    type(domain), intent(in) :: dom_pbc
+    type(domain), intent(in) :: dom_in
+    character(len=1), intent(in) :: geocode
     type(domain) :: dom
- 
-    dom=dom_pbc
-    dom%bc=[FREE,FREE,FREE]
+
+    dom=dom_in
+
+    select case(geocode)
+    case('P')
+        dom%bc=[PERIODIC,PERIODIC,PERIODIC]
+    case('S')
+        dom%bc=[PERIODIC,FREE,PERIODIC]
+    case('W')
+        dom%bc=[FREE,FREE,PERIODIC]
+    case('F')
+        dom%bc=[FREE,FREE,FREE]
+    case default
+        dom%bc=[FREE,FREE,FREE]
+    end select
+
     where (dom%bc==FREE) dom%acell=0.0_gp
 
-  end function make_domain_with_free_BC
+  end function change_domain_BC
 
   subroutine abc_to_angrad_and_acell(abc,angrad,acell)
     implicit none

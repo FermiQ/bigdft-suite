@@ -259,7 +259,7 @@ subroutine test_box_functions()
   call loop_box_function('consistency_check',mesh_noortho)
 
   ! check free BC non-ortho
-  dom_noortho=make_domain_with_free_BC(dom_noortho_pbc)
+  dom_noortho=change_domain_BC(dom_noortho_pbc,geocode='F')
   mesh_noortho=cell_null()
   mesh_noortho = cell_new(dom_noortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
 
@@ -268,9 +268,7 @@ subroutine test_box_functions()
   call loop_box_function('consistency_check',mesh_noortho)
 
   ! check surface BC non-ortho
-  dom_noortho=dom_noortho_pbc
-  dom_noortho%bc=[PERIODIC,FREE,PERIODIC]
-  where (dom_noortho%bc==FREE) dom_noortho%acell=0.0_gp
+  dom_noortho=change_domain_BC(dom_noortho_pbc,geocode='S')
   mesh_noortho=cell_null()
   mesh_noortho = cell_new(dom_noortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
 
@@ -279,9 +277,7 @@ subroutine test_box_functions()
   call loop_box_function('consistency_check',mesh_noortho)
 
   ! check wires BC non-ortho
-  dom_noortho=dom_noortho_pbc
-  dom_noortho%bc=[FREE,FREE,PERIODIC]
-  where (dom_noortho%bc==FREE) dom_noortho%acell=0.0_gp
+  dom_noortho=change_domain_BC(dom_noortho_pbc,geocode='W')
   mesh_noortho=cell_null()
   mesh_noortho = cell_new(dom_noortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
 
