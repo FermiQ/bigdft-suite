@@ -92,7 +92,7 @@ module at_domain
   public :: rxyz_ortho,distance,closest_r
   public :: dotp_gu,dotp_gd,square_gu,square_gd
   public :: domain_geocode,bc_periodic_dims,geocode_to_bc,domain_periodic_dims
-  public :: geocode_to_bc_enum,change_domain_BC
+  public :: geocode_to_bc_enum,change_domain_BC,domain_merge_to_dict
 
 contains
 
@@ -653,9 +653,10 @@ contains
        bc=PERIODIC_BC
        call f_zero(abc)
        abc = dict//DOMAIN_ABC
-       if (DOMAIN_CELL .in. dict) then
+       if ((DOMAIN_CELL .in. dict) .and. &
+          (DOMAIN_ALPHA .in. dict) .and. (DOMAIN_BETA .in. dict) .and. (DOMAIN_GAMMA .in. dict)) then
           tol=get_abc_angrad_acell_consistency(abc,angrad,cell)
-          if (tol > 1.e-6) call yaml_warning('Inconsitency of tol="'//trim(yaml_toa(tol,fmt='1pe12.5'))//&
+          if (tol > 1.e-6) call yaml_warning('Inconsitency of tol='//trim(yaml_toa(tol,fmt='(1pe12.5)'))//&
                'for the provided domain dictionary, assuming abc is correct')
        end if
        dom=domain_new(units,bc,abc=abc)
@@ -667,16 +668,24 @@ contains
   end subroutine domain_set_from_dict
 
   subroutine domain_merge_to_dict(dict,dom)
+    use numerics, only: Bohr_Ang
     implicit none
     type(dictionary), pointer :: dict
     type(domain), intent(in) :: dom
+    ! local variables
+    real(gp) :: factor
 
     call set(dict//DOMAIN_UNITS,toa(units_enum_from_int(dom%units)))
 
+    factor=1.0_gp
+    if (dom%units == ANGSTROEM_UNITS) then
+       factor = Bohr_Ang
+    end if
+
     if (all(dom%bc == PERIODIC)) then
-       call set(dict//DOMAIN_ABC,dom%abc)
+       call set(dict//DOMAIN_ABC,dom%abc*factor)
     else if (any(dom%bc == PERIODIC)) then
-       call bc_and_cell_to_dict(dict//DOMAIN_CELL,bc_enums_from_int(dom%bc),dom%acell)
+       call bc_and_cell_to_dict(dict//DOMAIN_CELL,bc_enums_from_int(dom%bc),dom%acell*factor)
        if (dom%angrad(BC_) /= onehalf*pi) &
             call set(dict//DOMAIN_ALPHA,dom%angrad(BC_))
        if (dom%angrad(AC_) /= onehalf*pi) &

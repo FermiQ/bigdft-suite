@@ -685,6 +685,8 @@ contains
 !!$    call astruct_set(atoms%astruct,dict // POSINP,in%randdis,in%disableSym,in%symTol,in%elecfield,in%nspin,&
 !!$         bigdft_mpi%iproc == 0)
 
+    !call yaml_map('Dictionary parsed',dict)
+
     call astruct_set_from_dict(dict // POSINP, atoms%astruct)
 
     ! Generate the dict of types for later use.

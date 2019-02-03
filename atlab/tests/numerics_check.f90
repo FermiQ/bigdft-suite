@@ -389,6 +389,7 @@ subroutine loop_box_function(fcheck,mesh)
   use wrapper_MPI
   use numerics, only:pi
   use at_domain
+  use wrapper_linalg, only: det_3x3
   implicit none
   character(len=*), intent(in) :: fcheck
   type(cell), intent(in) :: mesh
@@ -421,6 +422,8 @@ subroutine loop_box_function(fcheck,mesh)
      call yaml_map('Cell angles rad',mesh%dom%angrad)
      call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%dom%bc)
      call yaml_map('Volume element',mesh%volume_element)
+     call yaml_map('det_3x3(mesh%dom%uabc)',det_3x3(mesh%dom%uabc))
+     call yaml_map('Volume product(acell)*det_3x3(mesh%dom%uabc)',product(mesh%ndims)*det_3x3(mesh%dom%uabc))
      call yaml_map('Contravariant matrix',mesh%dom%gu)
      call yaml_map('Covariant matrix',mesh%dom%gd)
      call yaml_map('Product of the two',matmul(mesh%dom%gu,mesh%dom%gd))

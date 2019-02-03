@@ -1381,7 +1381,7 @@ contains
     use numerics, only: Bohr_Ang
     use dictionaries
     use yaml_strings
-    use at_domain, only: geocode_to_bc,bc_periodic_dims,domain_periodic_dims
+    use at_domain
     use ao_inguess, only: charge_and_spol
     use yaml_output !tmp
 
@@ -1401,6 +1401,8 @@ contains
     call f_routine(id='astruct_merge_to_dict')
 
     !call dict_init(dict)
+
+    call domain_merge_to_dict(dict,astruct%dom)
 
     reduced = .false.
     factor=1.0_gp
@@ -2004,7 +2006,11 @@ contains
 !!$         end if
 !!$      end if
 
-      if (astruct%dom%units == ANGSTROEM_UNITS) astruct%cell_dim = astruct%cell_dim / Bohr_Ang
+      if (astruct%dom%units == ANGSTROEM_UNITS) then
+         astruct%cell_dim = astruct%cell_dim / Bohr_Ang
+         astruct%dom%acell = astruct%dom%acell / Bohr_Ang
+         astruct%dom%abc = astruct%dom%abc / Bohr_Ang
+      end if
 
     ! The types
     call astruct_dict_get_types(dict, types)
