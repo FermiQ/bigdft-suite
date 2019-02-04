@@ -93,6 +93,7 @@ module at_domain
   public :: dotp_gu,dotp_gd,square_gu,square_gd
   public :: domain_geocode,bc_periodic_dims,geocode_to_bc,domain_periodic_dims
   public :: geocode_to_bc_enum,change_domain_BC,domain_merge_to_dict
+  public :: domain_volume
 
 contains
 
@@ -763,6 +764,18 @@ contains
     end if
 
   end function domain_geocode
+
+  !>give the cell volume for the input simulation box dimensions acell
+  pure function domain_volume(acell,dom) result(cell_volume)
+    use wrapper_linalg, only: det_3x3
+    implicit none
+    real(gp), dimension(3), intent(in) :: acell
+    type(domain), intent(in) :: dom
+    real(gp) :: cell_volume
+
+    cell_volume = product(acell)*det_3x3(dom%uabc)
+
+  end function domain_volume
 
   !> returns a logical array of size 3 which is .true. for all the periodic dimensions
   pure function bc_periodic_dims(bc) result(peri)

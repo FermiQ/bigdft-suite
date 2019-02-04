@@ -37,6 +37,8 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
   use ao_inguess, only: aoig_data, aoig_data_null, aoig_set
   use orthonormalization, only: orthonormalizeLocalized, iterative_orthonormalization
   use locreg_operations
+  use wrapper_linalg, only: det_3x3
+  use at_domain, only: domain_volume
   implicit none
   !Arguments
   integer, intent(in) :: iproc,nproc
@@ -641,12 +643,17 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
           ! initial setting of the old charge density
           call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,0.0d0,denspot%mix,&
                denspot%rhov,1,denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),&
-               at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+               !at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+               domain_volume(at%astruct%cell_dim,at%astruct%dom),&
                pnrm,denspot%dpbox%nscatterarr)
           !SM: to make sure that the result is analogous for polarized and non-polarized calculations, to be checked...
           pnrm=pnrm*sqrt(real(denspot%mix%nspden,kind=8))
       end if
   end if
+
+!     call yaml_map('Volume product(acell)*det_3x3(mesh%dom%uabc)',product(at%astruct%cell_dim)*det_3x3(at%astruct%dom%uabc))
+
+
   !do ii=1,size(denspot%rhov)
   !    write(9600+iproc,'(a,2i9,es16.5)') 'ii, mod(ii-1,size(denspot%rhov)/2)+1, val', &
   !        ii, mod(ii-1,size(denspot%rhov)/2)+1, denspot%rhov(ii)
@@ -701,7 +708,8 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
           ! initial setting of the old charge density
           call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,0.0d0,denspot%mix,&
                denspot%rhov,1,denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),&
-               at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+               !at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+               domain_volume(at%astruct%cell_dim,at%astruct%dom),&
                pnrm,denspot%dpbox%nscatterarr)
           !SM: to make sure that the result is analogous for polarized and non-polarized calculations, to be checked...
           pnrm=pnrm*sqrt(real(denspot%mix%nspden,kind=8))
@@ -1066,7 +1074,8 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
              !!     denspot, mixdiis, rhopotold, pnrm)
              call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,1.d0-input%lin%alpha_mix_lowaccuracy,denspot%mix,&
                   denspot%rhov,2,denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),&
-                  at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+                  !at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+                  domain_volume(at%astruct%cell_dim,at%astruct%dom),&
                   pnrm,denspot%dpbox%nscatterarr)
              !SM: to make sure that the result is analogous for polarized and non-polarized calculations, to be checked...
              pnrm=pnrm*sqrt(real(denspot%mix%nspden,kind=8))
@@ -1086,7 +1095,8 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
       ! initial setting of the old charge density
       call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,0.d0,denspot%mix,&
            denspot%rhov,1,denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),&
-           at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+           !at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+           domain_volume(at%astruct%cell_dim,at%astruct%dom),&
            pnrm,denspot%dpbox%nscatterarr)
       !SM: to make sure that the result is analogous for polarized and non-polarized calculations, to be checked...
       pnrm=pnrm*sqrt(real(denspot%mix%nspden,kind=8))
@@ -1101,7 +1111,8 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
          !!     denspot, mixdiis, rhopotold, pnrm)
          call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,1.d0-input%lin%alpha_mix_lowaccuracy,denspot%mix,&
               denspot%rhov,2,denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),&
-              at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+              !at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+              domain_volume(at%astruct%cell_dim,at%astruct%dom),&
               pnrm,denspot%dpbox%nscatterarr)
          !SM: to make sure that the result is analogous for polarized and non-polarized calculations, to be checked...
          pnrm=pnrm*sqrt(real(denspot%mix%nspden,kind=8))
@@ -1123,7 +1134,8 @@ subroutine inputguessConfinement(iproc, nproc, at, input, hx, hy, hz, &
       ! initial setting of the old potential
       call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,0.d0,denspot%mix,&
            denspot%rhov,1,denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),&
-           at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+           !at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+           domain_volume(at%astruct%cell_dim,at%astruct%dom),&
            pnrm,denspot%dpbox%nscatterarr)
       !SM: to make sure that the result is analogous for polarized and non-polarized calculations, to be checked...
       pnrm=pnrm*sqrt(real(denspot%mix%nspden,kind=8))

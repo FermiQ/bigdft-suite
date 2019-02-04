@@ -1032,6 +1032,7 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
   use rhopotential, only: updatepotential, sumrho_for_TMBs, corrections_for_negative_charge
   use public_enums
   use orthonormalization, only : orthonormalizeLocalized, iterative_orthonormalization
+  use at_domain, only: domain_volume
   implicit none
 
   ! Calling arguments
@@ -1553,7 +1554,8 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
          ! set the initial charge density
          call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,0.d0,denspot%mix,&
               denspot%rhov,1,denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),&
-              at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+              !at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+              domain_volume(at%astruct%cell_dim,at%astruct%dom),&
               pnrm,denspot%dpbox%nscatterarr)
       end if
       call updatePotential(input%nspin,denspot,energs)!%eh,energs%exc,energs%evxc)
@@ -1562,7 +1564,8 @@ subroutine input_memory_linear(iproc, nproc, at, KSwfn, tmb, tmb_old, denspot, i
          ! set the initial potential
          call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,0.d0,denspot%mix,&
               denspot%rhov,1,denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),&
-              at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+              !at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+              domain_volume(at%astruct%cell_dim,at%astruct%dom),&
               pnrm,denspot%dpbox%nscatterarr)
       end if
       call local_potential_dimensions(iproc,tmb%lzd,tmb%orbs,denspot%xc,denspot%dpbox%ngatherarr(0,1))
@@ -3342,7 +3345,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         ! set the initial charge density
         call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,0.d0,denspot%mix,&
              denspot%rhov,1,denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),&
-             atoms%astruct%cell_dim(1)*atoms%astruct%cell_dim(2)*atoms%astruct%cell_dim(3),&
+             !atoms%astruct%cell_dim(1)*atoms%astruct%cell_dim(2)*atoms%astruct%cell_dim(3),&
+             domain_volume(atoms%astruct%cell_dim,atoms%astruct%dom),&
              pnrm,denspot%dpbox%nscatterarr)
      end if
      !!call deallocateCommunicationbufferSumrho(tmb%comsr, subname)
@@ -3353,7 +3357,8 @@ subroutine input_wf(iproc,nproc,in,GPU,atoms,rxyz,&
         ! set the initial potential
         call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,0.d0,denspot%mix,&
              denspot%rhov,1,denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),&
-             atoms%astruct%cell_dim(1)*atoms%astruct%cell_dim(2)*atoms%astruct%cell_dim(3),&
+             !atoms%astruct%cell_dim(1)*atoms%astruct%cell_dim(2)*atoms%astruct%cell_dim(3),&
+             domain_volume(atoms%astruct%cell_dim,atoms%astruct%dom),&
              pnrm,denspot%dpbox%nscatterarr)
      end if
 
