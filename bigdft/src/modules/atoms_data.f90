@@ -2441,6 +2441,10 @@ subroutine astruct_set_symmetries(astruct, disableSym, tol, elecfield, nspin)
      rprimd(2,2) = astruct%cell_dim(2)
      if (domain_geocode(astruct%dom) == 'S') rprimd(2,2) = 1000._gp
      rprimd(3,3) = astruct%cell_dim(3)
+
+     ! Included by Giuseppe Fisicaro
+     if (domain_geocode(astruct%dom) == 'P') rprimd=astruct%dom%abc
+
      call symmetry_set_lattice(astruct%sym%symObj, rprimd, ierr)
      xRed = f_malloc((/ 3 , astruct%nat /),id='xRed')
      xRed(1,:) = modulo(astruct%rxyz(1, :) / rprimd(1,1), 1._gp)
