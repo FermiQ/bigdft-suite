@@ -96,7 +96,7 @@ AX_PYYAML()
 
 AX_ATLAB()
 
-dnl Produce dynamic excecutables.
+dnl Produce dynamic executables.
 AX_DYNAMIC_LIBRARIES([], [f_lib_initialize], [$LIB_FUTILE_LIBS])
 
 dnl Test accelerators
