@@ -96,7 +96,14 @@ program Fock_Operator_Program
  
   !initialize the Poisson Solver main structure
   hgrids=acell/nxyz
-  pkernel=pkernel_init(0,1,dict_input,geocode,nxyz,hgrids)
+
+  !mesh=cell_new(geocode,nxyz,hgrids)
+  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=nxyz*hgrids)
+  mesh=cell_new(dom,nxyz,hgrids)
+
+  !pkernel=pkernel_init(0,1,dict_input,geocode,nxyz,hgrids)
+  pkernel=pkernel_init(0,1,dict_input,dom,nxyz,hgrids)
   call dict_free(dict_input)
   call pkernel_set(pkernel,verbose=iproc==0)
 
@@ -108,10 +115,6 @@ program Fock_Operator_Program
   !ionic potential
   pot_ion = f_malloc(nxyz,id='pot_ion')
 
-  !mesh=cell_new(geocode,nxyz,hgrids)
-  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=nxyz*hgrids)
-  mesh=cell_new(dom,nxyz,hgrids)
 
 
   call test_functions_new(mesh,1,a_gauss,& !_box

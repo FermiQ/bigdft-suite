@@ -2964,7 +2964,8 @@ subroutine integral_equation(iproc,nproc,atoms,wfn,ngatherarr,local_potential,GP
 
      dict => yaml_load('{kernel: {screening:'//sqrt(2.0_gp*abs(eks))//'},'//&
           'setup : { verbose: No}}')
-     G_Helmholtz=pkernel_init(0,1,dict,domain_geocode(wfn%Lzd%Llr(ilr)%mesh%dom),&
+     !G_Helmholtz=pkernel_init(0,1,dict,domain_geocode(wfn%Lzd%Llr(ilr)%mesh%dom),&
+     G_Helmholtz=pkernel_init(0,1,dict,wfn%Lzd%Llr(ilr)%mesh%dom,&
           (/wfn%Lzd%Llr(ilr)%d%n1i,wfn%Lzd%Llr(ilr)%d%n2i,wfn%Lzd%Llr(ilr)%d%n3i/),&
           0.5_gp*wfn%Lzd%hgrids)
      call dict_free(dict)

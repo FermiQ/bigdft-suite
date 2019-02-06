@@ -513,7 +513,8 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    !pkernel=pkernel_init(.true.,iproc,nproc,in%matacc%PSolver_igpu,&
    !     atoms%astruct%geocode,dpcom%ndims,dpcom%hgrids,ndegree_ip)
    pkernel=pkernel_init(iproc,nproc,in%PS_dict,&
-        domain_geocode(atoms%astruct%dom),dpcom%mesh%ndims,dpcom%mesh%hgrids)
+        !domain_geocode(atoms%astruct%dom),dpcom%mesh%ndims,dpcom%mesh%hgrids)
+        dpcom%mesh%dom,dpcom%mesh%ndims,dpcom%mesh%hgrids)
 
    call pkernel_set(pkernel,verbose=(get_verbose_level() > 1))
 

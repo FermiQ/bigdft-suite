@@ -20,6 +20,8 @@ program conv_check_fft
   use overlap_point_to_point
   use PSbase
   use dictionaries
+  use at_domain
+  use numerics, only: onehalf,pi
   implicit none
   integer, parameter :: wp=kind(1.0d0)
   integer  :: n1,n2,n3 
@@ -55,6 +57,7 @@ program conv_check_fft
   real(kind=8), dimension(3) :: hgriddim
   type(coulomb_operator) :: pkernel,pkernel2
   type(dictionary), pointer :: dict
+  type(domain) :: dom
 
   call f_lib_initialize() 
   call mpiinit()
@@ -273,11 +276,15 @@ ntimes=1
    ndim(2)=n2
    ndim(3)=n3
 
+   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum('P'),&
+             alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndim*hgriddim)
+
    !calculate the kernel in parallel for each processor
    !pkernel=pkernel_init(.true.,0,1,0,'P',ndim,hgriddim,16)
    dict=>dict_new()
    call dict_set(dict //'setup'//'verbose', .false.)
-   pkernel=pkernel_init(0,1,dict,'P',ndim,hgriddim)
+   !pkernel=pkernel_init(0,1,dict,'P',ndim,hgriddim)
+   pkernel=pkernel_init(0,1,dict,dom,ndim,hgriddim)
    call dict_free(dict)
    call pkernel_set(pkernel,verbose=verbose >1)
    !pkernel%igpu=0
@@ -297,7 +304,8 @@ ntimes=1
    !here the GPU part
    dict => dict_new('setup' .is. dict_new('accel' .is. 'CUDA'))
    call dict_set(dict //'setup'//'verbose', .false.)
-   pkernel2=pkernel_init(0,1,dict,'P',ndim,hgriddim)
+   !pkernel2=pkernel_init(0,1,dict,'P',ndim,hgriddim)
+   pkernel2=pkernel_init(0,1,dict,dom,ndim,hgriddim)
    call dict_free(dict)
    call pkernel_set(pkernel2,verbose=verbose >1)
 
@@ -330,9 +338,13 @@ ntimes=1
    ndim(2)=n2/2
    ndim(3)=n3/2
 
+   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum('F'),&
+             alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndim*hgriddim)
+
    dict => dict_new()
    call dict_set(dict //'setup'//'verbose', .false.)
-   pkernel=pkernel_init(0,1,dict,'F',ndim,hgriddim)
+   !pkernel=pkernel_init(0,1,dict,'F',ndim,hgriddim)
+   pkernel=pkernel_init(0,1,dict,dom,ndim,hgriddim)
    call dict_free(dict)
    call pkernel_set(pkernel,verbose=verbose >1)
 
@@ -343,7 +355,7 @@ ntimes=1
     call H_potential('D',pkernel, &
         rhopot,rhopot,ehartree,0.0d0,.false.,quiet='yes') !optional argument
    call nanosec(tsc1);
-print *,'ehartree',ehartree
+   print *,'ehartree',ehartree
    write(*,'(a,i6,i6,i6)')'CPU 3D Poisson Solver (Free), dimensions:',n1,n2,n3
    CPUtime=real(tsc1-tsc0,kind=8)*1d-9*ntimes
    call print_time(CPUtime,n1*n2*n3,5 *( log(real(n1,kind=8))+&
@@ -353,7 +365,8 @@ print *,'ehartree',ehartree
    !here the GPU part
    dict => dict_new('setup' .is. dict_new('accel' .is. 'CUDA'))
    call dict_set(dict //'setup'//'verbose', .false.)
-   pkernel2=pkernel_init(0,1,dict,'F',ndim,hgriddim)
+   !pkernel2=pkernel_init(0,1,dict,'F',ndim,hgriddim)
+   pkernel2=pkernel_init(0,1,dict,dom,ndim,hgriddim)
    call dict_free(dict)
    call pkernel_set(pkernel2,verbose=verbose >1)
 
@@ -388,9 +401,13 @@ print *,'ehartree',ehartree
    ndim(2)=n2/2
    ndim(3)=n3
 
+   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum('S'),&
+             alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndim*hgriddim)
+
    dict => dict_new()
    call dict_set(dict //'setup'//'verbose', .false.)
-   pkernel=pkernel_init(0,1,dict,'S',ndim,hgriddim)
+   !pkernel=pkernel_init(0,1,dict,'S',ndim,hgriddim)
+   pkernel=pkernel_init(0,1,dict,dom,ndim,hgriddim)
    call dict_free(dict)
    call pkernel_set(pkernel,verbose=verbose >1)
 
@@ -410,7 +427,8 @@ print *,'ehartree',ehartree
    !here the GPU part
    dict => dict_new('setup' .is. dict_new('accel' .is. 'CUDA'))
    call dict_set(dict //'setup'//'verbose', .false.)
-   pkernel2=pkernel_init(0,1,dict,'S',ndim,hgriddim)
+   !pkernel2=pkernel_init(0,1,dict,'S',ndim,hgriddim)
+   pkernel2=pkernel_init(0,1,dict,dom,ndim,hgriddim)
    call dict_free(dict)
    call pkernel_set(pkernel2,verbose=verbose >1)
 
@@ -443,9 +461,14 @@ print *,'ehartree',ehartree
    ndim(1)=n1/2
    ndim(2)=n2/2
    ndim(3)=n3
+
+   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum('W'),&
+             alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndim*hgriddim)
+
    dict => dict_new()
    call dict_set(dict //'setup'//'verbose', .false.)
-   pkernel=pkernel_init(0,1,dict,'W',ndim,hgriddim)
+   !pkernel=pkernel_init(0,1,dict,'W',ndim,hgriddim)
+   pkernel=pkernel_init(0,1,dict,dom,ndim,hgriddim)
    call dict_free(dict)
    call pkernel_set(pkernel,verbose=verbose >1)
 
@@ -465,7 +488,8 @@ print *,'ehartree',ehartree
    !here the GPU part
    dict => dict_new('setup' .is. dict_new('accel' .is. 'CUDA'))
    call dict_set(dict //'setup'//'verbose', .false.)
-   pkernel2=pkernel_init(0,1,dict,'W',ndim,hgriddim)
+   !pkernel2=pkernel_init(0,1,dict,'W',ndim,hgriddim)
+   pkernel2=pkernel_init(0,1,dict,dom,ndim,hgriddim)
    call dict_free(dict)
    call pkernel_set(pkernel2,verbose=verbose >1)
 

@@ -20,6 +20,8 @@ program PS_Check
    use module_types, only: TCAT_EXCHANGECORR
    use multipole_preserving
    use yaml_parse, only: yaml_load
+   use at_domain
+   use numerics, only: onehalf,pi
    implicit none
    !Parameters
    real(kind=8), parameter :: a_gauss = 1.0d0
@@ -48,6 +50,7 @@ program PS_Check
    real(dp), dimension(3) :: hgrids
    type(dictionary), pointer :: options,dict
    external :: gather_timings
+   type(domain) :: dom
 
    call f_lib_initialize()
 
@@ -145,7 +148,12 @@ program PS_Check
 
    dict => yaml_load('{ kernel: {isf_order: '//itype_scf//'},'//&
         'setup: {taskgroup_size:'//nproc/2//'}}')
-   pkernel=pkernel_init(iproc,nproc,dict,geocode,ndims,hgrids)
+
+   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims*hgrids)
+
+   !pkernel=pkernel_init(iproc,nproc,dict,geocode,ndims,hgrids)
+   pkernel=pkernel_init(iproc,nproc,dict,dom,ndims,hgrids)
    call dict_free(dict)
    call pkernel_set(pkernel,verbose=.true.)
 
@@ -307,7 +315,8 @@ program PS_Check
       !calculate the Poisson potential in parallel
       !with the global data distribution (also for xc potential)
        dict => yaml_load('{ kernel: {isf_order: '//itype_scf//'}}')
-       pkernelseq=pkernel_init(0,1,dict,geocode,ndims,hgrids)
+       !pkernelseq=pkernel_init(0,1,dict,geocode,ndims,hgrids)
+       pkernelseq=pkernel_init(0,1,dict,dom,ndims,hgrids)
        call dict_free(dict)
        call pkernel_set(pkernelseq,verbose=.true.)
 

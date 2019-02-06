@@ -132,7 +132,12 @@ program PS_Check
   ndims=(/n01,n02,n03/)
   hgrids=(/hx,hy,hz/)
 
-  pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndims,hgrids)
+  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims*hgrids)
+  mesh=cell_new(dom,ndims,hgrids)
+
+  !pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndims,hgrids)
+  pkernel=pkernel_init(iproc,nproc,dict_input,dom,ndims,hgrids)
   call dict_free(dict_input)
   call pkernel_set(pkernel,verbose=.true.)
 
@@ -162,9 +167,6 @@ program PS_Check
   rhopot=f_malloc(n01*n02*n03*2,id='rhopot')
 
   !mesh=cell_new(geocode,ndims,hgrids)
-  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims*hgrids)
-  mesh=cell_new(dom,ndims,hgrids)
 
 !!$  call test_functions_box(mesh,ispden,a_gauss,&
 !!$       density,potential,rhopot,pot_ion,offset)
@@ -250,7 +252,8 @@ program PS_Check
      !calculate the Poisson potential in parallel
      !with the global data distribution (also for xc potential)
      dict_input=>dict_new('kernel' .is. dict_new('isf_order' .is. itype_scf))
-     pkernelseq=pkernel_init(0,1,dict_input,geocode,ndims,hgrids)
+     !pkernelseq=pkernel_init(0,1,dict_input,geocode,ndims,hgrids)
+     pkernelseq=pkernel_init(0,1,dict_input,dom,ndims,hgrids)
      call dict_free(dict_input)
      call pkernel_set(pkernelseq,verbose=.true.)
 
