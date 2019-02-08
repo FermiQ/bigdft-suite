@@ -967,13 +967,12 @@ contains
 
   !> Read atomic file
   subroutine set_astruct_from_file(file,iproc,astruct,comment,energy,fxyz,disableTrans,pos_format)
-    use module_base, only: iterating, pi_param, UNINITIALIZED, &
+    use module_base, only: iterating, UNINITIALIZED, &
            f_err_raise, f_err_throw, f_err_check, f_open_file, f_file_exists, f_free_ptr, &
            BIGDFT_INPUT_FILE_ERROR, BIGDFT_INPUT_VARIABLES_ERROR
     use dictionaries, only: set, dictionary, dict_value, dict_free, operator(//)
     use yaml_strings
     use f_utils, only: f_zero
-    use internal_coordinates, only: internal_to_cartesian
     use yaml_output, only: yaml_dict_dump
     use yaml_parse, only: yaml_parse_from_file,yaml_load
     use public_keys, only: BABEL_SOURCE
@@ -1121,17 +1120,10 @@ contains
        else
           call read_int_positions(iproc,iunit,astruct,comment_,energy_,fxyz_,archiveGetLine,disableTrans)
        end if
-       ! Fill the ordinary rxyz array
-!!! convert to rad
-       !!astruct%rxyz_int(2:3,1:astruct%nat) = astruct%rxyz_int(2:3,1:astruct%nat) / degree
-       ! The bond angle must be modified (take 180 degrees minus the angle)
-       astruct%rxyz_int(2:2,1:astruct%nat) = pi_param - astruct%rxyz_int(2:2,1:astruct%nat)
-       call internal_to_cartesian(astruct%nat, astruct%ixyz_int(1,:), astruct%ixyz_int(2,:), astruct%ixyz_int(3,:), &
-            astruct%rxyz_int, astruct%rxyz)
 
     case("yaml")
        nullify(yaml_file_dict)
-       call f_zero(energy_)
+       energy_=UNINITIALIZED(energy_)
        call yaml_parse_from_file(yaml_file_dict,trim(filename))
        call astruct_set_from_dict(yaml_file_dict//0, astruct, comment_)
        call dict_free(yaml_file_dict)
@@ -1188,6 +1180,7 @@ contains
     end if
 
   END SUBROUTINE set_astruct_from_file
+
 
   subroutine set_astruct_from_openbabel(astruct, obfile)
     use at_babel
@@ -1352,9 +1345,12 @@ contains
        end do
        !we should close the file as openbabel reopen it
        if (iunit /=6) call f_close(iunit)
+
+       !Do not catch the errors
        call f_err_open_try()
        call dump_dict_with_openbabel(dict,types,trim(fname))
        call f_err_close_try()
+
        call dict_free(dict,types)
        if (f_err_check()) then
           call f_err_throw('Writing the atomic file. Error, unable to dump file format ("'//&
@@ -1781,8 +1777,9 @@ contains
   !> Read Atomic positions and merge into dict
   subroutine astruct_file_merge_to_dict(dict, key, filename, pos_format)
     use module_base, only: gp, UNINITIALIZED, bigdft_mpi,f_routine,f_release_routine,f_free_ptr, &
-        & BIGDFT_INPUT_FILE_ERROR
+        & BIGDFT_INPUT_FILE_ERROR, BIGDFT_INPUT_VARIABLES_ERROR
     use public_keys, only: POSINP,GOUT_FORCES,GOUT_ENERGY,POSINP_SOURCE
+    use f_utils, only: INPUT_OUTPUT_ERROR
     use yaml_strings
     use yaml_output, only: yaml_map
     use dictionaries
@@ -1796,7 +1793,7 @@ contains
     !Local variables
     type(atomic_structure) :: astruct
     !type(DFT_global_output) :: outs
-    character(len=max_field_length) :: msg,radical
+    character(len=max_field_length) :: msg,msg_ierr,radical
     integer :: ierr,iat,ie
     real(gp) :: energy
     real(gp), dimension(:,:), pointer :: fxyz
@@ -1807,8 +1804,11 @@ contains
     call nullify_atomic_structure(astruct)
 
     !Try to read the atomic coordinates from files (old way)
+    !Open a try to manage the errors at this level
     call f_err_open_try()
     nullify(fxyz)
+    !Initialize (in case if a routine return after an error)
+    energy = UNINITIALIZED(energy)
     ! if (present(pos_format)) then !not needed by fortran spec
     call set_astruct_from_file(filename, bigdft_mpi%iproc, astruct, &
          energy = energy, fxyz = fxyz, pos_format=pos_format)
@@ -1818,33 +1818,64 @@ contains
     !end if
     !print *,'test2',associated(fxyz)
 
-    !Collect only two errors INPUT_OUTPUT_ERROR, and BIGDFT_INPUT_FILE_ERROR
-    !Check if INPUT_OUTPUT_ERROR (collect all errors)
+    !Collect only three errors:
+    !  INPUT_OUTPUT_ERROR, BIGDFT_INPUT_FILE_ERROR, and BIGDFT_INPUT_VARIABLES_ERROR
     call dict_init(list_msg)
-    ierr=f_err_pop(err_name='INPUT_OUTPUT_ERROR',add_msg=msg)
-    print *,"ierr=",ierr
-    if (ierr /= 0) then
-      !Found a file but error when opening the file: collect all same errors
-      do
+    ierr = 0
+    do
+      ie=f_err_pop(add_msg=msg)
+      if (ie == INPUT_OUTPUT_ERROR .or. ie == BIGDFT_INPUT_FILE_ERROR .or. &
+          ie == BIGDFT_INPUT_VARIABLES_ERROR) then
+          ierr = ie
+          msg_ierr = msg
         call add(list_msg,msg)
-        ie = f_err_pop(err_name='INPUT_OUTPUT_ERROR',add_msg=msg)
-        if (ie == 0) exit
-      end do
-    else
-      !Check if the input file is correct
-      ierr = f_err_pop(err_id=BIGDFT_INPUT_FILE_ERROR,add_msg=msg)
-      do
-        call add(list_msg,msg)
-        ie = f_err_pop(err_id=BIGDFT_INPUT_FILE_ERROR,add_msg=msg)
-        if (ie == 0) exit
-      end do
-    end if
+        !exit
+      else if (ie == 0) then
+        !No error or we finish to catch the errors
+        exit
+      else
+        !We ignore these errors
+      end if
+    end do
+
+    ! call dict_init(list_msg)
+    ! ierr=f_err_pop(err_name='INPUT_OUTPUT_ERROR',add_msg=msg)
+    ! if (ierr /= 0) then
+    !   !Found a file but error when opening the file: collect all same errors
+    !   do
+    !     call add(list_msg,msg)
+    !     ie = f_err_pop(err_name='INPUT_OUTPUT_ERROR',add_msg=msg)
+    !     if (ie == 0) exit
+    !   end do
+    ! else
+    !   !Check if the input file is correct
+    !   ierr = f_err_pop(err_id=BIGDFT_INPUT_FILE_ERROR,add_msg=msg)
+    !   do
+    !     call add(list_msg,msg)
+    !     ie = f_err_pop(err_id=BIGDFT_INPUT_FILE_ERROR,add_msg=msg)
+    !     if (ie == 0) exit
+    !   end do
+    ! end if
 
     !ierr = f_get_last_error(msg)
     call f_err_close_try()
 
     !Check errors and actions
-    if (ierr == 0) then
+    if (ierr /= 0) then
+
+      ! Raise an error
+      call yaml_map('Found errors',list_msg)
+
+      !Found no file, raise an error
+      call f_strcpy(src='input',dest=radical)
+      !modify the radical name if it exists
+      call dict_get_run_properties(dict, input_id = radical)
+      !msg = "No section 'posinp' for the atomic positions in the file '"//&
+      !        & trim(radical) // ".yaml'. "
+      call f_err_throw(err_msg=msg_ierr,err_id=ierr)
+
+    else
+
       dict_tmp => dict // key
       !No errors: we have all information in astruct and put into dict
       call astruct_merge_to_dict(dict_tmp, astruct, astruct%rxyz)
@@ -1862,23 +1893,6 @@ contains
       if (energy /= UNINITIALIZED(energy)) call set(dict_tmp // GOUT_ENERGY, energy)
       !call global_output_merge_to_dict(dict // key, outs, astruct)
       call deallocate_atomic_structure(astruct)
-
-    else
-      ! Raise an error
-      call yaml_map('Found errors',list_msg)
-
-      if (ierr == BIGDFT_INPUT_FILE_ERROR) then
-        !Found no file, raise an error
-        call f_strcpy(src='input',dest=radical)
-        !modify the radical name if it exists
-        call dict_get_run_properties(dict, input_id = radical)
-        msg = "No section 'posinp' for the atomic positions in the file '"//&
-              & trim(radical) // ".yaml'. "
-
-      else
-        msg='Error when opening the input file'
-      end if
-      call f_err_throw(err_msg=msg,err_id=ierr)
 
     end if
 

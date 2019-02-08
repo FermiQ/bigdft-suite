@@ -20,7 +20,8 @@ module f_utils
 
   private
 
-  integer, private, save :: INPUT_OUTPUT_ERROR
+  ! This error is public
+  integer, public, save :: INPUT_OUTPUT_ERROR
 
   integer, public, save :: TCAT_INIT_TO_ZERO
 
@@ -540,7 +541,7 @@ contains
 
   end subroutine f_mkdir
 
-  
+
   subroutine f_delete_file(file)
     implicit none
     character(len=*), intent(in) :: file

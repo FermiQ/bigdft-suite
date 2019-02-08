@@ -2,7 +2,7 @@
 !!  Private Routines for the setting and creation of the astruct structure
 !!  included in the module module_atoms
 !! @author
-!!    Copyright (C) 2007-2013 BigDFT group (TD,LG)
+!!    Copyright (C) 2007-2019 BigDFT group (TD,LG)
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -13,7 +13,8 @@
     !! This routine can be in a f_err_open_try as in astruct_file_merge_to_dict
     !! only some errors are collected (ex. BIGDFT_INPUT_FILE_ERROR)
     subroutine read_xyz_positions(ifile,filename,astruct,comment,energy,fxyz,getLine,disableTrans_)
-      use module_defs, only: gp,UNINITIALIZED, BIGDFT_INPUT_FILE_ERROR
+      use module_defs, only: gp,UNINITIALIZED, &
+          BIGDFT_INPUT_FILE_ERROR, BIGDFT_INPUT_VARIABLES_ERROR
       use dictionaries, dict_set => set
       use dynamic_memory
       use at_domain, only: geocode_to_bc,bc_periodic_dims
@@ -197,7 +198,7 @@
       !reduced coordinates are possible only with periodic units
       if (f_err_raise( (reduced .and. astruct%geocode == 'F'), &
            & 'Reduced coordinates are not allowed with isolated BC', &
-           err_id=BIGDFT_INPUT_FILE_ERROR)) return
+           err_id=BIGDFT_INPUT_VARIABLES_ERROR)) return
 
       !convert the values of the cell sizes in bohr
       select case(trim(astruct%units))
@@ -217,7 +218,7 @@
          astruct%cell_dim(2)=alat2d0
          astruct%cell_dim(3)=alat3d0
       case default
-         call f_err_throw('Length units in input file unrecognized (found "'//astruct%units// &
+         call f_err_throw('Length units in input file unrecognized (found "'//trim(astruct%units)// &
               '"). Recognized units are angstroem or atomic = bohr',err_id=BIGDFT_INPUT_FILE_ERROR)
          return
       end select
@@ -231,7 +232,8 @@
       do iat=1,astruct%nat
          !xyz input file, allow extra information
          call getLine(line, ifile, eof)
-         if (f_err_raise(eof,"Unexpected end of file '"//trim(filename)//"'.",err_id=BIGDFT_INPUT_FILE_ERROR)) return
+         if (f_err_raise( (eof .or. len_trim(line) == 0),&
+             "Unexpected end of file '"//trim(filename)//"'.",err_id=BIGDFT_INPUT_FILE_ERROR)) return
 
          !!if (lpsdbl) then
          !!   read(line,*,iostat=ierrsfx)symbol,rxd0,ryd0,rzd0,extra
@@ -309,7 +311,8 @@
 
      call assign_iatype(iat,ntyp,tatonam,atomnames,astruct%iatype)
 
-  enddo
+  end do
+
   ! Try forces
   call getLine(line, ifile, eof)
   if ((.not. eof) .and. (adjustl(trim(line)) == "forces")) then
@@ -317,12 +320,13 @@
      do iat=1,astruct%nat
         !xyz input file, allow extra information
         call getLine(line, ifile, eof)
-        if (f_err_raise(eof,"Unexpected end of file '"//trim(filename)//"'.",err_id=BIGDFT_INPUT_FILE_ERROR)) return
-        !if (eof) then
-        !   write(*,*) "Error: unexpected end of file."
-        !   stop
-        !end if
+        if (f_err_raise( (eof .or. len_trim(line) == 0), &
+           "Unexpected end of file '"//trim(filename)// &
+           " when reading forces of atom"//trim(yaml_toa(iat))//"'.",err_id=BIGDFT_INPUT_FILE_ERROR)) return
         read(line,*,iostat=ierrsfx) symbol,fxyz(:,iat)
+        if (f_err_raise( ierrsfx /= 0, &
+           "Wrong format in the file '"//trim(filename)// &
+           " when reading forces of atom"//trim(yaml_toa(iat))//"'.",err_id=BIGDFT_INPUT_FILE_ERROR)) return
      end do
   end if
   !now that ntypes is determined allocate atoms%astruct%atomnames and copy the values
@@ -353,6 +357,7 @@ contains
 
 END SUBROUTINE read_xyz_positions
 
+
 subroutine assign_iatype(iat,ntyp,tatonam,atomnames,iatype)
   use module_base, only: f_err_throw
   implicit none
@@ -377,6 +382,7 @@ subroutine assign_iatype(iat,ntyp,tatonam,atomnames,iatype)
   iatype(iat)=ntyp
 end subroutine assign_iatype
 
+
 !> Read atomic positions of ascii files.
 subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLine,disableTrans_)
   use module_base
@@ -392,7 +398,7 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLi
   real(gp), intent(out) :: energy
   real(gp), dimension(:,:), pointer :: fxyz
   character(len = 1024), intent(out) :: comment
-  logical, intent(in), optional :: disableTrans_
+  logical, intent(in), optional :: disableTrans_ !< If .true. do not perform a modulo to put in the box
   interface
      subroutine getLine(line,ifile,eof)
        integer, intent(in) :: ifile
@@ -436,7 +442,7 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLi
      end if
      nlines = nlines + 1
      if (f_err_raise(nlines > 5000,  "Atomic input file '"//trim(filename)//"' too long (> 5000 lines).", &
-        & err_id=BIGDFT_INPUT_VARIABLES_ERROR)) then
+        & err_id=BIGDFT_INPUT_FILE_ERROR)) then
         astruct%nat = -1
         return
      end if
@@ -444,7 +450,7 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLi
   nlines = nlines - 1
 
   if (f_err_raise(nlines < 4, "Error in ASCII file format, file '" // trim(filename) // "' has less than 4 lines.", &
-     & err_id=BIGDFT_INPUT_VARIABLES_ERROR)) then
+     & err_id=BIGDFT_INPUT_FILE_ERROR)) then
      astruct%nat = -1
      return
   end if
@@ -496,7 +502,6 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLi
         if (index(line, 'forces') > 0) forces = .true.
      end if
   end do
-
 
   !controls if the positions are provided within machine precision
   if (index(astruct%units, 'd0') > 0 .or. reduced) then
@@ -679,21 +684,25 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLi
   astruct%atomnames(1:astruct%ntypes)=atomnames(1:astruct%ntypes)
 END SUBROUTINE read_ascii_positions
 
+
 !> Read atomic positions from int file and create astruct structure from it
+!! internal degrees of freedom (bond lengths, angles, ...)
 subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,disableTrans_)
-  use module_defs, only: gp,UNINITIALIZED,BIGDFT_INPUT_VARIABLES_ERROR
+  use module_defs, only: gp, UNINITIALIZED, &
+      BIGDFT_INPUT_VARIABLES_ERROR, BIGDFT_INPUT_FILE_ERROR
   use dictionaries, only: f_err_raise, max_field_length, f_err_throw
   use dynamic_memory
-  use numerics, only: Bohr_Ang,Radian_Degree
+  use numerics, only: pi_param => pi, Bohr_Ang, Radian_Degree
   use yaml_strings, only: yaml_toa
   use at_domain, only: geocode_to_bc,bc_periodic_dims
+  use internal_coordinates, only: internal_to_cartesian
   implicit none
   integer, intent(in) :: iproc,ifile
   type(atomic_structure), intent(inout) :: astruct
   real(gp), intent(out) :: energy
   real(gp), dimension(:,:), pointer :: fxyz
   character(len = 1024), intent(out) :: comment
-  logical, intent(in), optional :: disableTrans_
+  logical, intent(in), optional :: disableTrans_ !< Useless for this format (see read_xyz_positions)
   interface
      subroutine getLine(line,ifile,eof)
        integer, intent(in) :: ifile
@@ -726,10 +735,8 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
   endif
 
   call getLine(line, ifile, eof)
-  if (eof) then
-     write(*,*) "Error: unexpected end of file."
-     stop
-  end if
+  if (f_err_raise(eof,"Unexpected end of file '",err_id=BIGDFT_INPUT_FILE_ERROR)) return
+
   energy = UNINITIALIZED(energy)
   read(line,*, iostat = ierrsfx) iat,astruct%units,astruct%angle,energy,comment
   if (ierrsfx /= 0) then
@@ -758,10 +765,8 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
 
   !read from positions of .xyz format, but accepts also the old .ascii format
   call getLine(line, ifile, eof)
-  if (eof) then
-     write(*,*) "Error: unexpected end of file."
-     stop
-  end if
+  if (f_err_raise(eof,"Unexpected end of file",err_id=BIGDFT_INPUT_FILE_ERROR)) return
+
 
 !!!  !old format, still here for backward compatibility
 !!!  !admits only simple precision calculation
@@ -816,10 +821,9 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
 !!!  end if
 
   !reduced coordinates are possible only with periodic units
-  if (astruct%units == 'reduced' .and. astruct%geocode == 'F') then
-     if (iproc==0) write(*,'(1x,a)')&
-          'ERROR: Reduced coordinates are not allowed with isolated BC'
-  end if
+  if (f_err_raise( (trim(astruct%units) == 'reduced' .and. astruct%geocode == 'F'), &
+         & 'Reduced coordinates are not allowed with isolated BC', &
+         err_id=BIGDFT_INPUT_VARIABLES_ERROR)) return
 
   select case(trim(astruct%units))
   case('angstroem','angstroemd0')
@@ -838,7 +842,7 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
      astruct%cell_dim(3)=alat3d0
   case default
      call f_err_throw('length units in input file unrecognized, recognized units are angstroem or atomic = bohr',&
-          err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+          err_id=BIGDFT_INPUT_VARIABLES_ERROR)
   end select
 
   call astruct_set_n_atoms(astruct, iat)
@@ -847,8 +851,9 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
   do iat=1,astruct%nat
      !int input file, allow extra information
      call getLine(line, ifile, eof)
-     if (f_err_raise(eof,"Unexpected end of file.",err_name='BIGDFT_RUNTIME_ERROR')) return
-
+     if (f_err_raise( (eof .or. len_trim(line) == 0), &
+         "Unexpected end of file when reading atom"//trim(yaml_toa(iat))// &
+         ".",err_id=BIGDFT_INPUT_FILE_ERROR)) return
 
      !!if (lpsdbl) then
      !!   read(line,*,iostat=ierrsfx)symbol,rxd0,ryd0,rzd0,extra
@@ -927,17 +932,26 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
      do iat=1,astruct%nat
         !xyz input file, allow extra information
         call getLine(line, ifile, eof)
-        if (eof) then
-           write(*,*) "Error: unexpected end of file."
-           stop
-        end if
+        if (f_err_raise( (eof .or. len_trim(line) == 0),&
+            "Unexpected end of file when reading atom"//trim(yaml_toa(iat))// &
+            ".",err_id=BIGDFT_INPUT_FILE_ERROR)) return
         read(line,*,iostat=ierrsfx) symbol,fxyz(:,iat)
+        if (f_err_raise(ierrsfx/=0," Wrong format when reading forces of atom"//trim(yaml_toa(iat))//&
+            "'.",err_id=BIGDFT_INPUT_FILE_ERROR)) return
      end do
   end if
   !now that ntypes is determined allocate atoms%astruct%atomnames and copy the values
   call astruct_set_n_types(astruct, ntyp)
 
   astruct%atomnames(1:astruct%ntypes)=atomnames(1:astruct%ntypes)
+
+  ! Fill the ordinary rxyz array
+  !!! convert to rad
+  !!astruct%rxyz_int(2:3,1:astruct%nat) = astruct%rxyz_int(2:3,1:astruct%nat) / degree
+  ! The bond angle must be modified (take 180 degrees minus the angle)
+  astruct%rxyz_int(2:2,1:astruct%nat) = pi_param - astruct%rxyz_int(2:2,1:astruct%nat)
+  call internal_to_cartesian(astruct%nat, astruct%ixyz_int(1,:), astruct%ixyz_int(2,:), astruct%ixyz_int(3,:), &
+       astruct%rxyz_int, astruct%rxyz)
 
 
 contains
@@ -950,9 +964,9 @@ contains
 
 
     if (lpsdbl) then
-       read(line,*,iostat=ierrsfx)symbol,na,rxd0,nb,ryd0,nc,rzd0
+       read(line,*,iostat=ierrsfx) symbol,na,rxd0,nb,ryd0,nc,rzd0
     else
-       read(line,*,iostat=ierrsfx)symbol,na,rx,nb,ry,nc,rz
+       read(line,*,iostat=ierrsfx) symbol,na,rx,nb,ry,nc,rz
     end if
 
     if (f_err_raise(ierrsfx/=0,'The line'//trim(yaml_toa(iat+2))//&
@@ -1383,6 +1397,7 @@ subroutine frozen_itof(ifrztyp,frzchain)
 
 END SUBROUTINE frozen_itof
 
+
 !> The function which controls all the moving positions
 !! This function is related to frozen_ftoi
 pure function move_this_coordinate(ifrztyp,ixyz)
@@ -1597,7 +1612,7 @@ subroutine wtxyz_forces(iunit,fxyz,astruct)
 end subroutine wtxyz_forces
 
 
-!> Write ascii file (atomic position).
+!> Write ascii file (atomic position).f_err_throw
 subroutine wtascii(iunit,energy,rxyz,astruct,comment)
   use module_defs, only: UNINITIALIZED
   use numerics, only: Bohr_Ang
@@ -1735,9 +1750,10 @@ subroutine wtascii_forces(iunit,fxyz,astruct)
   end do
 end subroutine wtascii_forces
 
+
 !> Write int atomic file.
 subroutine wtint(iunit,energy,rxyz,astruct,comment,na,nb,nc)
-  use module_defs, only: UNINITIALIZED
+  use module_defs, only: UNINITIALIZED, BIGDFT_RUNTIME_ERROR
   use numerics, only: Bohr_Ang,Radian_Degree
   use module_base, only: f_err_throw
   use yaml_output
@@ -1792,15 +1808,15 @@ subroutine wtint(iunit,energy,rxyz,astruct,comment,na,nb,nc)
 
   select case(astruct%geocode)
   case('P')
-     call f_err_throw("Internal coordinates not implemented for periodic BC", err_name='BIGDFT_RUNTIME_ERROR')
+     call f_err_throw("Internal coordinates not implemented for periodic BC", err_id=BIGDFT_RUNTIME_ERROR)
      write(iunit,'(a,3(1x,1pe24.17))')'periodic',&
           astruct%cell_dim(1)*factor,astruct%cell_dim(2)*factor,astruct%cell_dim(3)*factor
   case('S')
-     call f_err_throw("Internal coordinates not implemented for surface BC", err_name='BIGDFT_RUNTIME_ERROR')
+     call f_err_throw("Internal coordinates not implemented for surface BC", err_id=BIGDFT_RUNTIME_ERROR)
      write(iunit,'(a,3(1x,1pe24.17))')'surface',&
           astruct%cell_dim(1)*factor,astruct%cell_dim(2)*factor,astruct%cell_dim(3)*factor
   case('W')
-     call f_err_throw("Internal coordinates not implemented for wire BC", err_name='BIGDFT_RUNTIME_ERROR')
+     call f_err_throw("Internal coordinates not implemented for wire BC", err_id=BIGDFT_RUNTIME_ERROR)
      write(iunit,'(a,3(1x,1pe24.17))')'wire',&
           astruct%cell_dim(1)*factor,astruct%cell_dim(2)*factor,astruct%cell_dim(3)*factor
   case('F')
@@ -1838,9 +1854,12 @@ subroutine wtint(iunit,energy,rxyz,astruct,comment,na,nb,nc)
 
 END SUBROUTINE wtint
 
+
 !> Check the position of atoms, verify no atoms have the same coordinates
+!!warning: The scaling of this routine check is N^2
 subroutine check_atoms_positions(astruct, simplify)
-  use module_defs, only: gp
+  use module_defs, only: gp, BIGDFT_INPUT_VARIABLES_ERROR
+  use module_base, only: f_err_throw
   use yaml_output
   use yaml_strings, only: yaml_toa
   implicit none
@@ -1848,6 +1867,7 @@ subroutine check_atoms_positions(astruct, simplify)
   logical, intent(in) :: simplify
   type(atomic_structure), intent(in) :: astruct
   !local variables
+  character(len=*), parameter :: posinp_alt='posinp_alt'
   integer, parameter :: iunit=9
   logical :: dowrite
   integer :: iat,nateq,jat,j
@@ -1863,6 +1883,8 @@ subroutine check_atoms_positions(astruct, simplify)
                 & trim(astruct%atomnames(astruct%iatype(iat))) // ') and ' // &
                 & trim(yaml_toa(jat)) // ' (' // trim(astruct%atomnames(astruct%iatype(jat))) // &
                 & ') have the same positions')
+           !iat has a doublon so we remove it!
+           exit
         end if
      end do
   end do
@@ -1870,9 +1892,10 @@ subroutine check_atoms_positions(astruct, simplify)
   if (nateq /= 0) then
      if (simplify) then
         call yaml_warning('Control your posinp file, cannot proceed')
-        write(*,'(1x,a)',advance='no') 'Writing tentative alternative positions in the file posinp_alt...'
-        open(unit=iunit,file='posinp_alt')
-        write(iunit,'(1x,a)')' ??? atomicd0'
+        call yaml_comment('Writing tentative alternative positions in the file "'//trim(posinp_alt)//'"...')
+        open(unit=iunit,file=posinp_alt)
+        write(iunit,'(1x,i0,a)') astruct%nat-nateq,' atomicd0'
+        !write(iunit,'(1x,a)')' ??? atomicd0'
         write(iunit,*)
         do iat=1,astruct%nat
            dowrite=.true.
@@ -1887,9 +1910,10 @@ subroutine check_atoms_positions(astruct, simplify)
                 (astruct%rxyz(j,iat),j=1,3)
         end do
         close(unit=iunit)
-        call yaml_map('Writing tentative alternative positions in the file posinp_alt',.true.)
-        call yaml_warning('Replace ??? in the file heading with the actual atoms number')
+        call yaml_map('Writing tentative alternative positions in the file "'//trim(posinp_alt)//'"',.true.)
+        !call yaml_warning('Replace "???" in the header of the file "'//trim(posinp_alt)//'" with the actual atoms number')
      end if
-     stop 'check_atoms_positions'
+     !stop 'check_atoms_positions'
+     call f_err_throw('check_atoms_positions: Check if some atoms have the same coordinate',err_id=BIGDFT_INPUT_VARIABLES_ERROR)
   end if
 END SUBROUTINE check_atoms_positions
