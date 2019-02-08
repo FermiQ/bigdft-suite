@@ -1153,6 +1153,7 @@ contains
          BIGDFT_LINALG_ERROR,&
          err_action='Check if the matrix is correct at input, also look at the info value')
 
+      !The structure of input file is correct but the input variables have some trouble
       call f_err_define('BIGDFT_INPUT_VARIABLES_ERROR',&
          'An error while parsing the input variables occured',&
          BIGDFT_INPUT_VARIABLES_ERROR,&
@@ -1161,10 +1162,12 @@ contains
 !!$    !define the errors of internal modules
 !!$    call input_keys_errors()
 
+      !If the file does not exist, we use the INPUT_OUTPUT_ERROR from futile
+      !This error is used when the input file is incorrect
       call f_err_define('BIGDFT_INPUT_FILE_ERROR',&
-      'The input file does not exist',&
+      'The input file is not correct',&
          BIGDFT_INPUT_FILE_ERROR,&
-         err_action='Check if the file does exist')
+         err_action='Check the input file')
 
     !define the severe operation via MPI_ABORT
     call f_err_severe_override(bigdft_severe_abort)
@@ -1316,7 +1319,7 @@ contains
     orbs%npsidim_comp=1
 
   end subroutine nullify_orbitals_data
-  
+
 
   !> Finds the fermi level ef for an error function distribution with a width wf
   !! eval are the Kohn Sham eigenvalues and melec is the total number of electrons

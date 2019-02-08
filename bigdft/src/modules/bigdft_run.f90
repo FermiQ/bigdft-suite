@@ -1540,7 +1540,7 @@ contains
           end if
        else
           call f_err_throw('The runs-file specified ('//trim(posinp_id)//&
-               ') does not exists',err_name='BIGDFT_INPUT_FILE_ERROR')
+               ') does not exists',err_name='INPUT_OUTPUT_ERROR')
        end if
        !here the run of the dicts has to be evaluated according to the taskgroups
     else if (.not. associated(dict_run)) then

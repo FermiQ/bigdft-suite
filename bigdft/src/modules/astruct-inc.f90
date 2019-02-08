@@ -6,12 +6,14 @@
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
-!!    For the list of contributors, see ~/AUTHORS 
+!!    For the list of contributors, see ~/AUTHORS
 
 
     !> Read atomic positions from xyz file and create astruct structure from it
+    !! This routine can be in a f_err_open_try as in astruct_file_merge_to_dict
+    !! only some errors are collected (ex. BIGDFT_INPUT_FILE_ERROR)
     subroutine read_xyz_positions(ifile,filename,astruct,comment,energy,fxyz,getLine,disableTrans_)
-      use module_defs, only: gp,UNINITIALIZED, BIGDFT_INPUT_VARIABLES_ERROR
+      use module_defs, only: gp,UNINITIALIZED, BIGDFT_INPUT_FILE_ERROR
       use dictionaries, dict_set => set
       use dynamic_memory
       use at_domain, only: geocode_to_bc,bc_periodic_dims
@@ -65,7 +67,7 @@
       endif
 
       call getLine(line, ifile, eof)
-      if (f_err_raise(eof,"Unexpected end of file '"//trim(filename)//"'.",err_id=BIGDFT_INPUT_VARIABLES_ERROR)) return
+      if (f_err_raise(eof,"Unexpected end of file '"//trim(filename)//"'.",err_id=BIGDFT_INPUT_FILE_ERROR)) return
       !if (eof) then
       !   write(*,*) "Error: unexpected end of file."
       !   stop
@@ -82,7 +84,7 @@
                read(line,*, iostat = ierrsfx) iat
                write(units_str, "(A)") "bohr"
                if (f_err_raise((ierrsfx /= 0), "Missing number of atoms on line 1 of '" &
-                    & // trim(filename)//"'.",err_id=BIGDFT_INPUT_VARIABLES_ERROR)) return
+                    & // trim(filename)//"'.",err_id=BIGDFT_INPUT_FILE_ERROR)) return
                if (bigdft_mpi%iproc==0) call yaml_warning('No units specified in the xyz input file.'//&
                     ' Atomic Units are assumed implicitly. If convergence problems arise check this.')
             end if
@@ -98,7 +100,7 @@
          call f_strcpy(src='atomicd0',dest=units_str)
          reduced=.true.
       end if
-      
+
       call f_strcpy(src=units_str,dest=astruct%units)
 
       !from here onwards the function domain_from_xyz should be written
@@ -113,7 +115,7 @@
 
       !read from positions of .xyz format, but accepts also the old .ascii format
       call getLine(line, ifile, eof)
-      if (f_err_raise(eof,"Unexpected end of file '"//trim(filename)//"'.",err_id=BIGDFT_INPUT_VARIABLES_ERROR)) return
+      if (f_err_raise(eof,"Unexpected end of file '"//trim(filename)//"'.",err_id=BIGDFT_INPUT_FILE_ERROR)) return
       !if (eof) then
          !write(*,*) "Error: unexpected end of file."
          !stop
@@ -166,7 +168,7 @@
             select case(trim(tatonam))
             case('periodic','surface','wire')
                call f_err_throw('Error in the specification of the xyz file: for non Free BC the cell length have to be provided',&
-                    err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+                    err_id=BIGDFT_INPUT_FILE_ERROR)
                return
             end select
          end if
@@ -193,9 +195,9 @@
     !!!  end if
 
       !reduced coordinates are possible only with periodic units
-      if (f_err_raise( (astruct%units == 'reduced' .and. astruct%geocode == 'F'), &
+      if (f_err_raise( (reduced .and. astruct%geocode == 'F'), &
            & 'Reduced coordinates are not allowed with isolated BC', &
-           err_id=BIGDFT_INPUT_VARIABLES_ERROR)) return
+           err_id=BIGDFT_INPUT_FILE_ERROR)) return
 
       !convert the values of the cell sizes in bohr
       select case(trim(astruct%units))
@@ -216,7 +218,7 @@
          astruct%cell_dim(3)=alat3d0
       case default
          call f_err_throw('Length units in input file unrecognized (found "'//astruct%units// &
-              '"). Recognized units are angstroem or atomic = bohr',err_id=BIGDFT_INPUT_VARIABLES_ERROR)
+              '"). Recognized units are angstroem or atomic = bohr',err_id=BIGDFT_INPUT_FILE_ERROR)
          return
       end select
 
@@ -229,7 +231,7 @@
       do iat=1,astruct%nat
          !xyz input file, allow extra information
          call getLine(line, ifile, eof)
-         if (f_err_raise(eof,"Unexpected end of file '"//trim(filename)//"'.",err_id=BIGDFT_INPUT_VARIABLES_ERROR)) return
+         if (f_err_raise(eof,"Unexpected end of file '"//trim(filename)//"'.",err_id=BIGDFT_INPUT_FILE_ERROR)) return
 
          !!if (lpsdbl) then
          !!   read(line,*,iostat=ierrsfx)symbol,rxd0,ryd0,rzd0,extra
@@ -243,7 +245,7 @@
          call parse_extra_info(astruct%attributes(iat),extra,errmess)
      if (len_trim(errmess) > 0) then
         call f_err_throw('At atom ' // trim(yaml_toa(iat)) // ': ' // trim(errmess),&
-             & err_id=BIGDFT_INPUT_VARIABLES_ERROR)
+             & err_id=BIGDFT_INPUT_FILE_ERROR)
      else
         call astruct_at_from_dict(astruct%attributes(iat)%d, &
              & ifrztyp = astruct%ifrztyp(iat), igspin = nspol, igchrg = nchrg)
@@ -262,8 +264,8 @@
         astruct%rxyz(2,iat)=real(ry,gp)
         astruct%rxyz(3,iat)=real(rz,gp)
      end if
-     
-     if (astruct%units == 'reduced') then 
+
+     if (astruct%units == 'reduced') then
         acell=1.0_gp
      else
         acell(1)=alat1d0
@@ -290,8 +292,8 @@
         !if (astruct%geocode == 'P') astruct%rxyz(2,iat)=astruct%rxyz(2,iat)*astruct%cell_dim(2)
         !astruct%rxyz(3,iat)=astruct%rxyz(3,iat)*astruct%cell_dim(3)
      end select
-       
-        
+
+
 !!$     if (astruct%units == 'reduced') then !add treatment for reduced coordinates
 !!$        astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),1.0_gp)
 !!$        if (astruct%geocode == 'P') astruct%rxyz(2,iat)=modulo(astruct%rxyz(2,iat),1.0_gp)
@@ -315,7 +317,7 @@
      do iat=1,astruct%nat
         !xyz input file, allow extra information
         call getLine(line, ifile, eof)
-        if (f_err_raise(eof,"Unexpected end of file '"//trim(filename)//"'.",err_id=BIGDFT_INPUT_VARIABLES_ERROR)) return
+        if (f_err_raise(eof,"Unexpected end of file '"//trim(filename)//"'.",err_id=BIGDFT_INPUT_FILE_ERROR)) return
         !if (eof) then
         !   write(*,*) "Error: unexpected end of file."
         !   stop
@@ -345,7 +347,7 @@ contains
 
     if (f_err_raise(ierrsfx/=0,'The line'//trim(yaml_toa(iat+2))//&
          ' of the atomic position is not valid, check if it is in DOS format!',&
-         err_name='BIGDFT_LINALG_ERROR')) return
+         err_name='BIGDFT_INPUT_FILE_ERROR')) return
 
   end subroutine check_line_integrity
 
@@ -532,7 +534,7 @@ subroutine read_ascii_positions(ifile,filename,astruct,comment,energy,fxyz,getLi
      astruct%cell_dim(2) = real(alat3,gp)
      astruct%cell_dim(3) = real(alat6,gp)
   end if
-  
+
   !Convert the values of the cell sizes in bohr
   if (astruct%units=='angstroem' .or. astruct%units=='angstroemd0') then
      ! if Angstroem convert to Bohr
@@ -791,7 +793,7 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
      where (.not. bc_periodic_dims(geocode_to_bc(astruct%geocode))) astruct%cell_dim=0.0_gp
 !!$     if (trim(tatonam)=='periodic') then
 !!$        astruct%geocode='P'
-!!$     else if (trim(tatonam)=='surface') then 
+!!$     else if (trim(tatonam)=='surface') then
 !!$        astruct%geocode='S'
 !!$        astruct%cell_dim(2)=0.0_gp
 !!$     else !otherwise free bc
@@ -909,10 +911,10 @@ subroutine read_int_positions(iproc,ifile,astruct,comment,energy,fxyz,getLine,di
 
      if (astruct%units=='angstroem' .or. astruct%units=='angstroemd0') then
         ! if Angstroem convert to Bohr
-        do i=1,3 
+        do i=1,3
            astruct%rxyz(i,iat)=astruct%rxyz(i,iat)/Bohr_Ang
         enddo
-     else if (astruct%units == 'reduced') then 
+     else if (astruct%units == 'reduced') then
         astruct%rxyz(1,iat)=astruct%rxyz(1,iat)*astruct%cell_dim(1)
         if (astruct%geocode == 'P') astruct%rxyz(2,iat)=astruct%rxyz(2,iat)*astruct%cell_dim(2)
         astruct%rxyz(3,iat)=astruct%rxyz(3,iat)*astruct%cell_dim(3)
@@ -1199,7 +1201,7 @@ subroutine parse_extra_info(att, extra, errmess)
      if (nspol /= 0) call set(att%d // ASTRUCT_ATT_IGSPIN, nspol)
      if (nchrg /= 0) call set(att%d // ASTRUCT_ATT_IGCHRG, nchrg)
      if (len_trim(suffix) > 0) call set(att%d // ASTRUCT_ATT_FROZEN, suffix)
-     
+
      if (dict_size(att%d) == 0) then
         call dict_free(att%d)
         nullify(att%d)
@@ -1405,7 +1407,7 @@ END FUNCTION move_this_coordinate
 !>Write the extra info necessary for the output file
 subroutine write_extra_info(extra,natpol,ifrztyp)
   use ao_inguess, only: charge_and_spol
-  implicit none 
+  implicit none
   integer, intent(in) :: natpol,ifrztyp
   character(len=226), intent(out) :: extra
   !local variables
@@ -1595,7 +1597,7 @@ subroutine wtxyz_forces(iunit,fxyz,astruct)
 end subroutine wtxyz_forces
 
 
-!> Write ascii file (atomic position). 
+!> Write ascii file (atomic position).
 subroutine wtascii(iunit,energy,rxyz,astruct,comment)
   use module_defs, only: UNINITIALIZED
   use numerics, only: Bohr_Ang
@@ -1880,13 +1882,13 @@ subroutine check_atoms_positions(astruct, simplify)
                  dowrite=.false.
               end if
            end do
-           if (dowrite) & 
+           if (dowrite) &
                 write(iunit,'(a2,4x,3(1x,1pe21.14))')trim(astruct%atomnames(astruct%iatype(iat))),&
                 (astruct%rxyz(j,iat),j=1,3)
         end do
         close(unit=iunit)
         call yaml_map('Writing tentative alternative positions in the file posinp_alt',.true.)
-        call yaml_warning('Replace ??? in the file heading with the actual atoms number')               
+        call yaml_warning('Replace ??? in the file heading with the actual atoms number')
      end if
      stop 'check_atoms_positions'
   end if

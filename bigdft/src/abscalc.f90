@@ -14,7 +14,7 @@ program abscalc_main
    use bigdft_run!module_types
 !!$   use module_interfaces
 !!$   use m_ab6_symmetry
-   !  use minimization, only: parameterminimization 
+   !  use minimization, only: parameterminimization
    use yaml_output
    implicit none
    character(len=*), parameter :: subname='abscalc_main'
@@ -61,7 +61,7 @@ program abscalc_main
          !inquire(file=trim(run_id)//".abscalc",exist=exists)
          if (.not. exists) then
             call f_err_throw('Need file input.abscalc for x-ray absorber treatment',&
-                 err_name='BIGDFT_INPUT_FILE_ERROR')
+                 err_name='INPUT_OUTPUT_ERROR')
          end if
       call abscalc_input_variables(iproc,trim(run_id)//".abscalc",runObj%inputs)
       if( runObj%inputs%iat_absorber <1 .or. runObj%inputs%iat_absorber > runObj%atoms%astruct%nat) then
@@ -130,12 +130,12 @@ subroutine call_abscalc(nproc,iproc,runObj,energy,fxyz,infocode)
       call f_free_ptr(runObj%rst%KSwfn%psi)
       call f_free_ptr(runObj%rst%KSwfn%orbs%eval)
       nullify(runObj%rst%KSwfn%orbs%eval)
-      
+
       call deallocate_locreg_descriptors(runObj%rst%KSwfn%Lzd%Glr)
    end if
 
    if(f_err_raise(.not. runObj%inputs%c_absorbtion,err_msg='Not a valig option',&
-        err_name='BIGDFT_RUNTIME_ERROR')) then 
+        err_name='BIGDFT_RUNTIME_ERROR')) then
       return
    else
       call abscalc(nproc,iproc,runObj%atoms,runObj%atoms%astruct%rxyz,&
@@ -199,7 +199,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    integer, intent(out) :: infocode !< encloses some information about the status of the run
                                     !! - 0 run successfully succeded
                                     !! - 1 the run ended after the allowed number of minimization steps. gnrm_cv not reached
-                                    !!     forces may be meaningless   
+                                    !!     forces may be meaningless
                                     !! - 2 (present only for inputPsiId=1) gnrm of the first iteration > 1 AND growing in
                                     !!     the second iteration OR grnm 1st >2.
                                     !!     Input wavefunctions need to be recalculated. Routine exits.
@@ -246,7 +246,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    real(kind=8), dimension(:), pointer :: hpsi,psit,psivirt
    real(dp), dimension(:,:,:,:), pointer :: rhocore
    !real(kind=8), dimension(:), pointer :: psidst,hpsidst
-   ! PSP projectors 
+   ! PSP projectors
    ! arrays for DIIS convergence accelerator
    !real(kind=8), dimension(:,:,:), pointer :: ads
    ! Arrays for the symmetrisation, not used here...
@@ -257,7 +257,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
 
    !for xabsorber
    integer :: ix, iy, iz , ixnl, iynl, iznl !n(c) lpot_a
-   real(gp) :: rpot_a,spot_a,hpot_a,espo,harmo,r,rx,ry,rz,minr  
+   real(gp) :: rpot_a,spot_a,hpot_a,espo,harmo,r,rx,ry,rz,minr
    real(gp), pointer :: radpot(:,:)
    integer :: radpotcount, igrid
    real(gp), dimension(6) :: ewaldstr
@@ -277,7 +277,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    integer :: nrange
    real(gp), pointer :: auxint(:)
 
-   logical  :: exists 
+   logical  :: exists
    integer  :: nat_b2B
    integer  :: Nreplicas, ireplica, replicaoffset
    real(gp) :: dumvect3D(3)
@@ -384,7 +384,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    call f_timing_reset(filename=trim(in%dir_output)//'time.yaml',master=iproc==0)
    call cpu_time(tcpu0)
    call system_clock(ncount0,ncount_rate,ncount_max)
- 
+
    if(nspin/=1 .and. nspin/=2 .and. nspin/=4) nspin=1
 
    ! grid spacing (same in x,y and z direction)
@@ -455,7 +455,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
    !of iskpts and nkptsp)
 
    call orbitals_descriptors(iproc,nproc,1,1,0,in%nspin,1,in%gen_nkpt,in%gen_kpt,in%gen_wkpt,orbs,LINEAR_PARTITION_NONE)
-   call orbitals_communicators(iproc,nproc,KSwfn%Lzd%Glr,orbs,comms)  
+   call orbitals_communicators(iproc,nproc,KSwfn%Lzd%Glr,orbs,comms)
    call orbital_basis_associate(ob,orbs=orbs,Glr=KSwfn%Lzd%Glr)
    call createProjectorsArrays(KSwfn%Lzd%Glr,rxyz,atoms,ob%orbs,&
         cpmult,fpmult,in%projection,.false.,nlpsp,.true.)
@@ -500,7 +500,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
 !!$       n3d,n3p,n3pi,i3xcsh,i3s,nscatterarr,ngatherarr,rhodsc)
 
    !allocate ionic potential
-   if (iproc == 0) write(*,*) " allocate ionic potential " 
+   if (iproc == 0) write(*,*) " allocate ionic potential "
    if (dpcom%n3pi > 0) then
       pot_ion = f_malloc(n1i*n2i*dpcom%n3pi,id='pot_ion')
    else
@@ -540,7 +540,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
       call timing(iproc,'CrtPcProjects ','ON')
       PPD%DistProjApply  =  DistProjApply
       ! the following routine calls  localize_projectors again
-      ! but this should be in coherence with the previous call for psp projectos 
+      ! but this should be in coherence with the previous call for psp projectos
       call createPcProjectorsArrays(iproc,nproc,n1,n2,n3,rxyz,atoms,orbs,&
            cpmult,fpmult,hx,hy,hz,-0.1_gp, &
            PPD, KSwfn%Lzd%Glr  )
@@ -641,7 +641,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
           KSwfn%orbs,nvirt,comms,KSwfn%Lzd,hx,hy,hz,rxyz,rhopotExtra,rhocore,pot_ion,&
           nlpsp,pkernel,ixc,KSwfn%psi,Gvirt,&
           nspin, in%potshortcut, symObj, GPU,in)
-      
+
       if( iand( in%potshortcut,32)  .gt. 0 .and. in%iabscalc_type==3 ) then
          print *, " ============== TESTING PC_PROJECTORS =========== "
          hpsi = f_malloc_ptr(max(KSwfn%orbs%npsidim_orbs, KSwfn%orbs%npsidim_comp),id='hpsi')
@@ -661,7 +661,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
          do iz = 1,n3i
             do iy=1,n2i
                do ix=1,n1i
-                  rhopottmp(ix,iy,iz +dpcom%i3xcsh,1) =  pot_bB(ix,iy,iz,1)  !pot_bB(ix+ (iy-1)*n1i  + (iz-1)*n1i*n2i,1)  
+                  rhopottmp(ix,iy,iz +dpcom%i3xcsh,1) =  pot_bB(ix,iy,iz,1)  !pot_bB(ix+ (iy-1)*n1i  + (iz-1)*n1i*n2i,1)
                enddo
             enddo
          enddo
@@ -764,7 +764,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
                write(filename,'(A)' ) 'b2B_xanes'
                rhotarget=>rhopotTOTO
             else
-               STOP " reimplement allocation of rhoXanesTOTO" 
+               STOP " reimplement allocation of rhoXanesTOTO"
                write(filename,'(A)') 'b2B_rho'
                !              rhotarget=>rhoXanesTOTO
             endif
@@ -789,15 +789,15 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
                n3i_bB=ndims(3)
 
                if( (atoms%astruct%nat/nat_b2B)*nat_b2B /=  atoms%astruct%nat ) then
-                  if(iproc==0) write(*,*)  "   b2B_xanes cube  is not compatible with actual positions" 
+                  if(iproc==0) write(*,*)  "   b2B_xanes cube  is not compatible with actual positions"
                   if(nproc>1) call MPI_Finalize(ierr)
                   stop '      b2B_xanes cube  is not compatible with actual positions          '
                end if
 
             else
                print  *, " reading potential from file ","b2B_xanes.pot"
-               write(6,*) " reading pot for b2B from potfile has been disactivated. Use cube format instead  " 
-               stop  " reading pot for b2B from potfile has been disactivated. Use cube format instead  " 
+               write(6,*) " reading pot for b2B from potfile has been disactivated. Use cube format instead  "
+               stop  " reading pot for b2B from potfile has been disactivated. Use cube format instead  "
 
             endif
 
@@ -834,14 +834,14 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
                replicaoffset = (ireplica)*(   nat_b2B      )
 
                do j=1,3
-                  shift_b2B(j) = rxyz(j,1+replicaoffset) - rxyz_b2B(j,1) 
+                  shift_b2B(j) = rxyz(j,1+replicaoffset) - rxyz_b2B(j,1)
 
                   do iat=2+ireplica*nat_b2B, (ireplica+1)*nat_b2B
 
                      shiftdiff = shift_b2B(j) - (rxyz(j,iat) -rxyz_b2B(j,iat-replicaoffset)   )
 
                      if( abs( shiftdiff )>1.0e-4 .and.  abs(abs(shiftdiff)-dumvect3d(j))  >1.0e-4) then
-                        if(iproc==0) write(*,*)  "   b2B_xanes  positions are not compatible with actual positions" 
+                        if(iproc==0) write(*,*)  "   b2B_xanes  positions are not compatible with actual positions"
                         if(nproc>1) call MPI_Finalize(ierr)
                         stop '      b2B_xanes positions are not compatible with actual positions          '
                      end if
@@ -877,10 +877,10 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
                         minX_B  =  NINT((rx_bB -8*hx_old/2)/(hx/2.0))
                         maxX_B  =  NINT((rx_bB +8*hx_old/2)/(hx/2.0))
 
-                        do ixnl= minX_B , maxX_B 
+                        do ixnl= minX_B , maxX_B
                            ix = mod(ixnl-1 + n1i , n1i) +1
 
-                           rx = hx*(ix-1  )/2.0  
+                           rx = hx*(ix-1  )/2.0
 
                            shiftdiff = (rx-rx_bB)
                            if ( abs(shiftdiff -atoms%astruct%cell_dim(1)) < abs(shiftdiff)) &
@@ -888,7 +888,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
                            if ( abs(shiftdiff +atoms%astruct%cell_dim(1)) < abs(shiftdiff)) &
                                 shiftdiff=shiftdiff +atoms%astruct%cell_dim(1)
 
-                           idelta = NINT( shiftdiff *2**15/(hx_old/2))  
+                           idelta = NINT( shiftdiff *2**15/(hx_old/2))
                            factx = intfunc_y(nd/2+idelta)
                            auxint(ix) = auxint(ix) + &
                               &   factx * rhopottmp(ix_bB,iy_bB,iz_bB ,1)
@@ -909,10 +909,10 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
                         minY_B  =  NINT((ry_bB -8*hy_old/2)/(hy/2.0))
                         maxY_B  =  NINT((ry_bB +8*hy_old/2)/(hy/2.0))
 
-                        do iynl= minY_B , maxY_B 
+                        do iynl= minY_B , maxY_B
                            iy = mod(iynl-1 + n2i , n2i) +1
 
-                           ry = hy*(iy-1  )/2.0  
+                           ry = hy*(iy-1  )/2.0
 
                            shiftdiff = (ry-ry_bB)
                            if ( abs(shiftdiff -atoms%astruct%cell_dim(2)) < abs(shiftdiff)) &
@@ -941,11 +941,11 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
                         minZ_B  =    NINT((rz_bB -8*hz_old/2)/(hz/2.0))
                         maxZ_B  =    NINT((rz_bB +8*hz_old/2)/(hz/2.0))
 
-                        do iznl= minZ_B , maxZ_B 
+                        do iznl= minZ_B , maxZ_B
 
                            iz = mod(iznl-1 + n3i , n3i) +1
 
-                           rz = hz*(iz-1  )/2.0  
+                           rz = hz*(iz-1  )/2.0
 
                            shiftdiff = (rz-rz_bB)
                            if ( abs(shiftdiff -atoms%astruct%cell_dim(3)) < abs(shiftdiff)) &
@@ -953,7 +953,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
                            if ( abs(shiftdiff +atoms%astruct%cell_dim(3)) < abs(shiftdiff)) &
                                 shiftdiff=shiftdiff +atoms%astruct%cell_dim(3)
 
-                           idelta = NINT( shiftdiff *2**15/(hz_old/2.0))     
+                           idelta = NINT( shiftdiff *2**15/(hz_old/2.0))
                            factz = intfunc_y(nd/2+idelta)
                            auxint(iz) = auxint(iz) + &
                               &   factz * rhopottmp(ix_bB,iy_bB,iz_bB,1)
@@ -1010,8 +1010,8 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
       endif
 
       alteration: if(  in%abscalc_alterpot) then
-         ! Attention :  modification of the  potential for the  
-         ! exactly resolvable case 
+         ! Attention :  modification of the  potential for the
+         ! exactly resolvable case
 
          !n(c) lpot_a=1
          rpot_a = 7.5d0
@@ -1053,13 +1053,13 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
                            &   ( radpot(igrid+1,1) -radpot(igrid,1) )
                      endif
                   else
-                     if(potmodified_maxr<r) then 
+                     if(potmodified_maxr<r) then
                         potmodified_maxr=r
                         igrid = binary_search( r, radpot, radpotcount )
                         potmodified_shift =&
                            &   ( radpot(igrid,2)*(radpot(igrid+1,1)-R) + radpot(igrid+1,2)*(R-radpot(igrid,1)) )/&
                            &   ( radpot(igrid+1,1) -radpot(igrid,1) ) &
-                           &   -rhopot(ix,iy,iz,1) 
+                           &   -rhopot(ix,iy,iz,1)
                      endif
                   endif
 
@@ -1133,7 +1133,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
 
    contains
 
-   !routine which deallocate the pointers and the arrays before exiting 
+   !routine which deallocate the pointers and the arrays before exiting
    subroutine deallocate_before_exiting
      use communications_base, only: deallocate_comms
      !use locregs, only: deallocate_convolutions_bounds
@@ -1176,7 +1176,7 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
       call deallocate_Lzd_except_Glr(KSwfn%Lzd)
 !      i_all=-product(shape(Lzd%Glr%projflg))*kind(Lzd%Glr%projflg)
 !      deallocate(Lzd%Glr%projflg,stat=i_stat)
-!      call memocc(i_stat,i_all,'Lzd%Glr%projflg',subname)  
+!      call memocc(i_stat,i_all,'Lzd%Glr%projflg',subname)
 
       call deallocate_comms(comms)
 
@@ -1192,11 +1192,11 @@ subroutine abscalc(nproc,iproc,atoms,rxyz,&
          call deallocate_pcproj_data(PPD)
       endif
       if(sum(atoms%paw_NofL) > 0) then
-         call deallocate_pawproj_data(PAWD)       
+         call deallocate_pawproj_data(PAWD)
       endif
       !! this is included in deallocate_atomdatapaw
       !! call deallocate_atomdatapaw(atoms,subname)
-     
+
       ! Free the libXC stuff if necessary.
       call xc_end(xc)
 
@@ -1276,7 +1276,7 @@ subroutine abscalc_input_variables(iproc,filename,in)
   endif
 
 
-  read(iunit,*,iostat=ierror) in%abscalc_alterpot, in%abscalc_eqdiff 
+  read(iunit,*,iostat=ierror) in%abscalc_alterpot, in%abscalc_eqdiff
   !!, &
   !!     in%abscalc_S_do_cg ,in%abscalc_Sinv_do_cg
   if(ierror==0) then
@@ -1322,7 +1322,7 @@ END SUBROUTINE zero4b2B
 !!$subroutine back_trans_14_4b2B(nd,nt,x,y)
 !!$   implicit none
 !!$   !Arguments
-!!$   integer, intent(in) :: nd                !< length of data set                          
+!!$   integer, intent(in) :: nd                !< length of data set
 !!$   integer, intent(in) :: nt                !< length of data in data set to be transformed
 !!$   real(kind=8), intent(in) :: x(0:nd-1)    !< input data,
 !!$   real(kind=8), intent(out) :: y(0:nd-1)   !< output data
@@ -1340,11 +1340,11 @@ END SUBROUTINE zero4b2B
 !!$         ! periodically wrap index if necessary
 !!$         ind=i-j
 !!$         loop99: do
-!!$            if (ind.lt.0) then 
+!!$            if (ind.lt.0) then
 !!$               ind=ind+nt/2
 !!$               cycle loop99
 !!$            end if
-!!$            if (ind.ge.nt/2) then 
+!!$            if (ind.ge.nt/2) then
 !!$               ind=ind-nt/2
 !!$               cycle loop99
 !!$            end if
@@ -1474,7 +1474,7 @@ subroutine read_potfile4b2B(filename,n1i,n2i,n3i, rho, alat1, alat2, alat3)
 
    rho = f_malloc_ptr(n1i*n2i*n3i,id='rho')
 
-   print *, " going to read all pot points " 
+   print *, " going to read all pot points "
    do i3=0,n3i-1
       do i2=0,n2i-1
          do i1=0,n1i-1
@@ -1484,7 +1484,7 @@ subroutine read_potfile4b2B(filename,n1i,n2i,n3i, rho, alat1, alat2, alat3)
          end do
       end do
    end do
-   print *, " closing file  " 
+   print *, " closing file  "
    close(22)
 
 END SUBROUTINE read_potfile4b2B
@@ -1522,7 +1522,7 @@ subroutine extract_potential_for_spectra(iproc,nproc,at,rhod,dpcom,&
    type(input_variables):: input
    type(symmetry_data), intent(in) :: symObj
    !integer, dimension(0:nproc-1,4), intent(in) :: nscatterarr !n3d,n3p,i3s+i3xcsh-1,i3xcsh
-   !integer, dimension(0:nproc-1,2), intent(in) :: ngatherarr 
+   !integer, dimension(0:nproc-1,2), intent(in) :: ngatherarr
    real(gp), dimension(3,at%astruct%nat), intent(in) :: rxyz
    real(dp), dimension(*), intent(inout) :: rhopot,pot_ion
    type(gaussian_basis), intent(out) :: G !basis for davidson IG
@@ -1572,7 +1572,7 @@ subroutine extract_potential_for_spectra(iproc,nproc,at,rhod,dpcom,&
 
   !allocate communications arrays for inputguess orbitals
   !call allocate_comms(nproc,orbse,commse,subname)
-  call orbitals_communicators(iproc,nproc,Lzd%Glr,orbse,commse,basedist=comms%nvctr_par(0:,1:))  
+  call orbitals_communicators(iproc,nproc,Lzd%Glr,orbse,commse,basedist=comms%nvctr_par(0:,1:))
 
   !use the eval array of orbse structure to save the original values
   orbse%eval = f_malloc_ptr(orbse%norb*orbse%nkpts,id='orbse%eval')
@@ -1607,7 +1607,7 @@ subroutine extract_potential_for_spectra(iproc,nproc,at,rhod,dpcom,&
      GPU%OCLconv=.false.
   end if
 
-  call timing(iproc,'wavefunction  ','ON')   
+  call timing(iproc,'wavefunction  ','ON')
   !use only the part of the arrays for building the hamiltonian matrix
   call gaussians_to_wavelets_new(iproc,nproc,Lzde,orbse,G,&
        psigau(1,1,1),psi)
@@ -1628,7 +1628,7 @@ subroutine extract_potential_for_spectra(iproc,nproc,at,rhod,dpcom,&
   if( iand( potshortcut,16)==0 .and. potshortcut /= 0) then
      call plot_density_cube_old('electronic_density',&
           iproc,nproc,Lzde%Glr%d%n1,Lzde%Glr%d%n2,Lzde%Glr%d%n3,&
-          Lzde%Glr%d%n1i,Lzde%Glr%d%n2i,Lzde%Glr%d%n3i,dpcom%nscatterarr(iproc,2),  & 
+          Lzde%Glr%d%n1i,Lzde%Glr%d%n2i,Lzde%Glr%d%n3i,dpcom%nscatterarr(iproc,2),  &
           nspin,hxh,hyh,hzh,at,rxyz,dpcom%ngatherarr,&
           rhopot(1+dpcom%nscatterarr(iproc,4)*Lzde%Glr%d%n1i*Lzd%Glr%d%n2i))
   endif
@@ -1640,7 +1640,7 @@ subroutine extract_potential_for_spectra(iproc,nproc,at,rhod,dpcom,&
      call xc_init(xc, ixc, XC_ABINIT, nspin)
   end if
   if(orbs%nspinor==4) then
-     !this wrapper can be inserted inside the poisson solver 
+     !this wrapper can be inserted inside the poisson solver
      !call PSolverNC(domain_geocode(at%astruct%dom),'D',iproc,nproc,Lzde%Glr%d%n1i,Lzde%Glr%d%n2i,Lzde%Glr%d%n3i,&
      call PSolverNC(at%astruct%dom,'D',iproc,nproc,Lzde%Glr%d%n1i,Lzde%Glr%d%n2i,Lzde%Glr%d%n3i,&
           dpcom%nscatterarr(iproc,1),& !this is n3d
@@ -1695,11 +1695,11 @@ subroutine extract_potential_for_spectra(iproc,nproc,at,rhod,dpcom,&
         if (iproc == 0) call print_nlpsp(nlpsp)
      end if
   end if
-  
+
 
   !deallocate the gaussian basis descriptors
   call deallocate_gwf(G)
-  if(potshortcut<=0) call deallocate_local_zone_descriptors(Lzde)  
+  if(potshortcut<=0) call deallocate_local_zone_descriptors(Lzde)
 
 
 

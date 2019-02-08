@@ -967,8 +967,10 @@ contains
 
   !> Read atomic file
   subroutine set_astruct_from_file(file,iproc,astruct,comment,energy,fxyz,disableTrans,pos_format)
-    use module_base
-    use dictionaries, only: set, dictionary
+    use module_base, only: iterating, pi_param, UNINITIALIZED, &
+           f_err_raise, f_err_throw, f_err_check, f_open_file, f_file_exists, f_free_ptr, &
+           BIGDFT_INPUT_FILE_ERROR, BIGDFT_INPUT_VARIABLES_ERROR
+    use dictionaries, only: set, dictionary, dict_value, dict_free, operator(//)
     use yaml_strings
     use f_utils, only: f_zero
     use internal_coordinates, only: internal_to_cartesian
@@ -1050,7 +1052,7 @@ contains
        if (astruct%inputfile_format /= pos_format) &
             call f_err_throw("The detected filename '"//trim(filename)//"' has not the specified format '" // &
             trim(pos_format) // "'.", &
-            err_name='BIGDFT_INPUT_VARIABLES_ERROR')
+            err_name='BIGDFT_INPUT_FILE_ERROR')
     end if
 
     ! Test the name directly
@@ -1778,8 +1780,8 @@ contains
 
   !> Read Atomic positions and merge into dict
   subroutine astruct_file_merge_to_dict(dict, key, filename, pos_format)
-    use module_base, only: gp, UNINITIALIZED, bigdft_mpi,f_routine,f_release_routine, &
-        & BIGDFT_INPUT_FILE_ERROR,f_free_ptr
+    use module_base, only: gp, UNINITIALIZED, bigdft_mpi,f_routine,f_release_routine,f_free_ptr, &
+        & BIGDFT_INPUT_FILE_ERROR
     use public_keys, only: POSINP,GOUT_FORCES,GOUT_ENERGY,POSINP_SOURCE
     use yaml_strings
     use yaml_output, only: yaml_map
@@ -1816,10 +1818,11 @@ contains
     !end if
     !print *,'test2',associated(fxyz)
 
-    !Collect only two erros INPUT_OUTPUT_ERROR or BIGDFT_INPUT_FILE_ERROR
+    !Collect only two errors INPUT_OUTPUT_ERROR, and BIGDFT_INPUT_FILE_ERROR
     !Check if INPUT_OUTPUT_ERROR (collect all errors)
     call dict_init(list_msg)
     ierr=f_err_pop(err_name='INPUT_OUTPUT_ERROR',add_msg=msg)
+    print *,"ierr=",ierr
     if (ierr /= 0) then
       !Found a file but error when opening the file: collect all same errors
       do
@@ -1828,7 +1831,7 @@ contains
         if (ie == 0) exit
       end do
     else
-      !Check if input file is correct
+      !Check if the input file is correct
       ierr = f_err_pop(err_id=BIGDFT_INPUT_FILE_ERROR,add_msg=msg)
       do
         call add(list_msg,msg)
