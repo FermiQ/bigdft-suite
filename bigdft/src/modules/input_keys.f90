@@ -177,7 +177,7 @@ module module_input_keys
      character(len=100) :: file_lin
      character(len=100) :: file_frag   !< Fragments
      character(len=max_field_length) :: dir_output  !< Strings of the directory which contains all data output files
-     character(len=max_field_length) :: outdir      !< Strings of the directory which contains 
+     character(len=max_field_length) :: outdir      !< Strings of the directory which contains
                                                     !! logfile, iput_minimal, and forces_xxx
      character(len=max_field_length) :: naming_id   !< Name of the job
      !integer :: files                  !< Existing files.
@@ -241,7 +241,7 @@ module module_input_keys
      !> calculate the magnetic torque as in the constrained field dynamics
      logical :: calculate_magnetic_torque
      !> perform LLG spin dynamics using magnetic torques
-     logical :: do_spin_dynamics         
+     logical :: do_spin_dynamics
      !character(len=8) :: set_epsilon !< method for setting the dielectric constant
 
      !> solver parameters
@@ -310,7 +310,7 @@ module module_input_keys
      real(gp), dimension(6) :: strtarget
      real(gp), dimension(:), pointer :: qmass
      real(gp) :: dtinit, dtmax           !< For FIRE
-     type(f_enumerator) :: tddft_approach 
+     type(f_enumerator) :: tddft_approach
      character(len=max_field_length) :: dir_perturbation  !< Strings of the directory which contains the perturbation
      type(SIC_data) :: SIC               !< Parameters for the SIC methods
      !variables for SQNM
@@ -390,7 +390,7 @@ module module_input_keys
 
      !> dump coupling matrix method
      type(f_enumerator) :: dump_coupling_matrix
-     
+
      type(external_potential_descriptors) :: ep !< contains the multipoles for the external potential
      logical :: mp_centers_auto !< indicates whether the multipole centers shall be determined automatically (i.e. the atoms) or provided manually
      real(kind=8),dimension(:,:),pointer :: mp_centers !< contains the positions of the multipoles to be calculated
@@ -614,7 +614,7 @@ contains
 
   !> Fill the input_variables and atoms_data structures from the information
   !! contained in the dictionary dict
-  !! the dictionary should be completes to fill all the information
+  !! the dictionary should be completed to fill all the information
   subroutine inputs_from_dict(in, atoms, dict)
     use module_defs, only: DistProjApply,pi_param
     use module_base, only: bigdft_mpi
@@ -1059,7 +1059,7 @@ contains
 !!$    tmppos = dict .get. POSINP
 !!$    if (associated(tmppos)) free =ASTRUCT_CELL .notin. tmppos
 !!$
-!!$    
+!!$
 !!$    if (free .and. symbool) call set(dict // DFT_VARIABLES // DISABLE_SYM,.true.)
 !!$
 !!$
@@ -2982,7 +2982,7 @@ contains
 
     !determine the TDDFT approach, including the coupling matrix policy
     if (in%tddft_approach /= 'NONE') call f_enum_attr(in%tddft_approach,in%dump_coupling_matrix)
-    
+
     call f_release_routine()
   END SUBROUTINE input_analyze
 

@@ -1516,8 +1516,8 @@ contains
     call f_zero(field)
     field= run .get. RADICAL_NAME
     field = run .get. key
-    if (len_trim(field) == 0 .or. trim(field) == LOGFILE) call f_strcpy(src=&
-         fallback_name // trim(run_id_toa()),dest=field)
+    if (len_trim(field) == 0 .or. trim(field) == LOGFILE) &
+         call f_strcpy(src=fallback_name // trim(run_id_toa()),dest=field)
 
   end subroutine get_run_field
 
@@ -1986,7 +1986,7 @@ contains
   !!     Orbital 2: 2/3
   !!     Orbital 3: 2/3
   !!     Orbital 4: 2/3
-  !!   K point 2: 
+  !!   K point 2:
   !!     Orbital 2: 2
   !!
   !! If not K point, you can remove the keyword 'K points 1'
@@ -2134,7 +2134,7 @@ contains
       if (qelec - real(ne,gp) > 1.e-12_gp) ne=ne+1
     end function int_elec
 
-    
+
     subroutine count_for_kpt(occ)
       use module_defs, only: BIGDFT_INPUT_VARIABLES_ERROR
       implicit none
