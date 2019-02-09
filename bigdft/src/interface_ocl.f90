@@ -44,7 +44,8 @@ subroutine allocate_data_OCL(n1,n2,n3,mesh_coarse,nspin,wfd,orbs,GPU)
   use module_base
   use module_types
   use compression
-  use box, only: cell,cell_periodic_dims
+  use box, only: cell
+  use at_domain, only:domain_periodic_dims
   implicit none
 !!$  character(len=1), intent (in) :: geocode !< @copydoc poisson_solver::doc::geocode
   integer, intent(in) :: n1,n2,n3,nspin
@@ -77,7 +78,7 @@ subroutine allocate_data_OCL(n1,n2,n3,mesh_coarse,nspin,wfd,orbs,GPU)
 !!$    periodic(3) = 0
 !!$  endif
 
-  peri=cell_periodic_dims(mesh_coarse)
+  peri=domain_periodic_dims(mesh_coarse%dom)
   periodic=0
   where (peri) periodic=1
 
@@ -271,7 +272,7 @@ subroutine daub_to_isf_OCL(lr,psi,psi_r,GPU)
   use module_base
   use module_types
   use locregs
-  use box, only: cell_periodic_dims
+  use at_domain, only: domain_periodic_dims
   implicit none
   type(locreg_descriptors), intent(in) :: lr
   type(GPU_pointers), intent(inout) :: GPU
@@ -298,7 +299,7 @@ subroutine daub_to_isf_OCL(lr,psi,psi_r,GPU)
 !!$    periodic(3) = 0
 !!$  endif
 
-  peri=cell_periodic_dims(lr%mesh)
+  peri=domain_periodic_dims(lr%mesh%dom)
   periodic=0
   where (peri) periodic=1
 
@@ -331,7 +332,7 @@ subroutine isf_to_daub_OCL(lr,psi_r,psi,GPU)
   use module_base
   use module_types
   use locregs
-  use box, only: cell_periodic_dims
+  use at_domain, only: domain_periodic_dims
   implicit none
   type(locreg_descriptors), intent(in) :: lr
   type(GPU_pointers), intent(inout) :: GPU
@@ -358,7 +359,7 @@ subroutine isf_to_daub_OCL(lr,psi_r,psi,GPU)
 !!$    periodic(3) = 0
 !!$  endif
 
-  peri=cell_periodic_dims(lr%mesh)
+  peri=domain_periodic_dims(lr%mesh%dom)
   periodic=0
   where (peri) periodic=1
 
@@ -392,7 +393,7 @@ subroutine local_hamiltonian_OCL(orbs,lr,hx,hy,hz,&
   use module_base
   use module_types
   use locregs
-  use box, only: cell_periodic_dims
+  use at_domain, only: domain_periodic_dims
   implicit none
   integer, intent(in) :: nspin
   real(gp), intent(in) :: hx,hy,hz
@@ -430,7 +431,7 @@ subroutine local_hamiltonian_OCL(orbs,lr,hx,hy,hz,&
 !!$    periodic(3) = 0
 !!$  endif
 
-  peri=cell_periodic_dims(lr%mesh)
+  peri=domain_periodic_dims(lr%mesh%dom)
   periodic=0
   where (peri) periodic=1
   
@@ -623,7 +624,7 @@ subroutine preconditionall_OCL(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero,GPU)
   use module_types
   use locreg_operations, only: workarr_precond,allocate_work_arrays,deallocate_work_arrays
   use locregs
-  use box, only: cell_periodic_dims
+  use at_domain, only: domain_periodic_dims
   implicit none
   type(orbitals_data), intent(in) :: orbs
   integer, intent(in) :: ncong
@@ -667,7 +668,7 @@ subroutine preconditionall_OCL(orbs,lr,hx,hy,hz,ncong,hpsi,gnrm,gnrm_zero,GPU)
 !!$    periodic(3) = 0
 !!$  endif
 
-  peri=cell_periodic_dims(lr%mesh)
+  peri=domain_periodic_dims(lr%mesh%dom)
   periodic=0
   where (peri) periodic=1
 
@@ -909,7 +910,7 @@ subroutine local_partial_density_OCL(orbs,&
   use module_base
   use module_types
   use locregs
-  use box, only: cell_periodic_dims
+  use at_domain, only: domain_periodic_dims
   implicit none
   integer, intent(in) :: nrhotot
   type(orbitals_data), intent(in) :: orbs
@@ -943,7 +944,7 @@ subroutine local_partial_density_OCL(orbs,&
 !!$    periodic(3) = 0
 !!$  endif
 
-  peri=cell_periodic_dims(lr%mesh)
+  peri=domain_periodic_dims(lr%mesh%dom)
   periodic=0
   where (peri) periodic=1
 
