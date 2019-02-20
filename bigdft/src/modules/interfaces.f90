@@ -943,7 +943,8 @@ module module_interfaces
        end interface
 
        interface
-         subroutine input_check_psi_id(inputpsi, input_wf_format, dir_output, orbs, lorbs, iproc, nproc, nfrag, frag_calc, frag_dir, ref_frags)
+         subroutine input_check_psi_id(inputpsi, input_wf_format, dir_output, orbs, lorbs, iproc, nproc, nfrag, frag_calc, &
+         frag_dir, ref_frags)
          use module_types
          use f_enums
          use module_fragments
