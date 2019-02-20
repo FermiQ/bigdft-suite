@@ -129,18 +129,22 @@ dnl if the futile libraries are dynamic add the dependencies
 if test $ax_FUTILE_static != "yes" ; then
   LIB_ATLAB_DEPS="$LIB_ATLAB_DEPS $LIBCUDA_LIBS $LINALG_LIBS $MPI_LDFLAGS $MPI_LIBS"
 fi
-LIB_ATLAB_PKG=""
-if test $ax_build_dynamic != "yes" ; then
-  LIB_ATLAB_PKG="$LIB_ATLAB_DEPS"
-fi
-AC_SUBST(LIB_ATLAB_PKG)
 AC_SUBST(LIB_ATLAB_DEPS)
 
 LIB_ATLAB_LIBS="-latlab-1"
 if test $ax_build_dynamic != "yes" ; then
   LIB_ATLAB_LIBS="$LIB_ATLAB_LIBS $LIBS_EXT_DEPS $LIBS"
+  if test $ax_have_OPENBABEL == "yes" ; then
+    LIB_ATLAB_LIBS="$LIB_ATLAB_LIBS -lbabel"
+  fi
 fi
 AC_SUBST(LIB_ATLAB_LIBS)
+
+LIB_ATLAB_PKG=""
+if test $ax_build_dynamic != "yes" ; then
+  LIB_ATLAB_PKG="$LIB_ATLAB_DEPS"
+fi
+AC_SUBST(LIB_ATLAB_PKG)
 
 AC_SUBST(CONFIG_ARGS, [$ac_configure_args])
 

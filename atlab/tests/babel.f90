@@ -1,6 +1,7 @@
 program babel
   use futile
-  use module_atoms
+  use at_babel
+!  use module_atoms
   character(len=*), parameter :: input1=&
        "  {name: input, shortname: i, default: None,"//&
        "  help_string: Input file,"//&
@@ -15,27 +16,8 @@ program babel
        '-'//input2
 
   character(len=64) :: fin, fout
-  type(dictionary), pointer :: dict,types,options,iter
-  type(atomic_structure) :: astruct
-
-  interface
-     subroutine openbabel_load(d, f)
-       use dictionaries
-       implicit none
-       type(dictionary), pointer :: d
-       character, dimension(*), intent(in) :: f
-       !character(len = *), intent(in) :: f
-       !integer, intent(in) :: ln
-     end subroutine openbabel_load
-     subroutine openbabel_dump(d, t, f)
-       use dictionaries
-       implicit none
-       type(dictionary), pointer :: d, t
-       character, dimension(*), intent(in) :: f
-       !character(len = *), intent(in) :: f
-       !integer, intent(in) :: ln
-     end subroutine openbabel_dump
-  end interface
+  type(dictionary), pointer :: dict,types,options,iter,it
+!  type(atomic_structure) :: astruct
 
   call f_lib_initialize()
 
@@ -45,39 +27,44 @@ program babel
 
   fin=options//'input'
   fout=options//'output'
+  call dict_free(options)
   
-  call yaml_mapping_open('Reading positions')
+  call yaml_mapping_open('Read positions')
 
   !dict=>dict_new()
   call dict_init(dict)
-  call openbabel_load(dict,f_char_ptr(trim(fin)))!,len_trim(fin))
+  call load_dict_from_openbabel(dict,trim(fin))
 
-  call yaml_map(fin,dict)
   call yaml_mapping_close()
 
   !call dict_to_frags(dict//'positions')
 
-  call astruct_dict_get_types(dict, types)
+!!$  call astruct_dict_get_types(dict, types)
+  call dict_init(types)
   nullify(iter)
-  do while (iterating(iter, on = types))
-     call set(iter, dict_key(iter))
+  do while (iterating(iter, on = dict // "positions"))
+     nullify(it)
+     do while (iterating(it, on = iter))
+        if (ichar(dict_key(it)) >= ichar('A') .and. &
+             & ichar(dict_key(it)) <= ichar('Z') .and. &
+             & trim(dict_key(it)) /= 'X') then
+           call set(types // dict_key(it), dict_key(it))
+        end if
+     end do
   end do
-  
-  call openbabel_dump(dict,types,f_char_ptr(trim(fout)))! fout,len_trim(fout))
+
+  call yaml_map('Read types', types)
+
+  call dump_dict_with_openbabel(dict,types,trim(fout))! fout,len_trim(fout))
   call yaml_map('Positions dumped into file',fout)
 
-  call dict_free(options,dict, types)
+  call dict_free(dict, types)
 
   ! Reload the generated file.
-  astruct = atomic_structure_null()
-  call set_astruct_from_file("outfile.xyz", 0, astruct)
-
   call dict_init(dict)
-  call astruct_merge_to_dict(dict, astruct, astruct%rxyz)
-  call deallocate_atomic_structure(astruct)
-
-  call yaml_map("outfile.xyz", dict)
-
+  call yaml_mapping_open('Written positions')
+  call load_dict_from_openbabel(dict,trim(fout))
+  call yaml_mapping_close()
   call dict_free(dict)
 
   call f_lib_finalize()

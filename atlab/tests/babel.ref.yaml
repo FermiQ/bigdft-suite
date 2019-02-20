@@ -1,0 +1,60 @@
+  #---------------------------------------------------- Welcome to the F90 openbabel wrapper
+ Read positions:
+   Parsed posinp dict from openbabel:
+     cell: [4.592199802398682, 4.592199802398682, 2.957400083541871]
+     alpha                             : 90.00000250447816
+     beta                              : 90.00000250447816
+     gamma                             : 90.00000250447816
+     abc:
+     -  [4.592199802398682, 0.0, 0.0]
+     -  [-2.0073143652912427E-007, 4.592199802398677, 0.0]
+     -  [-1.2927206844323916E-007, -1.2927207409390109E-007, 2.957400083541865]
+     units                             : angstroem
+     positions:
+     - Ti: [0.0, 0.0, 0.0]
+       frag: [LIG, 1]
+     - O: [1.400437235832214, 1.400437355041504, 0.0]
+       frag: [LIG, 1]
+     - Ti: [2.296099736197588, 2.296099836563302, 1.478700041770932]
+       frag: [LIG, 1]
+     - O: [3.191762365835031, 3.191762447357173, 0.0]
+       frag: [HOH, 2]
+     - O: [0.8956623199410223, 3.696537133610578, 1.478700041770932]
+       frag: [HOH, 3]
+     - O: [3.696537152454155, 0.8956625395160253, 1.478700041770932]
+       frag: [HOH, 4]
+ Read types:
+   Ti                                  : Ti
+   O                                   : O
+ Positions dumped into file            : outfile.xyz
+ Written positions:
+   Parsed posinp dict from openbabel:
+     units                             : angstroem
+     positions:
+     - Ti: [0.0, 0.0, 0.0]
+       frag: [LIG, 1]
+     - O: [1.40044, 1.40044, 0.0]
+       frag: [LIG, 1]
+     - Ti: [2.2961, 2.2961, 1.4787]
+       frag: [LIG, 1]
+     - O: [3.19176, 3.19176, 0.0]
+       frag: [LIG, 1]
+     - O: [0.89566, 3.69654, 1.4787]
+       frag: [LIG, 1]
+     - O: [3.69654, 0.89566, 1.4787]
+       frag: [LIG, 1]
+ Memory Consumption Report:
+   Tot. No. of Allocations             :  0
+   Tot. No. of Deallocations           :  0
+   Remaining Memory (B)                :  0
+   Memory occupation:
+     Peak Value (MB)                   :  0.000
+     for the array                     : null
+     in the routine                    : null
+     Memory Peak of process            : 27.528 MB
+ Walltime since initialization         :  00:00:00.031806148
+ Max No. of dictionaries used          :  501 #( 172 still in use)
+ Number of dictionary folders allocated:  1
+#Error, found unfreed dictionaries after finalization: 2
+#Unfreed key: "" value: "__not_a_value__"
+#Unfreed key: "" value: "__not_a_value__"
