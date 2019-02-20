@@ -479,8 +479,8 @@ contains
     call charge_and_spol(input_pol,ichg,ispol)
 
     if (f_err_raise(abs(ispol) > mxpl+abs(ichg),&
-         'Input polarisation of '//trim(symbol)//' atom must be <= '//&
-         trim(yaml_toa(mxpl))//', while found '//trim(yaml_toa(ispol)),&
+         'User input charge on '//trim(symbol)//' atom is missing to '//&
+         'match desired polarization (e.g. He 0. 0. 0. {IGspin:1, IGchg:1})',&
          err_name='BIGDFT_INPUT_VARIABLES_ERROR')) return
     if (f_err_raise(abs(ichg) > mxchg,&
          'Input charge of '//trim(symbol)//' atom must be <= '//&

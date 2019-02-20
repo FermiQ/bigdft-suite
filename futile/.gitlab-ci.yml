@@ -1,0 +1,53 @@
+image: luigigenovese/v_sim-dev
+
+stages:
+  - build
+  - deploy
+
+parallel:
+  stage: build
+  before_script:
+    - apt update && apt -y install python-yaml libopenmpi-dev openmpi-bin
+  script: 
+    - autoreconf -fi
+    - mkdir tmp
+    - cd tmp/
+    - ../configure FC=mpif90 FCFLAGS="-g -O2 -fbounds-check -fopenmp"
+    - make -j$(nproc)
+    - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root" make check
+
+serial:
+  stage: build
+  before_script:
+    - apt update && apt -y install python-yaml
+  script: 
+    - autoreconf -fi
+    - mkdir tmp
+    - cd tmp/
+    - ../configure FCFLAGS="-g -O2 -fbounds-check -fopenmp"
+    - make -j$(nproc)
+    - make dist-bzip2
+    - OMP_NUM_THREADS=2 make check
+  artifacts:
+    when: always
+    paths:
+      - "tmp/futile*.tar.bz2"
+
+sphinx:
+  stage: build
+  before_script:
+    - apt update && apt -y install python-sphinx python-sphinx-bootstrap-theme
+  script:
+    - make -f Makefile-sphinx html
+  artifacts:
+    paths:
+      - "build/html"
+
+pages:
+  stage: deploy
+  script:
+    - mv build/html/ ${CI_PROJECT_DIR}/public/
+    - mv tmp/futile*.tar.bz2 ${CI_PROJECT_DIR}/public/
+  artifacts:
+    paths:
+      - public

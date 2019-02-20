@@ -55,7 +55,7 @@ libpong_a_SOURCES = pong.f90
 test_plugin_SOURCES = test_plugin.f90
 test_plugin_LDADD = $(flib_libraries) @FC_EXPORTS@
 
-CLEANFILES = *.out.yaml *.report.yaml *.@MODULE_EXT@ memstatus.yaml report_remarks *.err libpong.so citations.bib
+CLEANFILES = *.out.yaml *.report.yaml *.@MODULE_EXT@ memstatus.yaml report_remarks *.err libpong.so citations.bib libfmalloc-1.so
 
 include $(srcdir)/import_database.mk
 
@@ -86,12 +86,15 @@ hooks.report.yaml: tols.yaml hooks.ref.yaml
 	python $(top_builddir)/tests/fldiff_yaml.py --label hooks -t $(srcdir)/tols.yaml 	\
 		-r $(srcdir)/hooks.ref.yaml -d hooks.out.yaml --output $@
 
+libfmalloc-1.so:
+	ln -sf $(top_builddir)/flib/$@
+
 check: yaml_test.report.yaml regtest report
 
 report:
 	@if test $(MAKELEVEL) = 0 ; then python $(top_builddir)/tests/report.py ; fi
 
-regtest: yaml_argparse test_plugin hooks libpong.so
+regtest: yaml_argparse test_plugin hooks libpong.so f_allocations libfmalloc-1.so
 	python $(top_srcdir)/tests/f_regtest.py --fldiff=$(top_builddir)/tests/fldiff_yaml.py \
 	       --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir) \
 	       --exclusive=$(CHECK_ONLY)
@@ -108,7 +111,7 @@ define F_REGTEST_INSTRUCTIONS
 - f_allocations:
    runs:
    - ./f_allocations
-   - $(DESTDIR)$(bindir)/f_memcheck ./f_allocations 2>f_allocations.err
+   - $(top_srcdir)/src/f_memcheck ./f_allocations 2>f_allocations.err
 - hooks:
    runs:
    - ./hooks
