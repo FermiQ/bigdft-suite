@@ -2,7 +2,8 @@
 lib_LIBRARIES = libdicts.a
 module_DATA   = $(modules)
 
-include_HEADERS = futile_cst.h dict.h err.h
+include_HEADERS = dict.h err.h
+nodist_include_HEADERS = futile_cst.h
 
 libdicts_a_SOURCES = \
 	yaml_strings.f90 dictionaries_base.f90 dictionaries.f90 \
