@@ -22,18 +22,52 @@ DIST='  dist --dist-only '#bigdft-suite '
 RCFILE='buildrc'
 MKFILE='Makefile'
 SETUP=' setup '
-GREP_M4_COMMENTS=" | grep -v dnl | grep -v '#' "
 
-def grep_command(fr,*args):
+def get_macros(fr, expression):
     """
+    Given a file, find the macros in it.
+
     Args:
-       fr (str): path of the directory to grep from
-       *args (str): arguments to search from
+      fr (str): path of the file to search in.
+      expression (str): a string representation the regex to use.
+    Returns:
+      (list): a list of macros (strings).
     """
-    cmd = 'grep -R '+args[0]+' '+fr
-    for arg in args[1:]:
-        cmd += ' | grep '+arg
-    return cmd + GREP_M4_COMMENTS
+    from re import compile, search
+    regex = compile(expression.strip())
+
+    result = []
+    with open(fr) as ifile:
+        for line in ifile:
+            if search(regex, line) and "dnl" not in line and '#' not in line:
+                result.append(line.rstrip('\n'))
+    return result
+
+def get_files(fd, expressions):
+    """
+    Given a directory, find the files which match the given macros.
+
+    Args:
+      fd (str): path to the directory to look in.
+      expressions (list): a list of expressions to match.
+
+    Returns:
+      (list): a list of files which have lines that match the expressions.
+    """
+    from os.path import join
+    from re import compile, search
+    from glob import glob
+
+    regex = [compile(x.strip()) for x in expressions]
+    result = []
+    for f in glob(join(fd,"*")):
+        with open(f) as ifile:
+            for line in ifile:
+                if all(search(r, line) for r in regex):
+                    result.append(f)
+                    break
+
+    return result
 
 from copy import deepcopy
 CHECKMODULES= ['futile','atlab','chess','psolver','bigdft','PyBigDFT','spred']
@@ -282,7 +316,7 @@ class BigDFTInstaller():
         import os
         m4args=set()
         if os.path.isfile(tgt):
-            for dd in self.get_output(grep_command(tgt,acmacro)).split('\n'):
+            for dd in get_macros(tgt, acmacro):
                 if len(dd) == 0: continue
                 m4=dd.split('[')[1]
                 m4args.add(m4.split(']')[0])
@@ -294,7 +328,7 @@ class BigDFTInstaller():
         macros=set()
         if os.path.isfile(tgt):
             for regexp in self.m4_re:
-                for m4 in self.get_output(grep_command(tgt,regexp)).split('\n'):
+                for m4 in get_macros(tgt, regexp):
                     if len(m4)>0:
                         m4t=m4.split('(')[0]
                         if m4t not in previous_macros: macros.add(m4t)
@@ -316,7 +350,7 @@ class BigDFTInstaller():
         tgt=os.path.join(self.srcdir,'m4')+os.sep
         #print 'XXXXX',macros
         for m in macros:
-            ffs=self.get_output(grep_command(tgt,m,'AC_DEFUN')).split(':')[0]
+            ffs=get_files(tgt,[m,'AC_DEFUN'])[0]
             if ffs!='': files.add(ffs)
         #now for each of the files get all the macros which are required but not explicitly called
         files=list(files)
