@@ -56,4 +56,6 @@ module_autogenargs.update({
 
 'spred': env_configuration(),
 
+'atlab': env_configuration(),
+
 })
