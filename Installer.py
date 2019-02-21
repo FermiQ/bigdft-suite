@@ -23,33 +23,34 @@ RCFILE='buildrc'
 MKFILE='Makefile'
 SETUP=' setup '
 
-def get_macros(fr, expression):
+def get_macros(fr, *expressions):
     """
     Given a file, find the macros in it.
 
     Args:
       fr (str): path of the file to search in.
-      expression (str): a string representation the regex to use.
+      *expressions: list of expressions to match.
     Returns:
       (list): a list of macros (strings).
     """
     from re import compile, search
-    regex = compile(expression.strip())
 
+    regex = [compile(x.strip()) for x in expressions]
     result = []
     with open(fr) as ifile:
         for line in ifile:
-            if search(regex, line) and "dnl" not in line and '#' not in line:
+            if all(search(r, line) for r in regex) \
+              and "dnl" not in line and '#' not in line:
                 result.append(line.rstrip('\n'))
     return result
 
-def get_files(fd, expressions):
+def get_files(fd, *expressions):
     """
     Given a directory, find the files which match the given macros.
 
     Args:
       fd (str): path to the directory to look in.
-      expressions (list): a list of expressions to match.
+      *expressions: a list of expressions to match.
 
     Returns:
       (list): a list of files which have lines that match the expressions.
@@ -63,7 +64,8 @@ def get_files(fd, expressions):
     for f in glob(join(fd,"*")):
         with open(f) as ifile:
             for line in ifile:
-                if all(search(r, line) for r in regex):
+                if all(search(r, line) for r in regex) \
+                  and "dnl" not in line and '#' not in line:
                     result.append(f)
                     break
 
@@ -350,7 +352,7 @@ class BigDFTInstaller():
         tgt=os.path.join(self.srcdir,'m4')+os.sep
         #print 'XXXXX',macros
         for m in macros:
-            ffs=get_files(tgt,[m,'AC_DEFUN'])[0]
+            ffs=get_files(tgt,m,'AC_DEFUN')[0]
             if ffs!='': files.add(ffs)
         #now for each of the files get all the macros which are required but not explicitly called
         files=list(files)
