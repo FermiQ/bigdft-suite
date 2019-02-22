@@ -24,8 +24,6 @@ pylib = libpyimp.a
 endif
 endif
 
-EXTRA_DIST= f_memcheck.in
-
 # Static or dynamic library
 futile_dynamic_library = libfutile-1.so.@FUTILE_MINOR_VERSION@.0.@FUTILE_MICRO_VERSION@
 futile_library_soname  = libfutile-1.so.@FUTILE_MINOR_VERSION@

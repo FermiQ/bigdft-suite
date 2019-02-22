@@ -215,7 +215,6 @@ wrappers/mpi/Makefile
 wrappers/mpi/mpi_config.inc
 c-bindings/Makefile
 src/configure.inc
-src/f_memcheck
 src/Makefile
 src/python/Makefile
 src/python/futile/Makefile

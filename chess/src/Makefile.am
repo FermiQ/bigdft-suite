@@ -96,7 +96,7 @@ subs_static_library = $(top_builddir)/sparsematrix/libsparsematrix.a \
                       $(top_builddir)/chesspexsi/libchesspexsi.a
 
 chess_toolbox_SOURCES = chess_toolbox.f90
-chess_toolbox_LDADD = $(chess_library) @LIB_ATLAB_LIBS@ @LINALG_LIBS@
+chess_toolbox_LDADD = $(chess_library) @LIB_ATLAB_LIBS@ @LIB_FUTILE_LIBS@ @LINALG_LIBS@
 
 CLEANFILES = *.@MODULE_EXT@ $(chess_dynamic_library) $(chess_library_soname) libCheSS-1.so
 clean-local:

@@ -1,6 +1,12 @@
 #!/bin/sh
 #\
-LD_PRELOAD=@prefix@/lib/libfmalloc-1.so
+if test -f libfmalloc-1.so ; then
+    LD_PRELOAD=./libfmalloc-1.so
+fi
+distdir=$(dirname $0)/../lib
+if test -f $distdir/libfmalloc-1.so ; then
+    LD_PRELOAD=$distdir/libfmalloc-1.so
+fi
 #\
 FUTILE_MALLOC_NAN_PADDING=2
 #\

@@ -203,33 +203,6 @@ AX_AMBERTOOLS()
 AX_ALBORZ()
 AX_PSPIO()
 AM_CONDITIONAL(HAVE_PSPIO, test "$ax_have_PSPIO" = "yes")
-dnl we might think of inserting this option in the suitepkg.m4 file
-ax_have_OPENBABEL_search="yes"
-AC_ARG_ENABLE(openbabel, AS_HELP_STRING([--enable-openbabel], [Enable detection of openbabel compilation (enabled by default).]),
-			 ax_have_OPENBABEL_search=$enableval, ax_have_OPENBABEL_search="yes")
-if test x"$ax_have_OPENBABEL_search" = "xyes" ; then
-AX_PACKAGE([OPENBABEL],[2.0],[-lopenbabel],[],[],
-           [
-#include <openbabel/obmolecformat.h>
-#include <openbabel/mol.h>
-
-using namespace OpenBabel;
-
-int main(int argc, char **argv)
-{
-  std::ifstream fin("test.xyz");
-  std::istream* pIn = &fin;
-  OpenBabel::OBConversion conv(pIn, NULL);
-
-  return 0;
-}
-],
-           [OpenBabel::OBConversion conv],
-           [C++], [openbabel-2.0])
-else
-  ax_have_OPENBABEL="no"
-fi
-AM_CONDITIONAL(HAVE_OPENBABEL, test $ax_have_OPENBABEL = "yes")
 dnl PEXSI
 AC_ARG_WITH(pexsi, AS_HELP_STRING([--with-pexsi],
             [Give the link-line for PEXSI.]),
@@ -326,9 +299,6 @@ dnl LIB_BIGDFT_DEPS="$LIB_ABINIT_LIBS $LIB_XC_LIBS $LIB_GAIN_LIBS $CP2K_LINKLINE
 LIB_BIGDFT_PKG=""
 if test $ax_build_dynamic != "yes" ; then
   LIB_BIGDFT_PKG="$LIB_BIGDFT_DEPS"
-fi
-if test $ax_have_OPENBABEL = "yes" ; then
-  LIB_BIGDFT_PKG="-lbabel $LIB_BIGDFT_PKG"
 fi
 
 AC_SUBST(LIB_BIGDFT_PKG)
@@ -447,9 +417,6 @@ Options:
    | nab Compiler:           $NAB
   With CP2K:                 $ax_have_cp2k
   With PEXSI:                $ax_have_pexsi
-  With OpenBabel:            $ax_have_OPENBABEL
-   | C++ flags:              $LIB_OPENBABEL_CFLAGS
-   | linked libraries:       $LIB_OPENBABEL_LIBS
   With libXC:                $ac_use_libxc
    | internal built:         $ac_build_libxc
    | include dir.:           $LIBXC_INCLUDE
