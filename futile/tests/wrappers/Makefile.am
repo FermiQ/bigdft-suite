@@ -16,7 +16,7 @@ check: regtest report #op2p_check.report.yaml $(check_PROGRAMS)
 report:
 	@if test $(MAKELEVEL) = 0 ; then python $(top_builddir)/tests/report.py ; fi
 
-CLEANFILES = *.out.yaml *.report.yaml *.@MODULE_EXT@ report_remarks
+CLEANFILES = *.out.yaml *.report.yaml *.@MODULE_EXT@ report_remarks report
 
 AM_FCFLAGS = -I$(top_builddir)/wrappers -I$(top_builddir)/wrappers/mpi -I$(top_builddir)/flib -I$(top_builddir)/dicts -I$(top_builddir)/src @LIB_YAML_CFLAGS@ @MPI_INCLUDE@ -I. -I$(srcdir)
 AM_LDFLAGS = -L$(top_builddir)/src
@@ -50,7 +50,7 @@ op2p_check.report.yaml: op2p_check.out.yaml
 	python $(top_builddir)/tests/fldiff_yaml.py -t $(srcdir)/tols.yaml \
 			   -l op2p_check -r $(srcdir)/op2p_check.ref.yaml -d $< -o $@
 
-regtest: op2p_check linalg_check
+regtest: $(CHECK_PROGS)
 	python $(top_srcdir)/tests/f_regtest.py --fldiff=$(top_builddir)/tests/fldiff_yaml.py --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir)
 
 define F_REGTEST_INSTRUCTIONS

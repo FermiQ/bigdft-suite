@@ -9,7 +9,8 @@ SUBDIRS = \
 	c-bindings
 
 #Installation of some python file (use $pythondir to access into).
-python_PYTHON = fldiff_yaml.py yaml_hl.py report.py fldiff.py f_regtest.py UniParse.py
+python_PYTHON = yaml_hl.py fldiff.py f_regtest.py UniParse.py
+nodist_python_PYTHON = fldiff_yaml.py report.py
 dist_python_DATA = yaml_hl.cfg yaml_hl_remarks.cfg
 
 #remove some files in order to create it with the right path (possible to use nodist option)

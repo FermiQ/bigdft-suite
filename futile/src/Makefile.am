@@ -96,7 +96,7 @@ install-data-hook:
 	  chmod a+x $(pymodule) ; \
 	fi
 
-CLEANFILES = libfutile-1.so* *.@MODULE_EXT@
+CLEANFILES = libfutile-1.so* *.@MODULE_EXT@ futile.so
 clean-local:
 	rm -rf tmp-libfutile
 

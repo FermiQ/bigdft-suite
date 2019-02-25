@@ -36,8 +36,8 @@ yaml_test_SOURCES = yaml_test.f90 \
 	dicts.f90 \
 	dynmem.f90 \
 	yaml_invoice.f90 \
-	utls.f90 \
-	$(DATABASE_SOURCES)
+	utls.f90
+nodist_yaml_test_SOURCES = $(DATABASE_SOURCES)
 
 yaml_test_LDADD = $(flib_libraries)
 

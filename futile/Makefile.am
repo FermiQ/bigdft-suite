@@ -11,7 +11,7 @@
 #	config/m4/yaml.m4 \
 #	config/m4/flib.m4
 #
-EXTRA_DIST= config/m4 futile_environment.sh.in futilevars.sh.in
+EXTRA_DIST= config/m4
 
 ACLOCAL_AMFLAGS = -I config/m4
 
@@ -20,7 +20,10 @@ pkgconfig_DATA = futile.pc libdicts.pc
 
 SUBDIRS = dicts flib c-bindings wrappers src
 
-dist_bin_SCRIPTS = futilevars.sh futile_environment.sh unienv.sh
+dist_bin_SCRIPTS = unienv.sh
+nodist_bin_SCRIPTS = futilevars.sh futile_environment.sh
+
+DISTCLEANFILES = config.inc
 
 if HAVE_PYYAML
 SUBDIRS += tests

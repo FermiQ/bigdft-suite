@@ -2,6 +2,7 @@ image: luigigenovese/v_sim-dev
 
 stages:
   - build
+  - package
   - deploy
 
 parallel:
@@ -43,11 +44,26 @@ sphinx:
     paths:
       - "build/html"
 
+debian:
+  stage: package
+  before_script:
+    - apt update && apt -y install debhelper libopenmpi-dev python-yaml fakeroot
+  script:
+    - tar -xf tmp/futile*.tar.bz2
+    - cp tmp/futile-*.tar.bz2 $(echo $(ls tmp/futile-*.tar.bz2) | sed "s;tmp/futile-\(.*\).tar.bz2;futile_\1.orig.tar.bz2;")
+    - cp -rp debian/ futile-*
+    - cd futile-*
+    - dpkg-buildpackage -rfakeroot
+  artifacts:
+    paths:
+      - "libfutile*.deb"
+
 pages:
   stage: deploy
   script:
     - mv build/html/ ${CI_PROJECT_DIR}/public/
     - mv tmp/futile*.tar.bz2 ${CI_PROJECT_DIR}/public/
+    - mv libfutile*.deb ${CI_PROJECT_DIR}/public/
   artifacts:
     paths:
       - public

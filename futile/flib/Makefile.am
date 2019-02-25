@@ -28,7 +28,7 @@ override_malloc.o: override_malloc.c
 	$(CC) -I. -I$(top_builddir) $(CFLAGS) @CC_PIC_FLAG@ -c $< -o $@
 
 $(fmalloc_dynamic_library): $(libfmalloc_a_OBJECTS)
-	$(CC) $(CFLAGS) @CC_BUILD_SHARED@ $(LDFLAGS) @CC_RPATH@$(DESTDIR)$(dynlibdir) -Wl,-soname=$(fmalloc_library_soname) -o $@ $(libfmalloc_a_OBJECTS)
+	$(CC) $(CFLAGS) @CC_BUILD_SHARED@ $(LDFLAGS) @CC_RPATH@$(DESTDIR)$(dynlibdir) -Wl,-soname=$(fmalloc_library_soname) -o $@ $(libfmalloc_a_OBJECTS) -ldl
 	@chmod a+x $@
 
 $(fmalloc_library_soname): $(fmalloc_dynamic_library)
