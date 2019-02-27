@@ -5,6 +5,7 @@ Get the code
 .. BigDFT is already available as a module on ...
 
 .. to be changed after the migration to git
+
 BigDFT is available on Launchpad_, from where it can be downloaded as a tar file or via bzr using the command ``bzr branch lp:bigdft``.
 
 .. _Launchpad: https://launchpad.net/bigdft
@@ -44,8 +45,3 @@ Frequently encountered problems
 ===============================
 
 .. todo:: add here any problems (and how to avoid them) which occur on a frequent basis
-
-
-
-
-

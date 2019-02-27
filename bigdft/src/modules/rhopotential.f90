@@ -331,7 +331,7 @@ module rhopotential
        if(iflag==0) then
           !       allocate(pot(lzd%ndimpotisf),stat=i_stat)
           !       call vcopy(lzd%ndimpotisf,pot,1,pot,1)
-          ! This is due to the dynamic memory managment. The original version was: pot=>pot1
+          ! This is due to the dynamic memory management. The original version was: pot=>pot1
           !pot = f_malloc_ptr(npot,id='pot')
           !pot=pot1
           !call f_free_ptr(pot1)

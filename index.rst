@@ -6,7 +6,7 @@
 Welcome to BigDFT-suite's documentation!
 ========================================
 
-The `BigDFT-suite` project regroup the packages which are needed
+The `BigDFT-suite` project regroups the packages which are needed
 to install, run and employ the BigDFT code for production calculations.
 
 

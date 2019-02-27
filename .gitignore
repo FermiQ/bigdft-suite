@@ -177,3 +177,4 @@ chess/install-sh
 chess/missing
 .ipynb_checkpoints*/
 PyBigDFT.egg-info
+sphinxdocbuild
