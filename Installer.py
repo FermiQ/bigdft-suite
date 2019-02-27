@@ -123,18 +123,12 @@ class BigDFTInstaller():
 
     Attributes:
         action (str): Action to be performed.
-
         package (str): Package to install.
-
         rcfile (str): Configuration file.
-
         conditions (list(str)): List of conditions.
-
         verbose (bool): If ``True``, more verbose.
         quiet (bool): If ``True``, no messages.
-
         yes (bool): If ``True``, ask a question.
-
     """
     m4_re=['^AX_','CHECK_PYTHON','PKG_CHECK_MODULES'] #regular expressions to identify proprietary macros
     def __init__(self,action,package,rcfile,conditions,verbose,quiet,yes):
