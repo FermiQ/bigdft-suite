@@ -9,7 +9,7 @@ parallel:
   stage: build
   before_script:
     - apt update && apt -y install python-yaml libopenmpi-dev openmpi-bin
-  script: 
+  script:
     - autoreconf -fi
     - mkdir tmp
     - cd tmp/
@@ -21,7 +21,7 @@ serial:
   stage: build
   before_script:
     - apt update && apt -y install python-yaml
-  script: 
+  script:
     - autoreconf -fi
     - mkdir tmp
     - cd tmp/
@@ -33,6 +33,18 @@ serial:
     when: always
     paths:
       - "tmp/futile*.tar.bz2"
+
+dynamic:
+  stage: build
+  before_script:
+    - apt update && apt -y install python-yaml libopenmpi-dev openmpi-bin
+  script:
+    - autoreconf -fi
+    - mkdir tmp
+    - cd tmp/
+    - ../configure FC=mpif90 FCFLAGS="-g -O2 -fbounds-check -fopenmp" --enable-dynamic-libraries
+    - make -j$(nproc)
+    - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root" make check
 
 sphinx:
   stage: build

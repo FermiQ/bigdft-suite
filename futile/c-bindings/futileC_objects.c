@@ -13,7 +13,7 @@
  */
 
 #include "config.h"
-#include "futile.h"
+#include "misc.h"
 
 #include <string.h>
 

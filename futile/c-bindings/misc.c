@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "futile.h"
+#include "misc.h"
 
 void FC_FUNC_(f_lib_initialize, F_LIB_INITIALIZE)(void);
 void FC_FUNC_(f_lib_finalize, F_LIB_FINALIZE)(void);

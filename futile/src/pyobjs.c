@@ -1,7 +1,7 @@
 #include <Python.h>
 #include <structmember.h>
 
-#include <futile.h>
+#include <misc.h>
 
 #include "config.h"
 #ifdef HAVE_PYTHON_NUMPY

@@ -27,7 +27,7 @@ CLEANFILES = fft_check.out fft_cache.out fft_cache.dat fft_columns.dat fft_perf.
 AM_FCFLAGS = -I$(top_builddir)/wrappers -I$(top_builddir)/dicts -I$(top_builddir)/flib -I$(top_builddir)/src @LIB_YAML_CFLAGS@ @MPI_INCLUDE@ -I. -I$(srcdir)
 
 if BUILD_DYNAMIC_LIBS
-flib_libraries = -lfutile-1
+flib_libraries = -L$(top_builddir)/src -lfutile-1
 AM_LDFLAGS = @FC_RPATH@$(abs_top_builddir)/src
 else
 if USE_SIMGRID_SHARED_ALLOCS
