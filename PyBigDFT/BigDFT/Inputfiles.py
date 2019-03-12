@@ -1,6 +1,6 @@
 """Handling of the input options
 
-This module contain the useful quantities to deal with the preparation and the usage
+This module contains the useful quantities to deal with the preparation and the usage
 of inputfiles for BigDFT code. The main object is the :class:`Inputfile` class,
 which inherits from a python dictionary. Such inheritance is made possible by the internal
 representation of the BigDFT inputfile, which employs the YAML syntax. This means that
