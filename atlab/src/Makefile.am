@@ -33,7 +33,7 @@ libatlab_1_a_SOURCES = f_functions.f90 \
     $(etsf_files)
 
 
-EXTRA_DIST= openbabel.cpp
+EXTRA_DIST= openbabel.cpp FiniteDiffCorff.inc
 
 f_functions.o: numerics.o box.o FiniteDiffCorff.inc
 harmonics.o: numerics.o box.o
@@ -88,7 +88,7 @@ modules = f_functions.@MODULE_EXT@ \
 endif
 CLEANFILES = *.@MODULE_EXT@ libatlab-1.so* libbabel.so*
 
-IObox.o: $(etsf_dep)
+IObox.o: $(etsf_dep) harmonics.o
 
 # Dynamic library building
 $(atlab_dynamic_library): $(libatlab_1_a_OBJECTS) $(openbabel_library)

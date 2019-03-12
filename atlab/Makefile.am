@@ -8,11 +8,13 @@ pkgconfig_DATA = atlab.pc
 
 SUBDIRS = src tests
 
+DISTCLEANFILES = config.inc
+
 check:
 	@if test $(MAKELEVEL) = 0 ; then $(MAKE) report ; fi
 
 report:
-	python $(top_builddir)/tests/report.py
+	python @FUTILE_PYTHONDIR@/report.py
 
 clean-local:
 	rm -rf includes
