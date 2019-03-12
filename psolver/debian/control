@@ -1,0 +1,12 @@
+Source: psolver
+Section: libs
+Priority: optional
+Maintainer: Damien Caliste <damien.caliste@cea.fr>
+Build-Depends: debhelper (>=9), libfutile, libatlab, python, python-yaml, gfortran, libopenmpi-dev
+Standards-Version: 4.3.0
+
+Package: libpsolver
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Fortran library for atomic data
+ A library to provide to Fortran useful utilities to handle atomic data.

@@ -22,9 +22,16 @@ EXERCISE = Exercise/plot.gnuplot \
 	Exercise/emepot.pdf \
 	Exercise/rhoFpotF.pdf
 
-EXTRA_DIST =  tols.yaml $(OTHERS)
+UNUSED = PS_StressCheck_angchange.f90
 
-check_PROGRAMS = PS_Check PS_Program PS_Exercise Generalized_PSolver Fock PS_StressCheck PSolver_examples
+EXTRA_DIST =  tols.yaml $(OTHERS) $(UNUSED)
+
+if USE_MPI
+mpi_programs = PS_Check PS_Program PS_Exercise Generalized_PSolver Fock PS_StressCheck PSolver_examples
+mpi_regtest = regtest report
+endif
+
+check_PROGRAMS = $(mpi_programs)
 
 AM_FCFLAGS = -I. -I$(top_srcdir)/src -I$(top_builddir)/src @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@ @MPI_INCLUDE@
 AM_LDFLAGS = -L$(top_builddir)/src
@@ -36,25 +43,25 @@ psolver_library = $(top_builddir)/src/libPSolver-1.a @LIB_PSOLVER_DEPS@
 endif
 
 PS_Check_SOURCES = PS_Check.f90 functions.f90
-PS_Check_LDADD = $(psolver_library) @LINALG_LIBS@
+PS_Check_LDADD = $(psolver_library) @LIB_FUTILE_LIBS@ @LIB_ATLAB_LIBS@ @LINALG_LIBS@
 
 PS_Program_SOURCES = PS_Program.f90 functions.f90
-PS_Program_LDADD = $(psolver_library) @LINALG_LIBS@
+PS_Program_LDADD = $(psolver_library) @LIB_FUTILE_LIBS@ @LIB_ATLAB_LIBS@ @LINALG_LIBS@
 
 PS_StressCheck_SOURCES = PS_StressCheck.f90
-PS_StressCheck_LDADD = $(psolver_library) @LINALG_LIBS@
+PS_StressCheck_LDADD = $(psolver_library) @LIB_FUTILE_LIBS@ @LIB_ATLAB_LIBS@ @LINALG_LIBS@
 
 PS_Exercise_SOURCES = PS_Exercise.f90
-PS_Exercise_LDADD = $(psolver_library) @LINALG_LIBS@
+PS_Exercise_LDADD = $(psolver_library) @LIB_FUTILE_LIBS@ @LIB_ATLAB_LIBS@ @LINALG_LIBS@
 
 Generalized_PSolver_SOURCES = Generalized_PSolver.f90
-Generalized_PSolver_LDADD = $(psolver_library) @LINALG_LIBS@
+Generalized_PSolver_LDADD = $(psolver_library) @LIB_FUTILE_LIBS@ @LIB_ATLAB_LIBS@ @LINALG_LIBS@
 
 PSolver_examples_SOURCES = PSolver_examples.f90 functions.f90
-PSolver_examples_LDADD = $(psolver_library) @LINALG_LIBS@
+PSolver_examples_LDADD = $(psolver_library) @LIB_FUTILE_LIBS@ @LIB_ATLAB_LIBS@ @LINALG_LIBS@
 
 Fock_SOURCES = Fock.f90 functions.f90
-Fock_LDADD = $(psolver_library) @LINALG_LIBS@
+Fock_LDADD = $(psolver_library) @LIB_FUTILE_LIBS@ @LIB_ATLAB_LIBS@ @LINALG_LIBS@
 
 if BUILD_DYNAMIC_LIBS
 PS_Check_LDADD += @LIB_FUTILE_LIBS@
@@ -66,7 +73,7 @@ PSolver_examples_LDADD += @LIB_FUTILE_LIBS@
 Fock_LDADD += @LIB_FUTILE_LIBS@
 endif
 
-CLEANFILES = malloc.prc time.prc *.out.yaml *.report.yaml report_remarks *dat fort* log.yaml time.yaml
+CLEANFILES = malloc.prc time.prc *.out.yaml *.report.yaml report_remarks *dat fort* log.yaml time.yaml *.CUBE
 
 #PS_Check.out.yaml: PS_Check Generalized_PSolver
 #	-$(run_parallel) ./PS_Check -n [57,48,63] -g F > PS_Check.out.yaml
@@ -80,23 +87,23 @@ CLEANFILES = malloc.prc time.prc *.out.yaml *.report.yaml report_remarks *dat fo
 #	cat tmp | grep -v 'Unable to read mpd.hosts' > PS_Check.out.yaml
 #	rm tmp
 
-check: regtest report #PS_Basics.out.yaml PS_Check.out.yaml PS_Check.ref.yaml tols.yaml report
+check: $(mpi_regtest) #PS_Basics.out.yaml PS_Check.out.yaml PS_Check.ref.yaml tols.yaml report
 
 report: PS_Basics.report.yaml PS_Check.report.yaml PS_Basics.report.yaml
-	@if test $(MAKELEVEL) = 0 ; then python $(pythondir)/report.py ; fi
+	@if test $(MAKELEVEL) = 0 ; then python @FUTILE_PYTHONDIR@/report.py ; fi
 
 PS_Basics.report.yaml: PS_Basics.ref.yaml PS_Basics.out.yaml
-	python $(pythondir)/fldiff_yaml.py \
+	python @FUTILE_PYTHONDIR@/fldiff_yaml.py \
 		-r $< -d PS_Basics.out.yaml -t $(srcdir)/tols.yaml \
 	        --output $@
 
 PS_Check.report.yaml: PS_Check.ref.yaml PS_Check.out.yaml
-	python $(pythondir)/fldiff_yaml.py \
+	python @FUTILE_PYTHONDIR@/fldiff_yaml.py \
 		-r $< -d PS_Check.out.yaml -t $(srcdir)/tols.yaml \
 	        --output $@
 
 regtest: PS_Program PS_Exercise PS_Check Generalized_PSolver PS_StressCheck
-	python $(pythondir)/f_regtest.py --fldiff=$(pythondir)/fldiff_yaml.py \
+	python @FUTILE_PYTHONDIR@/f_regtest.py --fldiff=@FUTILE_PYTHONDIR@/fldiff_yaml.py \
 	       --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir) \
 	       --exclusive=${CHECK_ONLY}
 

@@ -1,0 +1,115 @@
+image: luigigenovese/v_sim-dev
+
+stages:
+  - build
+  - package
+  - deploy
+
+parallel:
+  stage: build
+  before_script:
+    - apt update && apt -y install python-yaml libopenmpi-dev openmpi-bin python-numpy libopenmpi1.10
+    - wget l_sim.gitlab.io/futile/libfutile_1.8-1_amd64.deb
+    - dpkg -i libfutile_1.8-1_amd64.deb
+    - wget l_sim.gitlab.io/atlab/libatlab_1.0-1_amd64.deb
+    - dpkg -i libatlab_1.0-1_amd64.deb
+  script:
+    - autoreconf -fi
+    - mkdir tmp
+    - cd tmp/
+    - ../configure FC=mpif90 FCFLAGS="-g -O2 -fbounds-check -fopenmp -I/usr/include"
+    - make -j$(nproc)
+    - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root" make check
+
+serial:
+  stage: build
+  before_script:
+    - apt update && apt -y install python-yaml python-numpy libopenmpi1.10
+    - wget l_sim.gitlab.io/futile/libfutile_1.8-1_amd64.deb
+    - dpkg -i libfutile_1.8-1_amd64.deb
+    - wget l_sim.gitlab.io/atlab/libatlab_1.0-1_amd64.deb
+    - dpkg -i libatlab_1.0-1_amd64.deb
+  script:
+    - autoreconf -fi
+    - mkdir tmp
+    - cd tmp/
+    - ../configure FCFLAGS="-g -O2 -fbounds-check -fopenmp -I/usr/include"
+    - make -j$(nproc)
+    - make dist-bzip2
+    - OMP_NUM_THREADS=2 make check
+  artifacts:
+    when: always
+    paths:
+      - "tmp/psolver*.tar.bz2"
+
+dynamic:
+  stage: build
+  before_script:
+    - apt update && apt -y install python-yaml libopenmpi-dev openmpi-bin python-numpy libopenmpi1.10
+    - wget l_sim.gitlab.io/futile/libfutile_1.8-1_amd64.deb
+    - dpkg -i libfutile_1.8-1_amd64.deb
+    - wget l_sim.gitlab.io/atlab/libatlab_1.0-1_amd64.deb
+    - dpkg -i libatlab_1.0-1_amd64.deb
+  script:
+    - autoreconf -fi
+    - mkdir tmp
+    - cd tmp/
+    - ../configure FC=mpif90 FCFLAGS="-g -O2 -fbounds-check -fopenmp -I/usr/include" --enable-dynamic-libraries
+    - make -j$(nproc)
+    - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root" make check
+
+#sphinx:
+#  stage: build
+#  before_script:
+#    - apt update && apt -y install python-sphinx python-sphinx-bootstrap-theme
+#  script:
+#    - make -f Makefile-sphinx html
+#  artifacts:
+#    paths:
+#      - "build/html"
+doxygen:
+  stage: build
+  before_script:
+    - apt update && apt -y install python-yaml python-numpy libopenmpi1.10 doxygen
+    - wget l_sim.gitlab.io/futile/libfutile_1.8-1_amd64.deb
+    - dpkg -i libfutile_1.8-1_amd64.deb
+    - wget l_sim.gitlab.io/atlab/libatlab_1.0-1_amd64.deb
+    - dpkg -i libatlab_1.0-1_amd64.deb
+  script:
+    - autoreconf -fi
+    - mkdir tmp
+    - cd tmp/
+    - ../configure
+    - cd doc
+    - make doxygen-doc
+  artifacts:
+    paths:
+      - "tmp/doc/Doxygen/html"
+
+debian:
+  stage: package
+  before_script:
+    - apt update && apt -y install debhelper fakeroot python-yaml python-numpy libopenmpi1.10 libopenmpi-dev
+    - wget l_sim.gitlab.io/futile/libfutile_1.8-1_amd64.deb
+    - dpkg -i libfutile_1.8-1_amd64.deb
+    - wget l_sim.gitlab.io/atlab/libatlab_1.0-1_amd64.deb
+    - dpkg -i libatlab_1.0-1_amd64.deb
+  script:
+    - tar -xf tmp/psolver*.tar.bz2
+    - cp tmp/psolver*.tar.bz2 $(echo $(ls tmp/psolver-*.tar.bz2) | sed "s;tmp/psolver-\(.*\).tar.bz2;psolver_\1.orig.tar.bz2;")
+    - cp -rp debian/ psolver-*
+    - cd psolver-*
+    - dpkg-buildpackage -rfakeroot
+  artifacts:
+    paths:
+      - "libpsolver*.deb"
+
+pages:
+  stage: deploy
+  script:
+    - mv tmp/doc/Doxygen/html ${CI_PROJECT_DIR}/public/
+    - mv tmp/psolver*.tar.bz2 ${CI_PROJECT_DIR}/public/
+    - mv libpsolver*.deb ${CI_PROJECT_DIR}/public/
+  artifacts:
+    paths:
+      - public

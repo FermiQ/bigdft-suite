@@ -1,6 +1,8 @@
 EXTRA_DIST = \
 	PSolver_logo.png \
-	extra.css
+	extra.css \
+	$(top_srcdir)/config/ford.md \
+	$(top_srcdir)/config/doxygen-filter-f90.py
 
 CLEANFILES = *.aux *.toc *.log *.xml
 
@@ -28,7 +30,7 @@ doxygen-doc: Doxygen/html
 
 Doxygen/html: Doxygen.stamp web.stamp
 
-Doxygen.stamp: $(top_builddir)/config/Doxyfile
+Doxygen.stamp: $(top_builddir)/config/Doxyfile $(top_srcdir)/config/doxygen-filter-f90.py
 	\rm -rf Doxygen;\
 	doxygen $(top_builddir)/config/Doxyfile; \
 	touch Doxygen.stamp
@@ -40,7 +42,7 @@ ford-doc: FORD
 
 FORD: FORD.stamp
 
-FORD.stamp: $(top_builddir)/config/ford.md
+FORD.stamp: $(top_srcdir)/config/ford.md
 	\rm -rf FORD
 	ford --src_dir $(top_srcdir)/src \
 		--include $(top_srcdir)/src --include $(top_builddir)/src \
