@@ -49,7 +49,7 @@ kinetic_operator_SOURCES = kinetic_operator.f90 initialization.f90
 kinetic_operator_FCFLAGS = -I$(top_builddir)/src/locregs -I$(top_builddir)/src/orbitals -I$(top_builddir)/src/modules @LIB_FUTILE_CFLAGS@
 kinetic_operator_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@
 
-EXTRA_DIST = wrappers.out.ref.yaml posinp.ref.yaml pywrappers.out.ref.yaml check_wrappers.py.in TiO2.cif
+EXTRA_DIST = wrappers.out.ref.yaml posinp.ref.yaml pywrappers.out.ref.yaml check_wrappers.py.in
 CLEANFILES = default.* posinp.yaml time.yaml wrappers.out.yaml pywrappers.out.yaml *report.yaml input_minimal.yaml input.yaml outfile.xyz \
 			 report report_remarks
 if WITH_GOBJECT_INTROSPECTION
