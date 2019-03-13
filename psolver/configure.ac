@@ -148,6 +148,8 @@ dnl Give the name of file.in to transform to file
 AC_CONFIG_FILES([
 Makefile
 psolver.pc
+psolver_environment.sh
+psolvervars.sh
 config/Doxyfile
 doc/Makefile
 src/configure.inc
