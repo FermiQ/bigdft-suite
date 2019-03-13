@@ -919,11 +919,11 @@ contains
           else
              irrzon=f_malloc((/n1i*n3i,2,1/),id='irrzon')
              phnons=f_malloc((/2,n1i*n3i,1/),id='phnons')
+             call kpoints_get_irreductible_zone(irrzon, phnons, n1i, 1, n3i, &
+                  & nspin, nspin, sym%symObj, i_stat)
              do i_third = 1, n2i, 1
-                call kpoints_get_irreductible_zone(irrzon, phnons, n1i, 1, n3i, &
-                     & nspin, nspin, sym%symObj, i_stat)
-                sym%irrzon(:,:,i_third:i_third) = irrzon
-                !call vcopy(2*n1i*n3i, phnons(1,1,1), 1, sym%phnons(1,1,i_third), 1)
+                sym%irrzon(:,:,i_third)=irrzon(:,:,1)
+                !call f_memcpy(src=irrzon,dest=sym%irrzon(:,:,i_third))
                 call f_memcpy(src=phnons,dest=sym%phnons(:,:,i_third))
              end do
              call f_free(irrzon)
