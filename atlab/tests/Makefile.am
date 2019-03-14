@@ -1,9 +1,9 @@
-EXTRA_DIST = numerics_check.ref.yaml babel.ref.yaml domain.yaml TiO2.cif
+EXTRA_DIST = numerics_check.ref.yaml babel.ref.yaml domain.yaml TiO2.cif tols.yaml
 
 AM_LDFLAGS = -L$(top_builddir)/src
 
 if BUILD_DYNAMIC_LIBS
-AM_LDFLAGS += @FC_RPATH@$(abs_top_builddir)/src @FC_RPATH@$(DESTDIR)$(libdir)
+AM_LDFLAGS += @FC_RPATH@$(abs_top_builddir)/src
 endif
 
 if HAVE_OPENBABEL
@@ -20,7 +20,7 @@ check_PROGRAMS = numerics_check $(babel_prg)
 check: regtest report
 
 report:
-	@if test $(MAKELEVEL) = 0 ; then python $(pythondir)/report.py ; fi
+	@if test $(MAKELEVEL) = 0 ; then python @FUTILE_PYTHONDIR@/report.py ; fi
 
 CLEANFILES = *.out.yaml *.report.yaml report_remarks report outfile.xyz OpenBabel.err
 
@@ -30,12 +30,12 @@ numerics_check_LDADD = @LIB_ATLAB_LIBS@ @LIB_FUTILE_LIBS@
 babel_SOURCES = babel.f90
 babel_LDADD = @LIB_ATLAB_LIBS@ @LIB_FUTILE_LIBS@
 
-AM_FCFLAGS = -I. @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@
+AM_FCFLAGS = -I. -I$(top_builddir)/src @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@
 
 numerics_check.o: $(top_builddir)/src/libatlab-1.a
 
 regtest: numerics_check $(babel_prg)
-	python $(pythondir)/f_regtest.py --fldiff=$(pythondir)/fldiff_yaml.py --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir)
+	python @FUTILE_PYTHONDIR@/f_regtest.py --fldiff=@FUTILE_PYTHONDIR@/fldiff_yaml.py --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir)
 
 define F_REGTEST_INSTRUCTIONS
 - numerics_check:

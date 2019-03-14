@@ -29,13 +29,13 @@ AM_CFLAGS = -I$(top_builddir)/dicts -I$(top_srcdir)/dicts
 CLEANFILES = *.@MODULE_EXT@
 
 pyscript.out.yaml: pyscript
-	./pyscript > pyscript.out.yaml
+	PYTHONPATH=$PYTHONPATH:$(abs_top_builddir)/src ./pyscript > pyscript.out.yaml
 
 pyscript.report.yaml: tols.yaml pyscript.ref.yaml pyscript.out.yaml
-	python $(pythondir)/fldiff_yaml.py --label pyscript -t $(srcdir)/tols.yaml	\
+	python $(top_builddir)/tests/fldiff_yaml.py --label pyscript -t $(srcdir)/tols.yaml	\
 		-r $(srcdir)/pyscript.ref.yaml -d pyscript.out.yaml --output $@
 
 check: $(pyscriptreport) report
 
 report:
-	@if test $(MAKELEVEL) = 0 ; then python $(pythondir)/report.py ; fi
+	@if test $(MAKELEVEL) = 0 ; then python $(top_builddir)/tests/report.py ; fi

@@ -10,6 +10,8 @@
 #ifndef BINDINGS_API_H
 #define BINDINGS_API_H
 
+#include "dict.h"
+
 #undef hz
 
 /* bind_dict_append futile/c-bindings/dictf.f90:36 */

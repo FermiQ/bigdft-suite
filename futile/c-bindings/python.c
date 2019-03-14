@@ -7,7 +7,7 @@
 #include <signal.h>
 #include <stdlib.h>
 
-#include <futile.h>
+#include <misc.h>
 #include <dict-fapi.h>
 #include <string.h>
 

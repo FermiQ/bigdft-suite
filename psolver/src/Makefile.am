@@ -28,6 +28,8 @@ PS_input_variables_fetch.o: PS_input_variables_definition-inc.h
 PS_input_variables_definition-inc.h: PS_input_variables_definition.yaml
 	$(SED) -e "s/^/\"/;s/$$/\\\n\"/" $< > $@
 
+DISTCLEANFILES = PS_input_variables_definition-inc.h
+
 fdder_file=FDder.f90
 
 # Code source.
