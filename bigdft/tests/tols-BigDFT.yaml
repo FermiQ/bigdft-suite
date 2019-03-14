@@ -2743,6 +2743,7 @@ C2-chain_wire:
   Residues per orbital: 3.0e-10
   Total electronic charge: 2.4e-11
   EKS: 3.2e-11
+  PV (Ha): 1.8e-11
 
 C2-chain_periodic:
   EH: 1.2e-10
@@ -2750,6 +2751,7 @@ C2-chain_periodic:
   Residues per orbital: 3.0e-10
   Total electronic charge: 2.4e-11
   EKS: 3.2e-11
+  PV (Ha): 1.8e-11
 
 pexsi:
   Energy (Hartree): 2.3e-11

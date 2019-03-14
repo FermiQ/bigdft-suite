@@ -96,7 +96,6 @@ def main(args):
 
     if hasattr(os, 'getuid') and os.getuid() == 0:
         sys.stderr.write(_('You should not run jhbuild as root.\n').encode(_encoding, 'replace'))
-        sys.exit(1)
 
     logging.getLogger().setLevel(logging.INFO)
     logging_handler = logging.StreamHandler()

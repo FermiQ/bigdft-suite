@@ -277,41 +277,38 @@ subroutine abi_irrzg(irrzon,nspden,nsppol,nsym,n1,n2,n3,phnons,&
 !          accuracy of tnons, especially when they are found from
 !          the symmetry finder (with xred that might be a bit inaccurate)
            if (irep > 1) then
-!!$ DC 170824: Remove the code that put different phnons to zero
-!!$            because the tolerance here is not coherent with the
-!!$            one used in the calculation of tnons.
-!!$             do jj=1,nsym_used,irep
-!!$               setzer=0
-!!$               ph1r=work2(1,jj);ph1i=work2(2,jj)
-!!$               do j1=jj,jj+irep-1
-!!$                 ph2r=work2(1,j1);ph2i=work2(2,j1)
-!!$                 if (((ph2r+ph1r)**2+(ph2i+ph1i)**2) <= tol14) then
-!!$                   if (setzer/=1) setzer=-1
-!!$                 else if (((ph2r-ph1r)**2+(ph2i-ph1i)**2) > tol14) then
-!!$                   setzer=1
-!!$                 end if
-!!$               end do
-!!$!              Setzer= 0: phnons are all equal
-!!$!              Setzer=-1: phnons are equal in absolute value
-!!$!              Setzer= 1: some phnons are different
-!!$               if (setzer/=0) then
-!!$                 if (setzer==-1) then
-!!$                   if (afm_noncoll.and.nspden==4) then
-!!$                     arg=symafm_used(iperm(jj))
-!!$                     if (all(symafm_used(iperm(jj:jj+irep-1))==arg)) then
-!!$                       setzer=1
-!!$                     else
-!!$                       do j1=jj,jj+irep-1
-!!$                         work2(:,j1)=work2(:,j1)*dble(symafm_used(iperm(j1)))
-!!$                       end do
-!!$                     end if
-!!$                   else
-!!$                     setzer=1
-!!$                   end if
-!!$                 end if
-!!$                 if (setzer==1) work2(:,jj:jj+irep-1)=zero
-!!$               end if
-!!$             end do
+             do jj=1,nsym_used,irep
+               setzer=0
+               ph1r=work2(1,jj);ph1i=work2(2,jj)
+               do j1=jj+1,jj+irep-1
+                 ph2r=work2(1,j1);ph2i=work2(2,j1)
+                 if (((ph2r+ph1r)**2+(ph2i+ph1i)**2) <= tol14) then
+                   if (setzer/=1) setzer=-1
+                 else if (((ph2r-ph1r)**2+(ph2i-ph1i)**2) > tol14) then
+                   setzer=1
+                 end if
+               end do
+!              Setzer= 0: phnons are all equal
+!              Setzer=-1: phnons are equal in absolute value
+!              Setzer= 1: some phnons are different
+               if (setzer/=0) then
+                 if (setzer==-1) then
+                   if (afm_noncoll.and.nspden==4) then
+                     arg=symafm_used(iperm(jj))
+                     if (all(symafm_used(iperm(jj:jj+irep-1))==arg)) then
+                       setzer=1
+                     else
+                       do j1=jj,jj+irep-1
+                         work2(:,j1)=work2(:,j1)*dble(symafm_used(iperm(j1)))
+                       end do
+                     end if
+                   else
+                     setzer=1
+                   end if
+                 end if
+                 if (setzer==1) work2(:,jj:jj+irep-1)=zero
+               end if
+             end do
 !            Compress data if irep>1:
              jj=0
              do isym=1,nsym_used,irep

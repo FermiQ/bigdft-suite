@@ -11,7 +11,7 @@ module_autogenargs['futile'] = "FC=mpif90 CFLAGS='-Wall -g -O2' FCFLAGS='-O2 -g 
 
 module_autogenargs['atlab'] = "FC=mpif90 CFLAGS='-Wall -g -O2' FCFLAGS='-O2 -g -Wall -fbounds-check'"
 
-module_autogenargs['libxc'] = "CC=gcc --enable-shared"
+module_autogenargs['libxc'] = "CC=gcc --disable-shared"
 
 module_autogenargs['chess'] = "FC=mpif90 CFLAGS='-Wall -g -O2' FCFLAGS='-O2 -g -Wall -fbounds-check'"
 
@@ -23,7 +23,7 @@ module_autogenargs['spred'] = "FC=mpif90 CFLAGS='-Wall -g -O2' CXXFLAGS='-g -O2'
 
 module_autogenargs['pseudo'] = "FC=mpif90 FCFLAGS='-O2 -g -Wall -fbounds-check'"
 
-module_autogenargs['libABINIT'] = "FC=mpif90 FCFLAGS='-fPIC -g -O2'"
+module_autogenargs['libABINIT'] = "FC=mpif90 FCFLAGS='-g -O2'"
 
 module_makeargs['wannier90'] = "F90=gfortran MPIF90=mpif90 LIBS='-llapack -lblas' COMMS='mpi'"
 

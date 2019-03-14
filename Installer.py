@@ -271,6 +271,13 @@ class BigDFTInstaller():
     def selected(self,l):
         return [val for val in l if val in self.modulelist]
 
+    def jhbuildaction(self, action, target):
+        "Call jhbuild to do action on target."
+        import os
+        ret = os.system(self.jhb + action + target)
+        if (ret != 0):
+            raise RuntimeError('JHBuild failed to complete ' + action)
+
     def shellaction(self,path,modules,action,hidden=False):
         "Perform a shell action, dump also the result if verbose is True."
         import os
@@ -401,7 +408,7 @@ class BigDFTInstaller():
             #now copy the files, overwriting the previously existing ones
             for d in self.get_m4_dir(mod):
                 self.copyfiles(files,os.path.join(self.srcdir,mod,d))
-        os.system(self.jhb+SETUP+self.package)
+        self.jhbuildaction(SETUP, self.package)
         #self.shellaction(self.srcdir,self.modulelist,'autoreconf -fi')
 
     def check(self):
@@ -417,7 +424,7 @@ class BigDFTInstaller():
         import os
         tarfile=os.path.join(self.builddir,self.package+'-suite.tar.gz')
         disttime0=self.filename_time(tarfile)
-        os.system(self.jhb+DIST+self.package+"-suite")
+        self.jhbuildaction(DIST, self.package+"-suite")
         disttime1=self.filename_time(tarfile)
         if not (disttime1 == disttime0):
             print 'SUCCESS: distribution file "'+self.package+'-suite.tar.gz" generated correctly'
@@ -434,9 +441,9 @@ class BigDFTInstaller():
         else:
             co=' -C'
         if (self.verbose):
-            os.system(self.jhb+BUILD+self.package+co)
+            self.jhbuildaction(BUILD, self.package+co)
         else:
-            os.system(self.jhb+TINDERBOX+self.package+co)
+            self.jhbuildaction(TINDERBOX, self.package+co)
 
     def _wipeout(self,mod):
         import shutil
