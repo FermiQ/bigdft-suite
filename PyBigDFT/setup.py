@@ -13,7 +13,9 @@ setup(name = "PyBigDFT",
     url = "www.bigdft.org",
     license = 'GNU-GPL',
     packages = setuptools.find_packages(),
-    install_requires=['Pyfutile','ase','matplotlib','numpy'],
+    install_requires = ['ase','matplotlib','numpy'],
+    setup_requires = ['pytest-runner'],
+    tests_require = ['nbval'],
     #'package' package must contain files (see list above)
     #I called the package 'package' thus cleverly confusing the whole issue...
     #This dict maps the package name =to=> directories

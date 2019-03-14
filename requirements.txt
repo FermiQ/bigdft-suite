@@ -3,5 +3,7 @@ sphinx-fortran==1.0.1
 sphinxcontrib-programoutput
 sphinx_bootstrap_theme
 sphinx-multibuild
+sphinx_rtd_theme
 ase
 nbsphinx
+matplotlib==2.0.2
