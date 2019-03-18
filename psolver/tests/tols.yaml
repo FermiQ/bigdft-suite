@@ -65,7 +65,7 @@ PS_Basics:
 GPS_PCG: &PCGref
   Computed Hartree energy: 4.1e-06
   Diff of expected-computed Hartree energy: 4.1e-6
-  Integral of the density in the nonvacuum region: 8.0e-11
+  Integral of the density in the nonvacuum region: 1.50e-10
   res: 5.5e-06
   Value: 2.0e-06 
   dipole: 5.35e-9
