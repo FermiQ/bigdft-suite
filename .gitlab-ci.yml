@@ -1,25 +1,60 @@
 image: luigigenovese/v_sim-dev
 
+before_script:
+  - apt update && apt -y install libopenmpi-dev openmpi-bin libopenmpi1.10
+
 stages:
   - build
+  - check
   - package
   - deploy
 
-default:
+build:
   stage: build
-  before_script:
-    - apt update && apt -y install libopenmpi-dev openmpi-bin libopenmpi1.10
   script:
     - ./Installer.py -y autogen
     - mkdir tmp
     - cd tmp/
     - ../Installer.py -y -f ../rcfiles/jhbuildrc build
     - ../jhbuild.py -f ../rcfiles/jhbuildrc dist --dist-only bigdft-suite
-    - cd bigdft/tests/DFT/cubic
-    - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root" CHECK_MODE=short LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CI_PROJECT_DIR}/tmp/install/lib make check
   artifacts:
+    expire_in: 1 hour
     paths:
       - tmp/bigdft-suite*
+      - tmp/install
+      - futile
+      - tmp/futile
+      - atlab
+      - tmp/atlab
+      - psolver
+      - tmp/psolver
+      - bigdft
+      - tmp/bigdft
+
+futile:
+  stage: check
+  script:
+    - cd tmp/futile
+    - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root" PYTHONPATH=$PYTHONPATH:${CI_PROJECT_DIR}/tmp/install/lib/python2.7/site-packages/ make check
+
+atlab:
+  stage: check
+  script:
+    - cd tmp/atlab
+    - OMP_NUM_THREADS=2 make check
+
+psolver:
+  stage: check
+  script:
+    - cd tmp/psolver
+    - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root" make check
+
+bigdft:
+  stage: check
+  script:
+    - cd tmp/bigdft/tests/DFT/cubic
+# LD_LIBRARY_PATH is for libbabel.so
+    - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root" LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CI_PROJECT_DIR}/tmp/install/lib CHECK_MODE=short make check
 
 #sphinx:
 #  stage: build
