@@ -870,6 +870,7 @@ hybrid-directmin:
 cdft_ohohfoe:
  Epsilon: 7.1e-10
  Tr(K): 1.1e-08
+ Tr(KW): 5.1e-05 # Missing digits.
  guess for new ef: 1.1e-09
  eF: 1.1e-07
  eBS: 1.1e-9
@@ -2140,7 +2141,7 @@ multipoles_OH-:
  Raw forces norm (Ha/Bohr): 6.1e-11
  Average noise forces: 1.01e-9
  decay length of error function: 1.1e-5
- number of corrected points: 92
+ number of corrected points: 92.
  total charge correction: 5.2e-8
  Unitary check of the multipole calculations: 6.1e-2
  Force Norm (Hartree/Bohr): 1.1e-10

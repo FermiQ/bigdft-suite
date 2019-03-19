@@ -723,7 +723,7 @@
    Orthoconstraint:  Yes,    Preconditioning:  Yes, 
  iter:  1, fnrm:  5.34E-01, Omega: {TRACE:  1.388910895830671E+01}, D:  1.39E+01, 
                                    D best:  1.39E+01, 
- Optimization: {algorithm: DIIS, history length:  5, consecutive failures:  0, 
+ Optimization: {algorithm: DIIS, history length:  3, consecutive failures:  0, 
            total failures:  0}, 
  Orthogonalization:  Yes}
    -  { #-------------------------------------------------------------------------- iter: 2
@@ -732,7 +732,7 @@
    Orthoconstraint:  Yes,    Preconditioning:  Yes, 
  iter:  2, fnrm:  2.77E-01, Omega: {TRACE:  1.191857985133338E+01}, D: -1.97E+00, 
                                    D best: -1.97E+00, 
- Optimization: {algorithm: DIIS, history length:  5, consecutive failures:  0, 
+ Optimization: {algorithm: DIIS, history length:  3, consecutive failures:  0, 
            total failures:  0}, 
  Orthogonalization:  Yes}
    -  { #-------------------------------------------------------------------------- iter: 3

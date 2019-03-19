@@ -683,12 +683,12 @@
  reset DIIS history:  No, Hamiltonian Applied:  Yes, 
  Components: {Ekin:  1.64409242844E+01, Epot: -2.19892036874E+01, Enl:  1.41659352998E+00}, 
    Orthoconstraint:  Yes,    Preconditioning:  Yes, 
- iter:  1, fnrm:  5.99E-01, Omega: {ENERGY: -3.162697017106387E+01}, D: -3.16E+01, 
-                                    D best: -3.16E+01, 
+ iter:  1, fnrm:  6.15E-01, Omega: {ENERGY: -3.211905077730186E+01}, D: -3.21E+01, 
+                                    D best: -3.21E+01, 
                             exit criterion: net number of iterations}
    -  &final_supfun001  { #-------------------------------------------------------- iter: 1
  Components: {Ekin:  1.64409242844E+01, Epot: -2.19892036874E+01, Enl:  1.41659352998E+00}, 
- nit:  1, fnrm:  5.99E-01, Omega: {ENERGY: -3.162697017106387E+01}, D total:  0.00E+00}
+ nit:  1, fnrm:  6.15E-01, Omega: {ENERGY: -3.211905077730186E+01}, D total:  0.00E+00}
     #=================================================================== kernel optimization
  - kernel optimization: &it_kernel001_000
    -  #--------------------------------------------------------------------- kernel iter: 1
@@ -1120,7 +1120,7 @@
  Energies: {EH:  5.20998562403E+01, EXC: -7.13694124342E+00, EvXC: -9.35045191584E+00}, 
   Total charge:  1.499999798364E+01, 
  Poisson Solver: {BC: Free, Box:  [  117,  119,  107 ], MPI tasks:  8}}
-     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  5.99E-08, 
+     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  6.15E-08, 
  iter:  1, delta:  4.33E-06, energy: -3.30893247970474604E+01, D: -3.309E+01, 
           Tr(KW):  7.9984E+00}
    -  #--------------------------------------------------------------------- kernel iter: 2
@@ -1479,7 +1479,7 @@
               EH:  5.20998562403E+01,  EXC: -7.13694124342E+00, EvXC: -9.35045191584E+00}, 
     Total charge:  1.499999866993E+01, 
  Poisson Solver: {BC: Free, Box:  [  117,  119,  107 ], MPI tasks:  8}}
-     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  5.99E-08, 
+     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  6.15E-08, 
  iter:  2, delta:  3.03E-06, energy: -3.30879734161452106E+01, D:  1.351E-03, 
           Tr(KW):  8.0009E+00}
    -  #--------------------------------------------------------------------- kernel iter: 3
@@ -1822,7 +1822,7 @@
               EH:  5.20998562403E+01,  EXC: -7.13694124342E+00, EvXC: -9.35045191584E+00}, 
     Total charge:  1.499999947166E+01, 
  Poisson Solver: {BC: Free, Box:  [  117,  119,  107 ], MPI tasks:  8}}
-     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  5.99E-08, 
+     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  6.15E-08, 
  iter:  3, delta:  2.12E-06, energy: -3.30873107832044653E+01, D:  6.626E-04, 
           Tr(KW):  8.0021E+00}
    -  #--------------------------------------------------------------------- kernel iter: 4
@@ -2209,7 +2209,7 @@
               EH:  5.20998562403E+01,  EXC: -7.13694124342E+00, EvXC: -9.35045191584E+00}, 
     Total charge:  1.499999866934E+01, 
  Poisson Solver: {BC: Free, Box:  [  117,  119,  107 ], MPI tasks:  8}}
-     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  5.99E-08, 
+     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  6.15E-08, 
  iter:  4, delta:  1.48E-06, energy: -3.30884764642186511E+01, D: -1.166E-03, 
           Tr(KW):  8.0000E+00}
    -  #--------------------------------------------------------------------- kernel iter: 5
@@ -2566,7 +2566,7 @@
               EH:  5.20998562403E+01,  EXC: -7.13694124342E+00, EvXC: -9.35045191584E+00}, 
     Total charge:  1.499999866966E+01, 
  Poisson Solver: {BC: Free, Box:  [  117,  119,  107 ], MPI tasks:  8}}
-     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  5.99E-08, 
+     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  6.15E-08, 
  iter:  5, delta:  1.04E-06, energy: -3.30906318654736751E+01, D: -2.155E-03, 
           Tr(KW):  7.9960E+00}
    -  #--------------------------------------------------------------------- kernel iter: 6
@@ -2953,7 +2953,7 @@
               EH:  5.20998562403E+01,  EXC: -7.13694124342E+00, EvXC: -9.35045191584E+00}, 
     Total charge:  1.499999864687E+01, 
  Poisson Solver: {BC: Free, Box:  [  117,  119,  107 ], MPI tasks:  8}}
-     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  5.99E-08, 
+     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  6.15E-08, 
  iter:  6, delta:  7.29E-07, energy: -3.30919502790222779E+01, D: -1.318E-03, 
           Tr(KW):  7.9936E+00}
    -  #--------------------------------------------------------------------- kernel iter: 7
@@ -3338,7 +3338,7 @@
               EH:  5.20998562403E+01,  EXC: -7.13694124342E+00, EvXC: -9.35045191584E+00}, 
     Total charge:  1.499999871185E+01, 
  Poisson Solver: {BC: Free, Box:  [  117,  119,  107 ], MPI tasks:  8}}
-     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  5.99E-08, 
+     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  6.15E-08, 
  iter:  7, delta:  5.11E-07, energy: -3.30924189169318836E+01, D: -4.686E-04, 
           Tr(KW):  7.9928E+00}
    -  #--------------------------------------------------------------------- kernel iter: 8
@@ -3687,7 +3687,7 @@
               EH:  5.20998562403E+01,  EXC: -7.13694124342E+00, EvXC: -9.35045191584E+00}, 
     Total charge:  1.499999865431E+01, 
  Poisson Solver: {BC: Free, Box:  [  117,  119,  107 ], MPI tasks:  8}}
-     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  5.99E-08, 
+     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  6.15E-08, 
  iter:  8, delta:  3.58E-07, energy: -3.30924223590199986E+01, D: -3.442E-06, 
           Tr(KW):  7.9928E+00}
    -  #--------------------------------------------------------------------- kernel iter: 9
@@ -4084,7 +4084,7 @@
               EH:  5.20998562403E+01,  EXC: -7.13694124342E+00, EvXC: -9.35045191584E+00}, 
     Total charge:  1.499999781891E+01, 
  Poisson Solver: {BC: Free, Box:  [  117,  119,  107 ], MPI tasks:  8}}
-     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  5.99E-08, 
+     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  6.15E-08, 
  iter:  9, delta:  2.50E-07, energy: -3.30922755618259643E+01, D:  1.468E-04, 
           Tr(KW):  7.9931E+00}
    -  #-------------------------------------------------------------------- kernel iter: 10
@@ -4445,7 +4445,7 @@
               EH:  5.20998562403E+01,  EXC: -7.13694124342E+00, EvXC: -9.35045191584E+00}, 
     Total charge:  1.499999902871E+01, 
  Poisson Solver: {BC: Free, Box:  [  117,  119,  107 ], MPI tasks:  8}}
-     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  5.99E-08, 
+     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  6.15E-08, 
  iter:  10, delta:  1.75E-07, energy: -3.30919764537826708E+01, D:  2.991E-04, 
            Tr(KW):  7.9936E+00}
    -  #-------------------------------------------------------------------- kernel iter: 11
@@ -4796,7 +4796,7 @@
               EH:  5.20998562403E+01,  EXC: -7.13694124342E+00, EvXC: -9.35045191584E+00}, 
     Total charge:  1.499999867008E+01, 
  Poisson Solver: {BC: Free, Box:  [  117,  119,  107 ], MPI tasks:  8}}
-     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  5.99E-08, 
+     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  6.15E-08, 
  iter:  11, delta:  1.22E-07, energy: -3.30918905212067287E+01, D:  8.593E-05, 
            Tr(KW):  7.9938E+00}
    -  #-------------------------------------------------------------------- kernel iter: 12
@@ -5157,7 +5157,7 @@
               EH:  5.20998562403E+01,  EXC: -7.13694124342E+00, EvXC: -9.35045191584E+00}, 
     Total charge:  1.499999930587E+01, 
  Poisson Solver: {BC: Free, Box:  [  117,  119,  107 ], MPI tasks:  8}}
-     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  5.99E-08, 
+     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  6.15E-08, 
  iter:  12, delta:  8.54E-08, energy: -3.30915851319250791E+01, D:  3.054E-04, 
            Tr(KW):  7.9943E+00}
    -  #-------------------------------------------------------------------- kernel iter: 13
@@ -5518,11 +5518,11 @@
               EH:  5.20998562403E+01,  EXC: -7.13694124342E+00, EvXC: -9.35045191584E+00}, 
     Total charge:  1.499999900878E+01, 
  Poisson Solver: {BC: Free, Box:  [  117,  119,  107 ], MPI tasks:  8}}
-     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  5.99E-08, 
+     summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  6.15E-08, 
  iter:  13, delta:  5.98E-08, energy: -3.30915966997512712E+01, D: -1.157E-05, 
            Tr(KW):  7.9943E+00}
    -  &final_kernel001_005  { #--------------------------------------------------- iter: 13
- summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  5.99E-08, 
+ summary: {kernel method: FOE, mix entity: DENS, mix hist:  0, conv crit:  6.15E-08, 
  iter:  13, delta:  5.98E-08, energy: -3.30915966997512712E+01, D: -1.157E-05, 
            Tr(KW):  7.9943E+00}}
     #================================================================= Summary of both steps
