@@ -870,24 +870,6 @@ contains
             err_name='BIGDFT_INPUT_VARIABLES_ERROR')
     end if
 
-    ! override some linear input variables which are inter-dependent
-    ! set variables associated with experimental_mode
-    ! these should also now be able to be activated independently
-    ! but if the experimental_mode is set they are all set accordingly for backwards compatibility
-    ! eventually experimental_mode should be eliminated or turned into a profile
-    if (in%experimental_mode) then
-       in%lin%extended_ig = .true.
-       in%lin%orthogonalize_sfs = .false.
-    end if
-    ! no point in setting DIIS histories higher than the number of iterations
-    in%lin%dmin_hist_lowaccuracy = min(in%lin%dmin_hist_lowaccuracy, in%lin%nItdmin_lowaccuracy)
-    in%lin%dmin_hist_highaccuracy = min(in%lin%dmin_hist_highaccuracy, in%lin%nItdmin_highaccuracy)
-    in%lin%DIIS_hist_lowaccur=min(in%lin%DIIS_hist_lowaccur,in%lin%nItBasis_lowaccuracy)
-    in%lin%DIIS_hist_highaccur=min(in%lin%DIIS_hist_highaccur,in%lin%nItBasis_highaccuracy)
-
-    ! not sure whether to actually make this an input variable or not so just set to false for now
-    in%lin%diag_start=.false.
-
     !then fill also fragment variables
     in%lin%fragment_calculation=FRAG_VARIABLES .in. dict
     in%lin%calc_transfer_integrals=.false.
@@ -2979,9 +2961,26 @@ contains
             err_name='BIGDFT_INPUT_VARIABLES_ERROR')
     end select
 
-
     !determine the TDDFT approach, including the coupling matrix policy
     if (in%tddft_approach /= 'NONE') call f_enum_attr(in%tddft_approach,in%dump_coupling_matrix)
+
+    ! override some linear input variables which are inter-dependent
+    ! set variables associated with experimental_mode
+    ! these should also now be able to be activated independently
+    ! but if the experimental_mode is set they are all set accordingly for backwards compatibility
+    ! eventually experimental_mode should be eliminated or turned into a profile
+    if (in%experimental_mode) then
+       in%lin%extended_ig = .true.
+       in%lin%orthogonalize_sfs = .false.
+    end if
+    ! no point in setting DIIS histories higher than the number of iterations
+    in%lin%dmin_hist_lowaccuracy = min(in%lin%dmin_hist_lowaccuracy, in%lin%nItdmin_lowaccuracy)
+    in%lin%dmin_hist_highaccuracy = min(in%lin%dmin_hist_highaccuracy, in%lin%nItdmin_highaccuracy)
+    in%lin%DIIS_hist_lowaccur=min(in%lin%DIIS_hist_lowaccur,in%lin%nItBasis_lowaccuracy)
+    in%lin%DIIS_hist_highaccur=min(in%lin%DIIS_hist_highaccur,in%lin%nItBasis_highaccuracy)
+
+    ! not sure whether to actually make this an input variable or not so just set to false for now
+    in%lin%diag_start=.false.
 
     call f_release_routine()
   END SUBROUTINE input_analyze
