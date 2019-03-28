@@ -1,4 +1,9 @@
-image: bigdft/sdk:ubuntu18.04_cuda10.0_ompi4.0.0
+#image: bigdft/sdk:ubuntu18.04_cuda10.0_ompi4.0.0
+image: ubuntu:latest
+
+before_script:
+  - apt update && apt -y install wget autoconf make pkg-config gfortran libblas3 liblapack3 libopenmpi2 libpython2.7 libyaml-0-2 python-numpy python-numpy-abi9 python-yaml libopenmpi-dev openssh-client libblas-dev liblapack-dev libpython2.7-dev libpcre3-dev python-setuptools
+  - export OMPI_MCA_btl_vader_single_copy_mechanism=none 
 
 stages:
   - build
@@ -31,7 +36,7 @@ futile:
   stage: check
   script:
     - cd tmp/futile
-    - OMPI_MCA_btl_vader_single_copy_mechanism=none OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root --oversubscribe" PYTHONPATH=$PYTHONPATH:${CI_PROJECT_DIR}/tmp/install/lib/python2.7/site-packages/ make check
+    - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root --oversubscribe" PYTHONPATH=$PYTHONPATH:${CI_PROJECT_DIR}/tmp/install/lib/python2.7/site-packages/ make check
 
 atlab:
   stage: check
@@ -43,22 +48,37 @@ psolver:
   stage: check
   script:
     - cd tmp/psolver
-    - OMPI_MCA_btl_vader_single_copy_mechanism=none OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root --oversubscribe" make check
+    - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root --oversubscribe" make check
 
 bigdft-cubic:
   stage: check
   script:
     - cd tmp/bigdft/tests/DFT/cubic
 # LD_LIBRARY_PATH is for libbabel.so
-    - OMPI_MCA_btl_vader_single_copy_mechanism=none OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root --oversubscribe" LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CI_PROJECT_DIR}/tmp/install/lib CHECK_MODE=short make check
+    - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root --oversubscribe" LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CI_PROJECT_DIR}/tmp/install/lib CHECK_MODE=short make check
 
-bigdft-linear:
+bigdft-linear-minimal:
   stage: check
-  allow_failure: true
   script:
     - cd tmp/bigdft/tests/DFT/linear
 # LD_LIBRARY_PATH is for libbabel.so
-    - OMPI_MCA_btl_vader_single_copy_mechanism=none OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root --oversubscribe" LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CI_PROJECT_DIR}/tmp/install/lib CHECK_MODE=short make check
+    - OMPI_MCA_btl_vader_single_copy_mechanism=none OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root --oversubscribe" LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CI_PROJECT_DIR}/tmp/install/lib CHECK_MODE=custom make check checkonly_that="base periodic surface"
+
+bigdft-linear-multipoles:
+  stage: check
+  allow_failure: true # multipoles_periodic is failing
+  script:
+    - cd tmp/bigdft/tests/DFT/linear
+# LD_LIBRARY_PATH is for libbabel.so
+    - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root --oversubscribe" LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CI_PROJECT_DIR}/tmp/install/lib CHECK_MODE=custom make check checkonly_that="multipoles H2Omultipoles"
+
+bigdft-linear-extended:
+  stage: check
+  allow_failure: true # cdft_ohoh is failing
+  script:
+    - cd tmp/bigdft/tests/DFT/linear
+# LD_LIBRARY_PATH is for libbabel.so
+    - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root --oversubscribe" LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CI_PROJECT_DIR}/tmp/install/lib CHECK_MODE=custom make check checkonly_that="directmin cdft rotatesmall verysparse"
 
 #sphinx:
 #  stage: build
