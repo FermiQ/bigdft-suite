@@ -179,6 +179,7 @@ multipoles_periodic.out.post-out:
 	  --kernel_file=data-periodic/density_kernel_sparse.txt \
 	  --hamiltonian_file=data-periodic/hamiltonian_sparse.txt \
 	  --overlap_file=data-periodic/overlap_sparse.txt \
+	  --kernel_matmul_file=data-periodic/density_kernel_sparse_matmul.txt \
 	  --multipole_matrix_0_0=data-periodic/mpmat_0_0.txt \
 	  --multipole_matrix_1_0=data-periodic/mpmat_1_-1.txt \
 	  --multipole_matrix_1_1=data-periodic/mpmat_1_0.txt \

@@ -107,7 +107,7 @@ def number_of_significative_digits(scl,ref):
   import math
   #first check the sign
   if (scl >=0) != (ref >=0): return 0
-  rel_diff=abs(scl/ref-1.0)
+  rel_diff=abs(float(scl)/ref-1.0)
   digits=math.log(rel_diff)/math.log(10)
   return 1-int(digits)
 
