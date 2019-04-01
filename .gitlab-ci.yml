@@ -57,6 +57,13 @@ bigdft-cubic:
 # LD_LIBRARY_PATH is for libbabel.so
     - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root --oversubscribe" LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CI_PROJECT_DIR}/tmp/install/lib CHECK_MODE=short make check
 
+bigdft-overDFT:
+  stage: check
+  script:
+    - cd tmp/bigdft/tests/overDFT
+# LD_LIBRARY_PATH is for libbabel.so
+    - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root --oversubscribe" LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CI_PROJECT_DIR}/tmp/install/lib CHECK_MODE=short make check
+
 bigdft-linear-minimal:
   stage: check
   script:
