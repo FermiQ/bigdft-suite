@@ -1770,6 +1770,7 @@ subroutine optimise_volume(atoms,crmult,frmult,hx,hy,hz,rxyz)
    use module_base
    use module_types
    use locregs
+   use at_domain, only: domain_volume
    implicit none
    type(atoms_data), intent(inout) :: atoms
    real(gp), intent(in) :: crmult,frmult
@@ -1786,7 +1787,8 @@ subroutine optimise_volume(atoms,crmult,frmult,hx,hy,hz,rxyz)
    txyz = f_malloc((/ 3, atoms%astruct%nat /),id='txyz')
    call system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,.false.,Glr)
    !call volume(nat,rxyz,vol)
-   vol=atoms%astruct%cell_dim(1)*atoms%astruct%cell_dim(2)*atoms%astruct%cell_dim(3)
+   !vol=atoms%astruct%cell_dim(1)*atoms%astruct%cell_dim(2)*atoms%astruct%cell_dim(3)
+   vol=domain_volume(atoms%astruct%cell_dim,atoms%astruct%dom)
    write(*,'(1x,a,1pe16.8)')'Initial volume (Bohr^3)',vol
 
    it=0
@@ -1836,7 +1838,8 @@ subroutine optimise_volume(atoms,crmult,frmult,hx,hy,hz,rxyz)
       enddo
 
       call system_size(atoms,txyz,crmult,frmult,hx,hy,hz,.false.,Glr)
-      tvol=atoms%astruct%cell_dim(1)*atoms%astruct%cell_dim(2)*atoms%astruct%cell_dim(3)
+      !tvol=atoms%astruct%cell_dim(1)*atoms%astruct%cell_dim(2)*atoms%astruct%cell_dim(3)
+      tvol=domain_volume(atoms%astruct%cell_dim,atoms%astruct%dom)
       !call volume(nat,txyz,tvol)
       if (tvol < vol) then
          write(*,'(1x,a,1pe16.8,1x,i0,1x,f15.5)')'Found new best volume: ',tvol,it,diag

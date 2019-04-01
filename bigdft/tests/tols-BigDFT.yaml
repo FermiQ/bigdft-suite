@@ -399,6 +399,11 @@ SiH4-collocation:
  EKS: 5e-8
  Q matrix: 5e-8
 
+H2O-slab:
+ Keys to ignore:
+   - NonLocal PSP Parameters
+ 
+
 H2O-bader:
  Epsilon: 3.0e-11
  EKS: 6.0e-11
@@ -570,7 +575,8 @@ base:
   history length: 1.001
 
 Davidson-SiH4:
-  e_virtual: 1.7e-11
+  e_vrt: 5.0e-10
+  e_virtual: 5.0e-11
   Eigenvalues and eigenstate residue: 1.8e-10
 
 SIC_PZ:
@@ -1885,7 +1891,7 @@ FF_LENOSKY-sdcg:
   - WARNINGS
 
 FF_LENOSKY-sqnm:
-  Force Norm (Hartree/Bohr): 1.6e-11
+  Force Norm (Hartree/Bohr): 1.9e-11
   FORCES norm(Ha/Bohr): 1.6e-11
   Keys to ignore:
   - WARNINGS
@@ -1920,11 +1926,10 @@ FF_LENOSKY-bfgs:
   maxval: 1.0e-10
   fnrm2: 1.01e-10
   Energy: 2.29e-10
-  Energy (Hartree): 2.2e-11
-  Force Norm (Hartree/Bohr): 8.1e-11
+  Energy (Hartree): 5.5e-11
+  Force Norm (Hartree/Bohr): 2.5e-10
   Keys to ignore:
   - WARNINGS
-
 
 FF_LENOSKY-diis:
   Energy (Hartree): 7.2e-8
@@ -1935,9 +1940,11 @@ FF_LENOSKY-diis:
   - WARNINGS
 
 FF_LJ-diis:
+  Force Norm (Hartree/Bohr): 2.0e-11
   Keys to ignore:
   - WARNINGS
   - disablesym
+
 
 FF_LJ-fire:
   Force Norm (Hartree/Bohr): 3.e-11

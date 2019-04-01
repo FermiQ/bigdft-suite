@@ -27,7 +27,8 @@ program wvl
   use rhopotential, only: full_local_potential
   use module_razero
   use locregs_init, only: lr_set
-  use at_domain, only: domain_geocode
+  use at_domain
+  use numerics, only: onehalf,pi
   implicit none
 
   type(input_variables)             :: inputs
@@ -57,6 +58,7 @@ program wvl
   real(dp), dimension(:,:,:), allocatable :: phnons
   type(coulomb_operator) :: pkernel
   type(dictionary), pointer :: user_inputs,options,dict
+  type(domain) :: dom
   !temporary variables
   !integer, dimension(4) :: mpi_info
 
@@ -268,8 +270,15 @@ program wvl
 
   ! Example of calculation of the energy of the local potential of the pseudos.
   dict => dict_new()
+
+  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(domain_geocode(atoms%astruct%dom)),&
+            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,&
+            acell=(/Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i/)*&
+                  (/inputs%hx / 2._gp,inputs%hy / 2._gp,inputs%hz / 2._gp/))
+
   pkernel=pkernel_init(iproc,nproc,dict,&
-       domain_geocode(atoms%astruct%dom),(/Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i/),&
+       !domain_geocode(atoms%astruct%dom),(/Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i/),&
+       dom,(/Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i/),&
        (/inputs%hx / 2._gp,inputs%hy / 2._gp,inputs%hz / 2._gp/))
   call dict_free(dict)
   call pkernel_set(pkernel,verbose=.false.)

@@ -12,6 +12,8 @@
 program conv_check_fft
   use module_base
   use Poisson_Solver, only: H_potential, coulomb_operator, pkernel_free, pkernel_init, pkernel_set
+  use at_domain
+  use numerics, only: onehalf,pi
   implicit none
   integer  :: n1,n2,n3 !n(c) n1bis,n2bis,n3bis
   real(gp) :: hx,r2,sigma2,x,y,z,maxdiff,arg !n(c) epot,hy,hz
@@ -51,6 +53,7 @@ program conv_check_fft
   real(kind=8), dimension(:), allocatable :: rhopot,rhopot2
   type(coulomb_operator) :: pkernel,pkernel2
   type(dictionary), pointer :: dict
+  type(domain) :: dom
  
 !!!  !Use arguments
 !!!  call getarg(1,chain)
@@ -255,7 +258,13 @@ program conv_check_fft
     write(*,'(a,i6,i6,i6)')'CPU 3D Poisson Solver, dimensions:',n1,n2,n3
    !calculate the kernel in parallel for each processor
     dict => yaml_load('{setup: {verbose: No}}')
-    pkernel = pkernel_init(0, 1,dict, 'P', (/ n1,n2,n3 /), (/ 0.2d0,0.2d0,0.2d0 /))
+
+    dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum('P'),&
+             alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,&
+             acell=(/ n1,n2,n3 /)*(/ 0.2d0,0.2d0,0.2d0 /))
+
+    !pkernel = pkernel_init(0, 1,dict, 'P', (/ n1,n2,n3 /), (/ 0.2d0,0.2d0,0.2d0 /))
+    pkernel = pkernel_init(0, 1,dict, dom, (/ n1,n2,n3 /), (/ 0.2d0,0.2d0,0.2d0 /))
     call dict_free(dict)
     call pkernel_set(pkernel,verbose=.false.)
 
@@ -274,7 +283,8 @@ program conv_check_fft
 
    !transpose the kernel before copying
    dict => yaml_load('{setup: {verbose: No}}')
-   pkernel2 = pkernel_init(0, 1, dict,'P', (/ n1,n2,n3 /), (/ 0.2d0,0.2d0,0.2d0 /))
+   !pkernel2 = pkernel_init(0, 1, dict,'P', (/ n1,n2,n3 /), (/ 0.2d0,0.2d0,0.2d0 /))
+   pkernel2 = pkernel_init(0, 1, dict,dom, (/ n1,n2,n3 /), (/ 0.2d0,0.2d0,0.2d0 /))
    call dict_free(dict)
    call transpose_kernel_forGPU('P',n1,n2,n3,pkernel%kernel,pkernel2%kernel)
    !pkernel2(1:size(pkernel2))=1.0_dp

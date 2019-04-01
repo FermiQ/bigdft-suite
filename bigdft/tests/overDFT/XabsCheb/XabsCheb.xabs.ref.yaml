@@ -422,7 +422,7 @@
  - Occupation Numbers: {Orbitals No. 1-8:  2.0000}
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
+   units                               : angstroem
    Cell                                :  [  12.0,  12.0,  12.0 ]
    Positions:
    - Fe: [ 6.000000000,  6.000000000,  6.000000000] # [  27.00,  27.00,  27.00 ] 0001

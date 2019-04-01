@@ -1190,7 +1190,7 @@ contains
     character(len = *), intent(in) :: obfile
     type(dictionary), pointer :: dict
 
-      call load_dict_from_openbabel(dict,obfile)
+    call load_dict_from_openbabel(dict,obfile)
     ! giuseppe line
     !call analyse_posinp_dict(dict)
 
@@ -1381,7 +1381,7 @@ contains
     use numerics, only: Bohr_Ang
     use dictionaries
     use yaml_strings
-    use at_domain, only: geocode_to_bc,bc_periodic_dims
+    use at_domain
     use ao_inguess, only: charge_and_spol
     use yaml_output !tmp
 
@@ -1402,6 +1402,8 @@ contains
 
     !call dict_init(dict)
 
+    call domain_merge_to_dict(dict,astruct%dom)
+
     reduced = .false.
     factor=1.0_gp
     Units: select case(trim(astruct%units))
@@ -1420,7 +1422,9 @@ contains
        reduced = astruct%properties .get. ASTRUCT_REDUCED
     end if
 
-    peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+    !peri=bc_periodic_dims(geocode_to_bc(astruct%geocode))
+    peri=domain_periodic_dims(astruct%dom)
+
     do i=1,3
        if (peri(i)) then
           call set(dict // ASTRUCT_CELL // (i-1), yaml_toa(astruct%cell_dim(i)*factor(i)))
@@ -1913,8 +1917,9 @@ contains
     use dynamic_memory
     use dictionaries
     use yaml_output, only: yaml_warning
-      use f_enums
-      use public_keys
+    use f_enums
+    use public_keys
+    use at_domain, only: domain_geocode
     implicit none
     !Arguments
     type(dictionary), pointer :: dict !< dictionary of the input variables
@@ -1958,7 +1963,7 @@ contains
       ! Temporary assignation before removal - WARNING, reduced coordinates have to be still defined
       units = astruct%dom%units
       if (reduced) units=2 !LG: oh my god an explicit number here...
-      astruct%cell_dim=astruct%dom%acell
+      astruct%cell_dim=astruct%dom%acell   ! to be checked
       astruct%geocode=domain_geocode(astruct%dom)
       astruct%units=dict_get(dict,ASTRUCT_UNITS,default='bohr')
 
@@ -2001,7 +2006,11 @@ contains
 !!$         end if
 !!$      end if
 
-      if (astruct%dom%units == ANGSTROEM_UNITS) astruct%cell_dim = astruct%cell_dim / Bohr_Ang
+      if (astruct%dom%units == ANGSTROEM_UNITS) then
+         astruct%cell_dim = astruct%cell_dim / Bohr_Ang
+         astruct%dom%acell = astruct%dom%acell / Bohr_Ang
+         astruct%dom%abc = astruct%dom%abc / Bohr_Ang
+      end if
 
     ! The types
     call astruct_dict_get_types(dict, types)
@@ -2042,14 +2051,15 @@ contains
                   modulo(astruct%rxyz(2,iat),1.0_gp) * astruct%cell_dim(2)
              if (astruct%cell_dim(3) > 0.) astruct%rxyz(3,iat)=&
                   modulo(astruct%rxyz(3,iat),1.0_gp) * astruct%cell_dim(3)
-          else if (astruct%geocode == 'P') then
+          !else if (astruct%geocode == 'P') then
+          else if (domain_geocode(astruct%dom) == 'P') then
              astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),astruct%cell_dim(1))
              astruct%rxyz(2,iat)=modulo(astruct%rxyz(2,iat),astruct%cell_dim(2))
              astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),astruct%cell_dim(3))
-          else if (astruct%geocode == 'S') then
+          else if (domain_geocode(astruct%dom) == 'S') then
              astruct%rxyz(1,iat)=modulo(astruct%rxyz(1,iat),astruct%cell_dim(1))
              astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),astruct%cell_dim(3))
-          else if (astruct%geocode == 'W') then
+          else if (domain_geocode(astruct%dom) == 'W') then
              astruct%rxyz(3,iat)=modulo(astruct%rxyz(3,iat),astruct%cell_dim(3))
           end if
 
@@ -2399,6 +2409,7 @@ subroutine astruct_set_symmetries(astruct, disableSym, tol, elecfield, nspin)
   use module_atoms, only: atomic_structure,deallocate_symmetry_data
 !  use abi_defs_basis
   use m_ab6_symmetry
+  use at_domain, only: domain_geocode
   implicit none
   type(atomic_structure), intent(inout) :: astruct
   logical, intent(in) :: disableSym
@@ -2417,7 +2428,8 @@ subroutine astruct_set_symmetries(astruct, disableSym, tol, elecfield, nspin)
   integer :: spaceGroupId, pointGroupMagn
 
   ! Calculate the symmetries, if needed (for periodic systems only)
-  if (astruct%geocode /= 'F' .and. astruct%geocode /= 'W') then
+  !if (astruct%geocode /= 'F' .and. astruct%geocode /= 'W') then
+  if (domain_geocode(astruct%dom) /= 'F' .and. domain_geocode(astruct%dom) /= 'W') then
      if (astruct%sym%symObj < 0) then
         call symmetry_new(astruct%sym%symObj)
      end if
@@ -2427,8 +2439,12 @@ subroutine astruct_set_symmetries(astruct, disableSym, tol, elecfield, nspin)
      rprimd(:,:) = 0.0_gp
      rprimd(1,1) = astruct%cell_dim(1)
      rprimd(2,2) = astruct%cell_dim(2)
-     if (astruct%geocode == 'S') rprimd(2,2) = 1000._gp
+     if (domain_geocode(astruct%dom) == 'S') rprimd(2,2) = 1000._gp
      rprimd(3,3) = astruct%cell_dim(3)
+
+     ! Included by Giuseppe Fisicaro
+     if (domain_geocode(astruct%dom) == 'P') rprimd=astruct%dom%abc
+
      call symmetry_set_lattice(astruct%sym%symObj, rprimd, ierr)
      xRed = f_malloc((/ 3 , astruct%nat /),id='xRed')
      xRed(1,:) = modulo(astruct%rxyz(1, :) / rprimd(1,1), 1._gp)
@@ -2436,10 +2452,10 @@ subroutine astruct_set_symmetries(astruct, disableSym, tol, elecfield, nspin)
      xRed(3,:) = modulo(astruct%rxyz(3, :) / rprimd(3,3), 1._gp)
      call symmetry_set_structure(astruct%sym%symObj, astruct%nat, astruct%iatype, xRed, ierr)
      call f_free(xRed)
-     if (astruct%geocode == 'S') then
+     if (domain_geocode(astruct%dom) == 'S') then
         call symmetry_set_periodicity(astruct%sym%symObj, &
              & (/ .true., .false., .true. /), ierr)
-     else if (astruct%geocode == 'F') then
+     else if (domain_geocode(astruct%dom) == 'F') then
         call symmetry_set_periodicity(astruct%sym%symObj, &
              & (/ .false., .false., .false. /), ierr)
      end if
@@ -2602,6 +2618,7 @@ END SUBROUTINE astruct_set_displacement
 subroutine astruct_distance(astruct, rxyz, dxyz, iat1, iat2)
   use module_defs, only: gp
   use module_atoms, only: atomic_structure
+  use at_domain, only: domain_geocode
   implicit none
   type(atomic_structure), intent(in) :: astruct
   real(gp), dimension(3, astruct%nat), intent(in) :: rxyz
@@ -2610,7 +2627,8 @@ subroutine astruct_distance(astruct, rxyz, dxyz, iat1, iat2)
 
   logical, dimension(3) :: per
 
-  select case(astruct%geocode)
+  !select case(astruct%geocode)
+  select case(domain_geocode(astruct%dom))
   case ("P")
      per = (/ .true., .true., .true. /)
   case ("S")
@@ -2632,6 +2650,7 @@ subroutine astruct_neighbours(astruct, rxyz, neighb)
   use module_atoms, only: atomic_structure, atomic_neighbours, nullify_atomic_neighbours
   use dynamic_memory
   use ao_inguess, only: atomic_info,atomic_z
+  use at_domain, only: domain_geocode
   implicit none
   type(atomic_structure), intent(in) :: astruct
   real(gp), dimension(3, astruct%nat), intent(in) :: rxyz
@@ -2651,7 +2670,8 @@ subroutine astruct_neighbours(astruct, rxyz, neighb)
   maxnei = min(astruct%nat, 50)
   tmp_nei = f_malloc((/ maxnei, astruct%nat /), id = "tmp_nei")
 
-  select case(astruct%geocode)
+  !select case(astruct%geocode)
+  select case(domain_geocode(astruct%dom))
   case ("P")
      per = (/ .true., .true., .true. /)
   case ("S")
@@ -2713,6 +2733,7 @@ subroutine astruct_from_subset(asub, astruct, rxyz, mask, passivate, bufNeighbou
   use dictionaries
   use public_keys, only: ASTRUCT_ATT_ORIG_ID, ASTRUCT_ATT_FROZEN
   use ao_inguess, only: atomic_z, atomic_info
+  use at_domain, only: domain_geocode
   implicit none
   type(atomic_structure), intent(out) :: asub
   type(atomic_structure), intent(in) :: astruct
@@ -2753,7 +2774,8 @@ subroutine astruct_from_subset(asub, astruct, rxyz, mask, passivate, bufNeighbou
      ! In case of passivation, every old neighbours that are cut, are replaced
      ! by an hydrogen.
 
-     select case(astruct%geocode)
+     !select case(astruct%geocode)
+     select case(domain_geocode(astruct%dom))
      case ("P")
         per = (/ .true., .true., .true. /)
      case ("S")
@@ -2798,6 +2820,7 @@ subroutine astruct_from_subset(asub, astruct, rxyz, mask, passivate, bufNeighbou
   asub%units = astruct%units
   asub%cell_dim = astruct%cell_dim
   asub%geocode = astruct%geocode
+  asub%dom = astruct%dom
   asub%inputfile_format = astruct%inputfile_format
 
   ! Count the number of types in the subset.

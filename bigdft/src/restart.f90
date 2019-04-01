@@ -96,9 +96,10 @@ subroutine reformatmywaves(iproc,orbs,at,&
 
 
   !mesh=cell_new(at%astruct%geocode,[n1+1,n2+1,n3+1],[hx,hy,hz])
-  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
-            alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1+1,n2+1,n3+1]*[hx,hy,hz])
-  mesh=cell_new(dom,[n1+1,n2+1,n3+1],[hx,hy,hz])
+  !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(at%astruct%geocode),&
+  !          alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=[n1+1,n2+1,n3+1]*[hx,hy,hz])
+  !mesh=cell_new(dom,[n1+1,n2+1,n3+1],[hx,hy,hz])
+  mesh=cell_new(at%astruct%dom,[n1+1,n2+1,n3+1],[hx,hy,hz])
 
   !conditions for periodicity in the three directions
 !!$  perx=(at%astruct%geocode /= 'F')
@@ -2314,7 +2315,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   use rototranslations
   use reformatting
   use locregs, only: lr_box,reset_lr
-  use at_domain, only: domain_geocode
+  use at_domain, only: domain,change_domain_BC,domain_geocode
   implicit none
   integer, intent(in) :: iproc, nproc
   integer, intent(in) :: iformat
@@ -2359,6 +2360,7 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
   integer :: itmb, jtmb, jat, ierr
   integer :: stat(mpi_status_size)
   integer, dimension(2,3) :: nbox
+  type(domain) :: dom
   !!$ integer :: ierr
   type(orbitals_data) :: fake_orbs
 
@@ -2499,7 +2501,10 @@ subroutine readmywaves_linear_new(iproc,nproc,dir_output,filename,iformat,at,tmb
                    
               !call lr_box(Lzd_old%Llr(ilr),tmb%lzd%glr,lzd_old%hgrids)!,nbox,.false.)
 !!$              call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,tmb%lzd%glr%geocode)
-              call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,domain_geocode(tmb%lzd%glr%mesh%dom))
+              
+              dom=change_domain_BC(tmb%lzd%glr%mesh%dom,geocode='F')
+              !call reset_lr(Lzd_old%Llr(ilr),'F',lzd_old%hgrids,nbox,domain_geocode(tmb%lzd%glr%mesh%dom))
+              call reset_lr(Lzd_old%Llr(ilr),dom,lzd_old%hgrids,nbox,domain_geocode(tmb%lzd%glr%mesh%dom))
 
               ! DEBUG: print*,iproc,iorb,iorb+orbs%isorb,iorb_old,iorb_out
 

@@ -92,7 +92,8 @@ module at_domain
   public :: rxyz_ortho,distance,closest_r
   public :: dotp_gu,dotp_gd,square_gu,square_gd
   public :: domain_geocode,bc_periodic_dims,geocode_to_bc,domain_periodic_dims
-  public :: geocode_to_bc_enum
+  public :: geocode_to_bc_enum,change_domain_BC,domain_merge_to_dict
+  public :: domain_volume
 
 contains
 
@@ -308,6 +309,31 @@ contains
     !here we should verify that the the inverse metric times the metric is the identity
 
   end function domain_new
+
+  function change_domain_BC(dom_in,geocode) result(dom)
+    implicit none
+    type(domain), intent(in) :: dom_in
+    character(len=1), intent(in) :: geocode
+    type(domain) :: dom
+
+    dom=dom_in
+
+    select case(geocode)
+    case('P')
+        dom%bc=[PERIODIC,PERIODIC,PERIODIC]
+    case('S')
+        dom%bc=[PERIODIC,FREE,PERIODIC]
+    case('W')
+        dom%bc=[FREE,FREE,PERIODIC]
+    case('F')
+        dom%bc=[FREE,FREE,FREE]
+    case default
+        dom%bc=[FREE,FREE,FREE]
+    end select
+
+    where (dom%bc==FREE) dom%acell=0.0_gp
+
+  end function change_domain_BC
 
   subroutine abc_to_angrad_and_acell(abc,angrad,acell)
     implicit none
@@ -628,9 +654,10 @@ contains
        bc=PERIODIC_BC
        call f_zero(abc)
        abc = dict//DOMAIN_ABC
-       if (DOMAIN_CELL .in. dict) then
+       if ((DOMAIN_CELL .in. dict) .and. &
+          (DOMAIN_ALPHA .in. dict) .and. (DOMAIN_BETA .in. dict) .and. (DOMAIN_GAMMA .in. dict)) then
           tol=get_abc_angrad_acell_consistency(abc,angrad,cell)
-          if (tol > 1.e-6) call yaml_warning('Inconsitency of tol="'//trim(yaml_toa(tol,fmt='1pe12.5'))//&
+          if (tol > 1.e-6) call yaml_warning('Inconsitency of tol='//trim(yaml_toa(tol,fmt='(1pe12.5)'))//&
                'for the provided domain dictionary, assuming abc is correct')
        end if
        dom=domain_new(units,bc,abc=abc)
@@ -642,16 +669,24 @@ contains
   end subroutine domain_set_from_dict
 
   subroutine domain_merge_to_dict(dict,dom)
+    use numerics, only: Bohr_Ang
     implicit none
     type(dictionary), pointer :: dict
     type(domain), intent(in) :: dom
+    ! local variables
+    real(gp) :: factor
 
     call set(dict//DOMAIN_UNITS,toa(units_enum_from_int(dom%units)))
 
+    factor=1.0_gp
+    if (dom%units == ANGSTROEM_UNITS) then
+       factor = Bohr_Ang
+    end if
+
     if (all(dom%bc == PERIODIC)) then
-       call set(dict//DOMAIN_ABC,dom%abc)
+       call set(dict//DOMAIN_ABC,dom%abc*factor)
     else if (any(dom%bc == PERIODIC)) then
-       call bc_and_cell_to_dict(dict//DOMAIN_CELL,bc_enums_from_int(dom%bc),dom%acell)
+       call bc_and_cell_to_dict(dict//DOMAIN_CELL,bc_enums_from_int(dom%bc),dom%acell*factor)
        if (dom%angrad(BC_) /= onehalf*pi) &
             call set(dict//DOMAIN_ALPHA,dom%angrad(BC_))
        if (dom%angrad(AC_) /= onehalf*pi) &
@@ -729,6 +764,18 @@ contains
     end if
 
   end function domain_geocode
+
+  !>give the cell volume for the input simulation box dimensions acell
+  pure function domain_volume(acell,dom) result(cell_volume)
+    use wrapper_linalg, only: det_3x3
+    implicit none
+    real(gp), dimension(3), intent(in) :: acell
+    type(domain), intent(in) :: dom
+    real(gp) :: cell_volume
+
+    cell_volume = product(acell)*det_3x3(dom%uabc)
+
+  end function domain_volume
 
   !> returns a logical array of size 3 which is .true. for all the periodic dimensions
   pure function bc_periodic_dims(bc) result(peri)

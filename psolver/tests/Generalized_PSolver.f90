@@ -405,16 +405,18 @@ program GPS_3D
       if (mPB) call dict_set(dict_input//'environment'//'pb_method','modified')
    end if
 
-  !new method
-   if (CFgrid) then
-    pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndimsc,hgridsc)
-   else if (Fgrid) then
-    pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndimsf,hgridsf)
-   else
+!!$  !new method
+!!$   if (CFgrid) then
+!!$    pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndimsc,hgridsc)
+!!$   else if (Fgrid) then
+!!$    pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndimsf,hgridsf)
+!!$   else
       !pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndims,hgrids,angrad=(/beta,alpha,gamma/))
-      pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndims,hgrids,&
+
+      !pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndims,hgrids,&
+      pkernel=pkernel_init(iproc,nproc,dict_input,dom,ndims,hgrids,&
            alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
-   end if
+!!$   end if
 
    einit=0.5_dp*f_dot(rhopot,potential)*pkernel%mesh%volume_element
 
@@ -602,15 +604,17 @@ program GPS_3D
   hz=acell/real(n03,kind=8)
   hgrids=(/hx,hy,hz/)
 
-  pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndims,hgrids,&
-           alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
-  call dict_free(dict_input)
-  call pkernel_set(pkernel,verbose=.true.)
-
   !mesh=cell_new(geocode,ndims,hgrids,alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3))
   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
            alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=ndims*hgrids)
   mesh=cell_new(dom,ndims,hgrids)
+
+  !pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndims,hgrids,&
+  pkernel=pkernel_init(iproc,nproc,dict_input,dom,ndims,hgrids,&
+           alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
+  call dict_free(dict_input)
+  call pkernel_set(pkernel,verbose=.true.)
+
 
   eps=f_malloc([n01,n02,n03],id='eps')
   dlogeps=f_malloc([3,n01,n02,n03],id='dlogeps')

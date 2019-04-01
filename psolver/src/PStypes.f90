@@ -501,7 +501,8 @@ contains
 
   !> Initialization of the Poisson kernel starting from the box and boundary
   !! conditions data.
-  function pkernel_init(iproc,nproc,dict,geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab,mpi_env) result(kernel)
+  !function pkernel_init(iproc,nproc,dict,geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab,mpi_env) result(kernel)
+  function pkernel_init(iproc,nproc,dict,dom,ndims,hgrids,alpha_bc,beta_ac,gamma_ab,mpi_env) result(kernel)
     use yaml_output
     use dictionaries
     use numerics
@@ -515,7 +516,8 @@ contains
     integer, intent(in) :: iproc      !< Proc Id
     integer, intent(in) :: nproc      !< Number of processes
     type(dictionary), pointer :: dict !< dictionary of the input variables
-    character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+    !character(len=1), intent(in) :: geocode !< @copydoc poisson_solver::doc::geocode
+    type(domain), intent(in) :: dom !< data type for the simulation domain
     integer, dimension(3), intent(in) :: ndims
     real(gp), dimension(3), intent(in) :: hgrids
     real(gp), intent(in), optional :: alpha_bc,beta_ac,gamma_ab
@@ -523,7 +525,6 @@ contains
     type(coulomb_operator) :: kernel
     !local variables
     integer :: nthreads,group_size,taskgroup_size
-    type(domain) :: dom
     !$ integer :: omp_get_max_threads
 
     !nullification
@@ -531,8 +532,8 @@ contains
 
     !mesh initialization
     !kernel%mesh=cell_new(geocode,ndims,hgrids,alpha_bc,beta_ac,gamma_ab)
-    dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
-              alpha_bc=alpha_bc,beta_ac=beta_ac,gamma_ab=gamma_ab,acell=ndims*hgrids)
+    !dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+    !          alpha_bc=alpha_bc,beta_ac=beta_ac,gamma_ab=gamma_ab,acell=ndims*hgrids)
 
 
     kernel%mesh=cell_new(dom,ndims,hgrids)

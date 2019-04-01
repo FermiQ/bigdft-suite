@@ -260,7 +260,8 @@ program PSolver_examples
 !      2. neutral solvent described by the soft-sphere model;
 !      3. neutral solvent described by the sccs charge-dependent model.
 
-   pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndims,hgrids,&
+   !pkernel=pkernel_init(iproc,nproc,dict_input,geocode,ndims,hgrids,&
+   pkernel=pkernel_init(iproc,nproc,dict_input,dom,ndims,hgrids,&
            alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
    call dict_free(dict_input)
 

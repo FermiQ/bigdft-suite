@@ -311,9 +311,12 @@ program PS_StressCheck
 
   !dict => yaml_load('{kernel: {screening:'//mu0//', isf_order:'//itype_scf//'}}')
   
+  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+           alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma,acell=ndims*hgrids)
 
   karray=pkernel_init(iproc,nproc,dict,&
-       geocode,(/n01,n02,n03/),(/hx,hy,hz/),&
+       !geocode,(/n01,n02,n03/),(/hx,hy,hz/),&
+       dom,(/n01,n02,n03/),(/hx,hy,hz/),&
        alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
 
   mesh=karray%mesh
@@ -535,8 +538,13 @@ program PS_StressCheck
      call f_timing_reset(filename='time_serial.yaml',master=iproc==0)
      !call timing(0,'             ','IN')
 
+     dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+           alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma,&
+           acell=(/n01,n02,n03/)*(/hx,hy,hz/))
+
      karray=pkernel_init(0,1,dict,&
-          geocode,(/n01,n02,n03/),(/hx,hy,hz/),&
+          !geocode,(/n01,n02,n03/),(/hx,hy,hz/),&
+          dom,(/n01,n02,n03/),(/hx,hy,hz/),&
           alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
      call dict_free(dict)
 

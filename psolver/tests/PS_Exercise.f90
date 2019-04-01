@@ -8,8 +8,10 @@
 !!    For the list of contributors, see ~/AUTHORS
 
 program exercise
-  use dictionaries
+   use dictionaries
    use Poisson_Solver
+   use at_domain
+   use numerics, only: onehalf
    implicit none
    character(len=1) :: solvertype,afunc
    character(len=64) :: chain
@@ -22,6 +24,9 @@ program exercise
    real(kind=8), dimension(:,:,:), allocatable :: psi,rhopot,rhoF,rhoS,potF,potS
    type(coulomb_operator) :: kernel
    type(dictionary), pointer :: dict
+   type(domain) :: dom
+   integer, dimension(3) :: ndims
+   real(kind=8), dimension(3) :: hgrids
    
    !Use arguments
    call getarg(1,chain)
@@ -122,11 +127,17 @@ program exercise
    end if
 
    !offset=0.d0!3.053506154731705d0*n1*n2*n3*hgrid**3
-   
+ 
+   ndims=(/n1,n2,n3/)
+   hgrids=(/hgrid,hgrid,hgrid/) 
+
+   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(solvertype),&
+             alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndims*hgrids)
+ 
    call cpu_time(t0)
    dict=>dict_new('kernel' .is. dict_new('isf_order' .is. isf_order))
-   kernel=pkernel_init(0,1,dict,&
-        solvertype,(/n1,n2,n3/),(/hgrid,hgrid,hgrid/))
+   !kernel=pkernel_init(0,1,dict,solvertype,(/n1,n2,n3/),(/hgrid,hgrid,hgrid/))
+   kernel=pkernel_init(0,1,dict,dom,ndims,hgrids)
    call dict_free(dict)
    call pkernel_set(kernel,verbose=.true.)
 

@@ -37,6 +37,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   use gaussians
   use box
   use at_domain, only: domain_periodic_dims,domain_geocode
+  use wrapper_linalg, only: det_3x3
   implicit none
   !Arguments
   type(denspot_distribution), intent(inout) :: dpbox
@@ -71,6 +72,7 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
   type(atoms_iterator) :: atit
   type(gaussian_real_space) :: g
   logical, dimension(3) :: peri
+  !real(gp), dimension(3) :: anggrad
 
   call f_routine(id='IonicEnergyandForces')
   call timing(iproc,'ionic_energy','ON')
@@ -102,12 +104,40 @@ subroutine IonicEnergyandForces(iproc,nproc,dpbox,at,elecfield,&
      !calculate rprimd
      rprimd(:,:)=0.0_gp
 
-     rprimd(1,1)=at%astruct%cell_dim(1)
-     rprimd(2,2)=at%astruct%cell_dim(2)
-     rprimd(3,3)=at%astruct%cell_dim(3)
+!     rprimd(1,1)=at%astruct%cell_dim(1)
+!     rprimd(2,2)=at%astruct%cell_dim(2)
+!     rprimd(3,3)=at%astruct%cell_dim(3)
+
+     rprimd=at%astruct%dom%abc
 
      !calculate the metrics and the volume
      call abi_metric(gmet,gprimd,-1,rmet,rprimd,ucvol)
+
+
+!     anggrad(1) = at%astruct%dom%angrad(1)*180.0_gp/pi
+!     anggrad(2) = at%astruct%dom%angrad(2)*180.0_gp/pi
+!     anggrad(3) = at%astruct%dom%angrad(3)*180.0_gp/pi
+!
+!     call yaml_mapping_open('Check of metric between ABINIT and BigDFT')
+!     call yaml_map('Dom units',at%astruct%dom%units)
+!     call yaml_map('Cell orthorhombic',at%astruct%dom%orthorhombic)
+!     call yaml_map('Cell angles rad',at%astruct%dom%angrad)
+!     call yaml_map('Cell angles gradiant',anggrad)
+!     call yaml_map('Astruct cell dimm',at%astruct%cell_dim)
+!     call yaml_map('Dom acell dimm',at%astruct%dom%acell)
+!     call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',at%astruct%dom%bc)
+!     call yaml_map('Product of the two',matmul(at%astruct%dom%gu,at%astruct%dom%gd))
+!     call yaml_map('uabc matrix',at%astruct%dom%uabc)
+!     call yaml_map('Volume element',dpbox%mesh%volume_element)
+!     call yaml_map('det_3x3(dom%uabc)',det_3x3(at%astruct%dom%uabc))
+!     call yaml_map('Volume product(acell)*det_3x3(mesh%dom%uabc)',product(at%astruct%cell_dim)*det_3x3(at%astruct%dom%uabc))
+!     call yaml_map('Contravariant matrix',at%astruct%dom%gu)
+!     call yaml_map('Covariant matrix',at%astruct%dom%gd)
+!     call yaml_map('ABINIT rprimd',rprimd)
+!     call yaml_map('ABINIT gprimd',gprimd)
+!     call yaml_map('ABINIT gmet',gmet)
+!     call yaml_map('ABINIT ucvol',ucvol)
+!     call yaml_mapping_close()
 
      !calculate reduced coordinates
      !$omp parallel if (at%astruct%nat>1000) &

@@ -265,7 +265,8 @@ subroutine system_size(atoms,rxyz,crmult,frmult,hx,hy,hz,OCLconv,Glr)
 
    !assign the values
 !   call init_lr(Glr,mesh_coarse,nbox_fine,&
-   call init_lr(Glr,domain_geocode(atoms%astruct%dom),hgridsh,n1,n2,n3,&
+   !call init_lr(Glr,domain_geocode(atoms%astruct%dom),hgridsh,n1,n2,n3,&
+   call init_lr(Glr,atoms%astruct%dom,hgridsh,n1,n2,n3,&
         nfl1,nfl2,nfl3,nfu1,nfu2,nfu3,&
         hybrid_flag=.not. OCLconv)
 

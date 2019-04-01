@@ -209,6 +209,7 @@ module forces_linear
     
       use yaml_output
       use locregs
+      use at_domain, only: domain_volume
       implicit none
       !Arguments-------------
       type(atoms_data), intent(in) :: at
@@ -314,7 +315,8 @@ module forces_linear
     
       Enl=0._gp
       !strten=0.d0
-      vol=real(at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),gp)
+      !vol=real(at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),gp)
+      vol=domain_volume(at%astruct%cell_dim,at%astruct%dom)
       !sab=0.d0
     
       !calculate the coefficients for the off-diagonal terms

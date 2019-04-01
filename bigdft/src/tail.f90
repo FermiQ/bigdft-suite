@@ -100,7 +100,8 @@ subroutine CalculateTailCorrection(iproc,nproc,at,rbuf,orbs,&
 
   ! Create new structure with modified grid sizes
 !!$  call init_lr(lr,Glr%geocode,0.5*hgrid,nb1,nb2,nb3,&
-  call init_lr(lr,domain_geocode(Glr%mesh%dom),0.5*hgrid,nb1,nb2,nb3,&
+  !call init_lr(lr,domain_geocode(Glr%mesh%dom),0.5*hgrid,nb1,nb2,nb3,&
+  call init_lr(lr,Glr%mesh%dom,0.5*hgrid,nb1,nb2,nb3,&
        Glr%d%nfl1,Glr%d%nfl2,Glr%d%nfl3,Glr%d%nfu1,Glr%d%nfu2,Glr%d%nfu3,&
        .true.,bnds=Glr%bounds)
  

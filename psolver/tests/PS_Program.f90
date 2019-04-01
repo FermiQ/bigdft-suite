@@ -22,6 +22,7 @@ program PSolver_Program
   use f_harmonics
   use f_blas
   use IObox
+  use at_domain
   implicit none
   !Order of interpolating scaling function
   !integer, parameter :: itype_scf=8
@@ -82,6 +83,8 @@ program PSolver_Program
   external :: gather_timings
   real(dp), parameter :: tol=1.e-8
   logical, parameter :: wrtfiles=.true. !.false.
+  real(kind=8), dimension(3) :: hgrids
+  type(domain) :: dom
   nullify(rhocore_fake)
 
   !mode = "charged_thin_wire"
@@ -153,6 +156,10 @@ program PSolver_Program
   !grid for the free BC case
   hgrid=max(hx,hy,hz)
   !hgrid=hx
+  hgrids=(/hx,hy,hz/) 
+
+  dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(geocode),&
+            alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma,acell=ndims*hgrids)
 
   !we must choose properly a test case with a positive density
   !itype_scf=16
@@ -163,8 +170,12 @@ program PSolver_Program
   call f_timing_reset(filename='time.yaml',master=iproc==0)
   !call timing(nproc,'time.prc','IN')
 
+!  karray=pkernel_init(iproc,nproc,dict,&
+!       geocode,ndims,(/hx,hy,hz/),&
+!       alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
+
   karray=pkernel_init(iproc,nproc,dict,&
-       geocode,ndims,(/hx,hy,hz/),&
+       dom,ndims,(/hx,hy,hz/),&
        alpha_bc=alpha,beta_ac=beta,gamma_ab=gamma)
 
   call pkernel_set(karray,verbose=.true.)

@@ -1572,6 +1572,7 @@ end if
     !SM: Must be cleaned up a lot!
     subroutine scf_kernel(nit_scc, remove_coupling_terms, update_phi)
        use module_interfaces, only: write_eigenvalues_data
+       use at_domain, only: domain_volume
        implicit none
 
        ! Calling arguments
@@ -1837,7 +1838,8 @@ end if
               !!rho_tmp=denspot%rhov
               call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,1.d0-alpha_mix,denspot%mix,&
                    denspot%rhov,it_scc+1,denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),&
-                   at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+                   !at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+                   domain_volume(at%astruct%cell_dim,at%astruct%dom),&
                    pnrm,denspot%dpbox%nscatterarr)
                !!rho_tmp=rho_tmp-denspot%rhov
                !!tt=ddot(size(rho_tmp),rho_tmp,1,rho_tmp,1)
@@ -1950,7 +1952,8 @@ end if
            if(input%lin%scf_mode==LINEAR_MIXPOT_SIMPLE) then
               call mix_rhopot(iproc,nproc,denspot%mix%nfft*denspot%mix%nspden,1.d0-alpha_mix,denspot%mix,&
                    denspot%rhov,it_scc+1,denspot%dpbox%mesh%ndims(1),denspot%dpbox%mesh%ndims(2),denspot%dpbox%mesh%ndims(3),&
-                   at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+                   !at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),&
+                   domain_volume(at%astruct%cell_dim,at%astruct%dom),&
                    pnrm,denspot%dpbox%nscatterarr)
                   !write(*,*) 'after mix_rhopot 1.1: pnrm', pnrm
 

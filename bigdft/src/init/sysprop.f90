@@ -889,7 +889,8 @@ subroutine system_initKernels(verb, iproc, nproc, geocode, in, denspot)
   if (pkernel_seq_is_needed(in,denspot)) &
        call dict_set(in%PS_dict//'setup'//'accel','No')
   denspot%pkernel=pkernel_init(iproc,nproc,in%PS_dict,&
-       geocode,denspot%dpbox%mesh%ndims,denspot%dpbox%mesh%hgrids,&
+       !geocode,denspot%dpbox%mesh%ndims,denspot%dpbox%mesh%hgrids,&
+       denspot%dpbox%mesh%dom,denspot%dpbox%mesh%ndims,denspot%dpbox%mesh%hgrids,&
        mpi_env=denspot%dpbox%mpi_env)
 
   !create the sequential kernel if the exctX parallelisation scheme requires it
@@ -899,7 +900,8 @@ subroutine system_initKernels(verb, iproc, nproc, geocode, in, denspot)
      !the communicator of this kernel is bigdft_mpi%mpi_comm
      !this might pose problems when using SIC or exact exchange with taskgroups
      denspot%pkernelseq=pkernel_init(0,1,in%PS_dict_seq,&
-          geocode,denspot%dpbox%mesh%ndims,denspot%dpbox%mesh%hgrids)
+          !geocode,denspot%dpbox%mesh%ndims,denspot%dpbox%mesh%hgrids)
+          denspot%dpbox%mesh%dom,denspot%dpbox%mesh%ndims,denspot%dpbox%mesh%hgrids)
   else 
      denspot%pkernelseq = denspot%pkernel
   end if

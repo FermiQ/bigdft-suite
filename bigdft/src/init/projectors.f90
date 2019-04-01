@@ -20,7 +20,7 @@ subroutine localize_projectors(iproc,nproc,mesh,cpmult,fpmult,rxyz,&
   use public_enums, only: PSPCODE_GTH, PSPCODE_HGH, PSPCODE_HGH_K, PSPCODE_HGH_K_NLCC
   use sparsematrix_init, only: distribute_on_tasks
   use locregs, only: init_lr
-  use at_domain, only: domain_geocode
+  use at_domain, only: domain_geocode,domain,change_domain_BC
   implicit none
   integer, intent(in) :: iproc,nproc
   real(gp), intent(in) :: cpmult,fpmult
@@ -39,6 +39,7 @@ subroutine localize_projectors(iproc,nproc,mesh,cpmult,fpmult,rxyz,&
   integer :: ns1t,ns2t,ns3t,n1t,n2t,n3t
   real(gp) :: maxfullvol,totfullvol,totzerovol,fullvol,maxrad,maxzerovol,rad
   integer,dimension(:,:),allocatable :: reducearr
+  type(domain) :: dom
 
   call f_routine(id='localize_projectors')
   
@@ -104,7 +105,9 @@ subroutine localize_projectors(iproc,nproc,mesh,cpmult,fpmult,rxyz,&
         !to be tested, particularly with respect to the
         !shift of the locreg for the origin of the
         !coordinate system
-        call init_lr(nl%projs(iat)%region%plr, 'F', 0.5_gp * mesh%hgrids, &
+        dom=change_domain_BC(mesh%dom,geocode='F')
+        !call init_lr(nl%projs(iat)%region%plr, 'F', 0.5_gp * mesh%hgrids, &
+        call init_lr(nl%projs(iat)%region%plr, dom, 0.5_gp * mesh%hgrids, &
              n1t, n2t, n3t, nl1, nl2, nl3, nu1, nu2, nu3, &
              .false., ns1t, ns2t, ns3t, domain_geocode(at%astruct%dom))
 

@@ -131,12 +131,14 @@ subroutine test_box_functions()
   implicit none
   !local variables
   integer(f_long) :: tomp,tseq
-  type(domain) :: dom_ortho,dom_noortho
+  type(domain) :: dom_ortho,dom_noortho,dom_noortho_pbc
   type(cell) :: mesh_ortho,mesh_noortho
   integer, dimension(3) :: ndims
   real(gp), dimension(:,:,:,:), allocatable :: v1,v2
   real(gp), dimension(3) :: angrad
   real(gp), dimension(3) :: acell
+  integer, parameter :: FREE=0
+  integer, parameter :: PERIODIC=1
 
   acell=0.0_gp
   ndims=[300,300,300]
@@ -245,9 +247,37 @@ subroutine test_box_functions()
 !!$  mesh_noortho=cell_null()
 !!$  mesh_noortho=cell_new('P',ndims,[1.0_gp,1.0_gp,1.0_gp],alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3)) 
 
-  dom_noortho=domain_null()
-  dom_noortho=domain_new(ATOMIC_UNITS,[PERIODIC_BC,PERIODIC_BC,PERIODIC_BC],&
+  ! check periodic BC non-ortho
+  dom_noortho_pbc=domain_null()
+  dom_noortho_pbc=domain_new(ATOMIC_UNITS,[PERIODIC_BC,PERIODIC_BC,PERIODIC_BC],&
               alpha_bc=angrad(1),beta_ac=angrad(2),gamma_ab=angrad(3),acell=real(ndims,kind=8))
+  mesh_noortho=cell_null()
+  mesh_noortho = cell_new(dom_noortho_pbc,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
+  call loop_box_function('distance',mesh_noortho)
+  call loop_box_function('box_cutoff',mesh_noortho)
+  call loop_box_function('consistency_check',mesh_noortho)
+
+  ! check free BC non-ortho
+  dom_noortho=change_domain_BC(dom_noortho_pbc,geocode='F')
+  mesh_noortho=cell_null()
+  mesh_noortho = cell_new(dom_noortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
+  call loop_box_function('distance',mesh_noortho)
+  call loop_box_function('box_cutoff',mesh_noortho)
+  call loop_box_function('consistency_check',mesh_noortho)
+
+  ! check surface BC non-ortho
+  dom_noortho=change_domain_BC(dom_noortho_pbc,geocode='S')
+  mesh_noortho=cell_null()
+  mesh_noortho = cell_new(dom_noortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
+
+  call loop_box_function('distance',mesh_noortho)
+  call loop_box_function('box_cutoff',mesh_noortho)
+  call loop_box_function('consistency_check',mesh_noortho)
+
+  ! check wires BC non-ortho
+  dom_noortho=change_domain_BC(dom_noortho_pbc,geocode='W')
   mesh_noortho=cell_null()
   mesh_noortho = cell_new(dom_noortho,ndims,[1.0_gp,1.0_gp,1.0_gp])
 
@@ -359,6 +389,7 @@ subroutine loop_box_function(fcheck,mesh)
   use wrapper_MPI
   use numerics, only:pi
   use at_domain
+  use wrapper_linalg, only: det_3x3
   implicit none
   character(len=*), intent(in) :: fcheck
   type(cell), intent(in) :: mesh
@@ -391,6 +422,9 @@ subroutine loop_box_function(fcheck,mesh)
      call yaml_map('Cell angles rad',mesh%dom%angrad)
      call yaml_map('Cell periodity (FREE=0,PERIODIC=1)',mesh%dom%bc)
      call yaml_map('Volume element',mesh%volume_element)
+     call yaml_map('det_3x3(mesh%dom%uabc)',det_3x3(mesh%dom%uabc))
+     call yaml_map('Volume product(acell)*det_3x3(mesh%dom%uabc)',product(mesh%ndims)*det_3x3(mesh%dom%uabc))
+     call yaml_map('Volume from domain_volume',domain_volume(real(mesh%ndims,kind=8),mesh%dom))
      call yaml_map('Contravariant matrix',mesh%dom%gu)
      call yaml_map('Covariant matrix',mesh%dom%gd)
      call yaml_map('Product of the two',matmul(mesh%dom%gu,mesh%dom%gd))

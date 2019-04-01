@@ -17,6 +17,8 @@ program conv_check_fft
   use module_base
   use module_types
   use Poisson_Solver
+  use at_domain
+  use numerics, only: onehalf,pi
   implicit none
   integer  :: n1,n2,n3 
   real(gp) :: hx,r2,sigma2,x,y,z,maxdiff,arg
@@ -50,6 +52,7 @@ program conv_check_fft
   real(kind=8), dimension(3) :: hgriddim
   type(coulomb_operator) :: pkernel,pkernel2
   integer*8 :: plan(12)
+  type(domain) :: dom
 
   write(chain,'(a6)') 'fort.1'
   open(unit=1,file=trim(chain),status='old',iostat=ierror)
@@ -113,8 +116,12 @@ ntimes=1
    ndim(2)=n2
    ndim(3)=n3
 
+   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum('P'),&
+             alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndim*hgriddim)
+
    !calculate the kernel in parallel for each processor
-   pkernel=pkernel_init(.false.,0,1,0,'P',ndim,hgriddim,16)
+   !pkernel=pkernel_init(.false.,0,1,0,'P',ndim,hgriddim,16)
+   pkernel=pkernel_init(.false.,0,1,0,dom,ndim,hgriddim,16)
    call pkernel_set(pkernel,verbose=verbose >1)
 
    call nanosec(tsc0);
@@ -130,7 +137,8 @@ ntimes=1
 
 
    !here the FFTW part
-   pkernel2=pkernel_init(.false.,0,1,2,'P',ndim,hgriddim,16)
+   !pkernel2=pkernel_init(.false.,0,1,2,'P',ndim,hgriddim,16)
+   pkernel2=pkernel_init(.false.,0,1,2,dom,ndim,hgriddim,16)
    call pkernel_set(pkernel2,verbose=verbose >1)
 
    scal=1.0_dp/(real(n1,dp)*real(n2*n3,dp))
@@ -166,7 +174,11 @@ ntimes=1
    ndim(2)=n2/2
    ndim(3)=n3/2
 
-   pkernel=pkernel_init(.false.,0,1,0,'F',ndim,hgriddim,16)
+   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum('F'),&
+             alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndim*hgriddim)
+
+   !pkernel=pkernel_init(.false.,0,1,0,'F',ndim,hgriddim,16)
+   pkernel=pkernel_init(.false.,0,1,0,dom,ndim,hgriddim,16)
    call pkernel_set(pkernel,verbose=verbose >1)
 
    call nanosec(tsc0);
@@ -181,7 +193,8 @@ ntimes=1
 
 
    !here the FFTW part
-   pkernel2=pkernel_init(.false.,0,1,2,'F',ndim,hgriddim,16)
+   !pkernel2=pkernel_init(.false.,0,1,2,'F',ndim,hgriddim,16)
+   pkernel2=pkernel_init(.false.,0,1,2,dom,ndim,hgriddim,16)
    call pkernel_set(pkernel2,verbose=verbose >1)
 
    scal=product(pkernel2%mesh%hgrids)/real(n1*n2*n3,dp)
@@ -222,7 +235,11 @@ ntimes=1
    ndim(2)=n2/2
    ndim(3)=n3
 
-   pkernel=pkernel_init(.false.,0,1,0,'S',ndim,hgriddim,16)
+   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum('S'),&
+             alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndim*hgriddim)
+
+   !pkernel=pkernel_init(.false.,0,1,0,'S',ndim,hgriddim,16)
+   pkernel=pkernel_init(.false.,0,1,0,dom,ndim,hgriddim,16)
    call pkernel_set(pkernel,verbose=verbose >1)
 
    call nanosec(tsc0);
@@ -236,7 +253,8 @@ ntimes=1
         log(real(n2,kind=8))+log(real(n3,kind=8)))/log(real(2,kind=8)),ntimes)
 
    !here the FFTW part
-   pkernel2=pkernel_init(.false.,0,1,2,'S',ndim,hgriddim,16)
+   !pkernel2=pkernel_init(.false.,0,1,2,'S',ndim,hgriddim,16)
+   pkernel2=pkernel_init(.false.,0,1,2,dom,ndim,hgriddim,16)
    call pkernel_set(pkernel2,verbose=verbose >1)
  
    scal=-16.0_dp*atan(1.0_dp)*real(pkernel2%mesh%hgrids(2),dp)/real(n1*n2*n3,dp)
@@ -276,7 +294,12 @@ ntimes=1
    ndim(1)=n1/2
    ndim(2)=n2/2
    ndim(3)=n3
-   pkernel=pkernel_init(.false.,0,1,0,'W',ndim,hgriddim,16)
+
+   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum('W'),&
+             alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,acell=ndim*hgriddim)
+
+   !pkernel=pkernel_init(.false.,0,1,0,'W',ndim,hgriddim,16)
+   pkernel=pkernel_init(.false.,0,1,0,dom,ndim,hgriddim,16)
    call pkernel_set(pkernel,verbose=verbose >1)
 
    call nanosec(tsc0);
@@ -290,7 +313,8 @@ ntimes=1
         log(real(n2,kind=8))+log(real(n3,kind=8)))/log(real(2,kind=8)),ntimes)
 
    !here the FFTW part
-   pkernel2=pkernel_init(.false.,0,1,2,'W',ndim,hgriddim,16)
+   !pkernel2=pkernel_init(.false.,0,1,2,'W',ndim,hgriddim,16)
+   pkernel2=pkernel_init(.false.,0,1,2,dom,ndim,hgriddim,16)
    call pkernel_set(pkernel2,verbose=verbose >1)
    
    scal=-2.0_dp*pkernel2%mesh%hgrids(1)*pkernel2%mesh%hgrids(2)/real(n1*n2*n3,dp)

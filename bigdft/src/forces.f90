@@ -65,7 +65,7 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   use forces_linear
   use orbitalbasis
   use locregs
-  use at_domain, only: domain_geocode
+  use at_domain, only: domain_geocode,domain_volume
   implicit none
   logical, intent(in) :: calculate_strten
   logical, intent(in) :: refill_proj
@@ -241,7 +241,8 @@ subroutine calculate_forces(iproc,nproc,psolver_groupsize,Glr,atoms,ob,nlpsp,rxy
   if (domain_geocode(atoms%astruct%dom) == 'P') then
      if (iproc==0) call yaml_map('Stress Tensor calculated',calculate_strten)
      if (calculate_strten) then
-        ucvol=atoms%astruct%cell_dim(1)*atoms%astruct%cell_dim(2)*atoms%astruct%cell_dim(3) !orthorombic cell
+        !ucvol=atoms%astruct%cell_dim(1)*atoms%astruct%cell_dim(2)*atoms%astruct%cell_dim(3) !orthorombic cell
+        ucvol=domain_volume(atoms%astruct%cell_dim,atoms%astruct%dom)
         if (iproc==0) call yaml_mapping_open('Stress Tensor')
         !sum and symmetrize results
      if (iproc==0 .and. get_verbose_level() > 2) then
@@ -902,6 +903,7 @@ subroutine nonlocal_forces(lr,at,ob,nlpsp,paw,fsep,calculate_strten,strten)
   use locregs
   use psp_projectors_base
   use psp_projectors
+  use at_domain, only: domain_volume
   implicit none
   !Arguments-------------
   type(atoms_data), intent(in) :: at
@@ -932,7 +934,8 @@ subroutine nonlocal_forces(lr,at,ob,nlpsp,paw,fsep,calculate_strten,strten)
   end if
 
   Enl=0._gp
-  vol=real(at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),gp)
+  !vol=real(at%astruct%cell_dim(1)*at%astruct%cell_dim(2)*at%astruct%cell_dim(3),gp)
+  vol=domain_volume(at%astruct%cell_dim,at%astruct%dom)
   hcproj0 = f_malloc([size(nlpsp%hcproj), ob%orbs%norbp], id = 'hcproj0')
   psi_it=orbital_basis_iterator(ob)
   loop_kpt: do while(ket_next_kpt(psi_it))
