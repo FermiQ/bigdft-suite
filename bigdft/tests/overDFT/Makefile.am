@@ -3,6 +3,8 @@ SHORT_TESTDIRS = FF-LENOSKY \
 	FF-LJ \
 	H2O-slab \
 	H2-freq \
+	GEOPT-all \
+	QMMM \
 	MD
 
 if HAVE_ETSF_IO
@@ -19,13 +21,11 @@ EXTRA_DIST =
 
 LONG_TESTDIRS = $(SHORT_TESTDIRS) \
 	C6H6-freq \
-	GEOPT-all \
 	GEOPT-BFGS \
 	GEOPT-LBFGS \
 	GEOPT-newIG \
 	MD-wf-Expl \
 	NH3 \
-	QMMM \
 	XabsCheb \
 	XabsLanc \
 	Xabsb2B \
