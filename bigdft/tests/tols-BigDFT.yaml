@@ -1911,7 +1911,7 @@ FF_LENOSKY-lbfgs:
 FF_LJ-bfgs:
   etot: 9.3e-5
   Energy (Hartree): 1.57e-05
-  Force Norm (Hartree/Bohr): 1.09e-06
+  Force Norm (Hartree/Bohr): 1.2e-06
   Keys to ignore:
   - WARNINGS
   - disablesym
@@ -1926,14 +1926,14 @@ FF_LENOSKY-bfgs:
   maxval: 1.0e-10
   fnrm2: 1.01e-10
   Energy: 2.29e-10
-  Energy (Hartree): 5.5e-11
-  Force Norm (Hartree/Bohr): 2.5e-10
+  Energy (Hartree): 9e-11
+  Force Norm (Hartree/Bohr): 5e-10
   Keys to ignore:
   - WARNINGS
 
 FF_LENOSKY-diis:
-  Energy (Hartree): 7.2e-8
-  Force Norm (Hartree/Bohr): 7.7e-07
+  Energy (Hartree): 9e-8
+  Force Norm (Hartree/Bohr): 1e-06
   FORCES norm(Ha/Bohr): 1.11e-6
   etot: 1.39e-7
   Keys to ignore:
