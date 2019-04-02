@@ -58,6 +58,12 @@ H2-freq-test.post-in:
 	rm -f frequencies.res
 C6H6-freq-test.post-in: 
 	rm -f frequencies.res
+FF-LJ-test.post-in:
+	rm -f velocities.xyz
+FF-LENOSKY-test.post-in:
+	rm -f velocities.xyz
+MD-test.post-in:
+	rm -rf data-LJ-NVE data-LJ-NVT
 
 # Additional NEB in.
 NEB-test.post-in:
