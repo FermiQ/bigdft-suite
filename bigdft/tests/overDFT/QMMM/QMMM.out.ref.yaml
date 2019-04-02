@@ -1394,9 +1394,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #----------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Cell: [ 7.728499889373779, .inf,  7.72866678237915]
-   Positions:
+   units                               : angstroem
+   cell: [ 7.728499889373779, .inf,  7.72866678237915]
+   positions:
    - Si: [ 5.788282394,  6.965549132,  4.812148571] # [  22.47,  26.33,  18.68 ] 0001
    -  {Si: [ 7.721108913,  5.020808837,  1.865354300],  # [  29.97,  18.98,  7.24 ] 0002
  Frozen: fxyz}
@@ -1691,12 +1691,20 @@
    BC                                  : Surface
    Box                                 :  [  60,  125,  60 ]
    MPI tasks                           :  2
+ Multipole analysis origin             :  [  8.335314E+00,  1.105761E+01,  9.249296E+00 ]
  Electric Dipole Moment (AU):
-   P vector                            :  [  6.496E+01, -1.0340E-01,  6.7272E+01 ]
-   norm(P)                             :  9.351691E+01
+   P vector                            :  [  4.931804E+01, -1.034180E-01, -7.442726E+00 ]
+   norm(P)                             :  4.98765907E+01
  Electric Dipole Moment (Debye):
-   P vector                            :  [  1.6511E+02, -2.6281E-01,  1.7099E+02 ]
-   norm(P)                             :  2.376963E+02
+   P vector                            :  [  1.25354E+02, -2.628624E-01, -1.891752E+01 ]
+   norm(P)                             :  1.26773636E+02
+ Quadrupole Moment (AU):
+   Q matrix:
+   -  [ 1.6844E+02, -1.0534E+02, -1.1365E+02]
+   -  [-1.0534E+02, -1.3799E+02,  1.0244E+02]
+   -  [-1.1365E+02,  1.0244E+02, -3.0446E+01]
+   trace                               : -6.82E-13
+ Spreads of the electronic density (AU):  [  4.253818E+00,  2.705621E+00,  3.853463E+00 ]
  Calculate local forces                :  Yes
  Calculate Non Local forces            :  Yes
   #WARNING: Self-consistent cycle did not meet convergence criteria
@@ -1826,9 +1834,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Cell: [ 7.728499889373779, .inf,  7.72866678237915]
-   Positions:
+   units                               : angstroem
+   cell: [ 7.728499889373779, .inf,  7.72866678237915]
+   positions:
    - Si: [ 5.788231374,  6.959525561,  4.809465296] # [  22.47,  26.30,  18.67 ] 0001
    -  {Si: [ 7.721371336,  5.012896382,  1.863321455],  # [  29.97,  18.95,  7.23 ] 0002
  Frozen: fxyz}
@@ -2046,12 +2054,20 @@
    BC                                  : Surface
    Box                                 :  [  60,  125,  60 ]
    MPI tasks                           :  2
+ Multipole analysis origin             :  [  8.335267E+00,  1.104961E+01,  9.248888E+00 ]
  Electric Dipole Moment (AU):
-   P vector                            :  [  6.4926E+01, -2.8274E-01,  6.7152E+01 ]
-   norm(P)                             :  9.340738E+01
+   P vector                            :  [  4.955256E+01, -2.827596E-01, -7.330157E+00 ]
+   norm(P)                             :  5.00925844E+01
  Electric Dipole Moment (Debye):
-   P vector                            :  [  1.6503E+02, -7.1866E-01,  1.7068E+02 ]
-   norm(P)                             :  2.374179E+02
+   P vector                            :  [  1.2595E+02, -7.187030E-01, -1.863140E+01 ]
+   norm(P)                             :  1.27322637E+02
+ Quadrupole Moment (AU):
+   Q matrix:
+   -  [ 1.6757E+02, -1.0847E+02, -1.1192E+02]
+   -  [-1.0847E+02, -1.3781E+02,  1.0088E+02]
+   -  [-1.1192E+02,  1.0088E+02, -2.9763E+01]
+   trace                               :  2.27E-13
+ Spreads of the electronic density (AU):  [  4.253163E+00,  2.700429E+00,  3.854387E+00 ]
  Calculate local forces                :  Yes
  Calculate Non Local forces            :  Yes
   #WARNING: Self-consistent cycle did not meet convergence criteria
@@ -2188,9 +2204,9 @@
    PSP XC                              : "XC: Perdew, Burke & Ernzerhof"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Cell: [ 7.728499889373779, .inf,  7.72866678237915]
-   Positions:
+   units                               : angstroem
+   cell: [ 7.728499889373779, .inf,  7.72866678237915]
+   positions:
    - Si: [ 5.788065278,  6.945753509,  4.804558885] # [  22.47,  26.25,  18.65 ] 0001
    -  {Si: [ 7.722057425,  4.993971902,  1.858155846],  # [  29.97,  18.87,  7.21 ] 0002
  Frozen: fxyz}
@@ -2408,12 +2424,20 @@
    BC                                  : Surface
    Box                                 :  [  60,  125,  60 ]
    MPI tasks                           :  2
+ Multipole analysis origin             :  [  8.335156E+00,  1.103294E+01,  9.247842E+00 ]
  Electric Dipole Moment (AU):
-   P vector                            :  [  6.491E+01, -9.5489E-02,  6.7346E+01 ]
-   norm(P)                             :  9.353485E+01
+   P vector                            :  [  4.950094E+01, -9.550372E-02, -7.485485E+00 ]
+   norm(P)                             :  5.00638028E+01
  Electric Dipole Moment (Debye):
-   P vector                            :  [  1.6498E+02, -2.4271E-01,  1.7118E+02 ]
-   norm(P)                             :  2.377418E+02
+   P vector                            :  [  1.258188E+02, -2.427462E-01, -1.902620E+01 ]
+   norm(P)                             :  1.27249482E+02
+ Quadrupole Moment (AU):
+   Q matrix:
+   -  [ 1.6636E+02, -1.0768E+02, -1.1178E+02]
+   -  [-1.0768E+02, -1.3821E+02,  1.0362E+02]
+   -  [-1.1178E+02,  1.0362E+02, -2.8156E+01]
+   trace                               :  1.14E-12
+ Spreads of the electronic density (AU):  [  4.253164E+00,  2.690417E+00,  3.857483E+00 ]
  Calculate local forces                :  Yes
  Calculate Non Local forces            :  Yes
   #WARNING: Self-consistent cycle did not meet convergence criteria
