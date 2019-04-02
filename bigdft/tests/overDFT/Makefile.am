@@ -4,8 +4,7 @@ SHORT_TESTDIRS = FF-LENOSKY \
 	H2O-slab \
 	H2-freq \
 	GEOPT-all \
-	QMMM \
-	MD
+	QMMM
 
 if HAVE_ETSF_IO
 SHORT_TESTDIRS += IO-wf-ETSF
@@ -24,6 +23,7 @@ LONG_TESTDIRS = $(SHORT_TESTDIRS) \
 	GEOPT-BFGS \
 	GEOPT-LBFGS \
 	GEOPT-newIG \
+	MD \
 	MD-wf-Expl \
 	NH3 \
 	XabsCheb \
