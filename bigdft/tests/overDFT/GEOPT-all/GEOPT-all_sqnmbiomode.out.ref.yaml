@@ -414,6 +414,12 @@
      -  [  9.52284,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
    PSP XC                              : "XC: Teter 93"
  - Symbol                              : H #Type No.  02
@@ -790,6 +796,12 @@
      -  [  9.52284,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
    PSP XC                              : "XC: Teter 93"
  - Symbol                              : H #Type No.  02
@@ -809,8 +821,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.763120245,  4.775725334,  5.726890510] # [  20.00,  20.06,  24.05 ] 0001
    - C: [ 4.755213662,  4.794147772,  4.215793390] # [  19.97,  20.13,  17.70 ] 0002
    - H: [ 4.010553352,  5.503318957,  6.144870778] # [  16.84,  23.11,  25.80 ] 0003
@@ -1040,7 +1052,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  1
    Geometry step                       :  1
-   FORCES norm(Ha/Bohr): { maxval:  3.24683E-02, fnrm2:  4.42505E-02, fluct:  7.55375E-04}
+   FORCES norm(Ha/Bohr): { maxval:  3.24683E-02, fnrm2:  4.42505E-02, fluct:  5.50039E-04}
    ndim                                :  0
    etot                                : -1.48973771723132E+01
    detot                               : -1.48973771723132E+01
@@ -1096,6 +1108,12 @@
      -  [  9.52284,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
    PSP XC                              : "XC: Teter 93"
  - Symbol                              : H #Type No.  02
@@ -1115,8 +1133,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.738851371,  4.764145355,  5.750540180] # [  19.90,  20.01,  24.15 ] 0001
    - C: [ 4.754250142,  4.785641784,  4.238573536] # [  19.96,  20.10,  17.80 ] 0002
    - H: [ 4.006825977,  5.508664589,  6.159086641] # [  16.83,  23.13,  25.86 ] 0003
@@ -1346,7 +1364,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  2
    Geometry step                       :  2
-   FORCES norm(Ha/Bohr): { maxval:  2.24814E-02, fnrm2:  3.23496E-02, fluct:  6.86566E-04}
+   FORCES norm(Ha/Bohr): { maxval:  2.24814E-02, fnrm2:  3.23496E-02, fluct:  5.22297E-04}
    ndim                                :  1
    etot                                : -1.48984824334062E+01
    detot                               : -1.10526109303422E-03
@@ -1402,6 +1420,12 @@
      -  [  9.52284,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
    PSP XC                              : "XC: Teter 93"
  - Symbol                              : H #Type No.  02
@@ -1421,8 +1445,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.736905167,  4.766132419,  5.750719909] # [  19.89,  20.01,  24.15 ] 0001
    - C: [ 4.749775615,  4.786863007,  4.238431050] # [  19.95,  20.10,  17.80 ] 0002
    - H: [ 4.012708038,  5.509239392,  6.164597580] # [  16.85,  23.14,  25.89 ] 0003
@@ -1643,7 +1667,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  3
    Geometry step                       :  3
-   FORCES norm(Ha/Bohr): { maxval:  1.92804E-02, fnrm2:  2.73030E-02, fluct:  6.29158E-04}
+   FORCES norm(Ha/Bohr): { maxval:  1.92804E-02, fnrm2:  2.73030E-02, fluct:  4.97743E-04}
    ndim                                :  2
    etot                                : -1.48988612801723E+01
    detot                               : -3.78846766100338E-04
@@ -1699,6 +1723,12 @@
      -  [  9.52284,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
    PSP XC                              : "XC: Teter 93"
  - Symbol                              : H #Type No.  02
@@ -1718,8 +1748,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.731528764,  4.768187940,  5.753074856] # [  19.87,  20.02,  24.16 ] 0001
    - C: [ 4.743307461,  4.787672560,  4.240163944] # [  19.92,  20.11,  17.81 ] 0002
    - H: [ 4.020619767,  5.510226204,  6.173839517] # [  16.88,  23.14,  25.93 ] 0003
@@ -1949,7 +1979,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  4
    Geometry step                       :  4
-   FORCES norm(Ha/Bohr): { maxval:  1.32657E-02, fnrm2:  1.87955E-02, fluct:  6.18562E-04}
+   FORCES norm(Ha/Bohr): { maxval:  1.32657E-02, fnrm2:  1.87955E-02, fluct:  5.13429E-04}
    ndim                                :  2
    etot                                : -1.48992643256965E+01
    detot                               : -4.03045524183909E-04
@@ -2005,6 +2035,12 @@
      -  [  9.52284,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
    PSP XC                              : "XC: Teter 93"
  - Symbol                              : H #Type No.  02
@@ -2024,8 +2060,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.723449318,  4.768732802,  5.756405095] # [  19.84,  20.03,  24.17 ] 0001
    - C: [ 4.737875078,  4.785908222,  4.242391261] # [  19.90,  20.10,  17.82 ] 0002
    - H: [ 4.026547169,  5.509910861,  6.182620350] # [  16.91,  23.14,  25.96 ] 0003
@@ -2255,7 +2291,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  5
    Geometry step                       :  5
-   FORCES norm(Ha/Bohr): { maxval:  5.01522E-03, fnrm2:  8.46461E-03, fluct:  6.89769E-04}
+   FORCES norm(Ha/Bohr): { maxval:  5.01522E-03, fnrm2:  8.46461E-03, fluct:  6.05664E-04}
    ndim                                :  3
    etot                                : -1.48995896652476E+01
    detot                               : -3.25339551082493E-04
@@ -2311,6 +2347,12 @@
      -  [  9.52284,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
    PSP XC                              : "XC: Teter 93"
  - Symbol                              : H #Type No.  02
@@ -2330,8 +2372,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.719475825,  4.767244352,  5.758116131] # [  19.82,  20.02,  24.18 ] 0001
    - C: [ 4.734593937,  4.784110723,  4.243029922] # [  19.88,  20.09,  17.82 ] 0002
    - H: [ 4.033465498,  5.510197753,  6.186771745] # [  16.94,  23.14,  25.98 ] 0003
@@ -2552,7 +2594,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  6
    Geometry step                       :  6
-   FORCES norm(Ha/Bohr): { maxval:  2.32689E-03, fnrm2:  4.43706E-03, fluct:  7.82327E-04}
+   FORCES norm(Ha/Bohr): { maxval:  2.32689E-03, fnrm2:  4.43706E-03, fluct:  7.15042E-04}
    ndim                                :  3
    etot                                : -1.48996942688691E+01
    detot                               : -1.04603621483790E-04
@@ -2608,6 +2650,12 @@
      -  [  9.52284,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
    PSP XC                              : "XC: Teter 93"
  - Symbol                              : H #Type No.  02
@@ -2627,8 +2675,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.720051223,  4.757937081,  5.761871832] # [  19.82,  19.98,  24.20 ] 0001
    - C: [ 4.735158867,  4.779551611,  4.245087828] # [  19.88,  20.07,  17.83 ] 0002
    - H: [ 4.046882861,  5.513604381,  6.185137763] # [  16.99,  23.15,  25.97 ] 0003
@@ -2849,7 +2897,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  7
    Geometry step                       :  7
-   FORCES norm(Ha/Bohr): { maxval:  2.32952E-03, fnrm2:  3.92852E-03, fluct:  8.14738E-04}
+   FORCES norm(Ha/Bohr): { maxval:  2.32952E-03, fnrm2:  3.92852E-03, fluct:  7.60910E-04}
    ndim                                :  4
    etot                                : -1.48997814205706E+01
    detot                               : -8.71517015426093E-05
@@ -2905,6 +2953,12 @@
      -  [  9.52284,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
    PSP XC                              : "XC: Teter 93"
  - Symbol                              : H #Type No.  02
@@ -2924,8 +2978,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.719427245,  4.756212983,  5.762380070] # [  19.82,  19.97,  24.20 ] 0001
    - C: [ 4.735278304,  4.775528094,  4.244608147] # [  19.89,  20.05,  17.82 ] 0002
    - H: [ 4.051387905,  5.515956066,  6.183738884] # [  17.01,  23.16,  25.97 ] 0003
@@ -3146,7 +3200,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  8
    Geometry step                       :  8
-   FORCES norm(Ha/Bohr): { maxval:  3.12873E-03, fnrm2:  5.00444E-03, fluct:  8.05030E-04}
+   FORCES norm(Ha/Bohr): { maxval:  3.12873E-03, fnrm2:  5.00444E-03, fluct:  7.61968E-04}
    ndim                                :  4
    etot                                : -1.48998305685768E+01
    detot                               : -4.91480061519667E-05
@@ -3202,6 +3256,12 @@
      -  [  9.52284,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
    PSP XC                              : "XC: Teter 93"
  - Symbol                              : H #Type No.  02
@@ -3221,8 +3281,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.723012451,  4.752812895,  5.761989821] # [  19.83,  19.96,  24.20 ] 0001
    - C: [ 4.739287743,  4.765559480,  4.242592439] # [  19.90,  20.01,  17.82 ] 0002
    - H: [ 4.058983522,  5.523049231,  6.175857443] # [  17.05,  23.19,  25.93 ] 0003
@@ -3452,7 +3512,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  9
    Geometry step                       :  9
-   FORCES norm(Ha/Bohr): { maxval:  2.86985E-03, fnrm2:  5.16311E-03, fluct:  7.94261E-04}
+   FORCES norm(Ha/Bohr): { maxval:  2.86985E-03, fnrm2:  5.16311E-03, fluct:  7.59811E-04}
    ndim                                :  5
    etot                                : -1.48999870545218E+01
    detot                               : -1.56485945048246E-04
@@ -3508,6 +3568,12 @@
      -  [  9.52284,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
      -  [  0.00000,  0.00000,  0.00000 ]
+   - Channel (l)                       :  1
+     Rloc                              :  0.23268
+     h_ij matrix:
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
+     -  [  0.00000,  0.00000,  0.00000 ]
    No. of projectors                   :  1
    PSP XC                              : "XC: Teter 93"
  - Symbol                              : H #Type No.  02
@@ -3527,8 +3593,8 @@
    PSP XC                              : "XC: Teter 93"
   #-------------------------------------------------- Atom Positions (specified and grid units)
  Atomic structure:
-   Units                               : angstroem
-   Positions:
+   units                               : angstroem
+   positions:
    - C: [ 4.723200506,  4.749035899,  5.764035468] # [  19.83,  19.94,  24.21 ] 0001
    - C: [ 4.738832106,  4.761931980,  4.243377887] # [  19.90,  20.00,  17.82 ] 0002
    - H: [ 4.065343735,  5.524851895,  6.177062668] # [  17.07,  23.20,  25.94 ] 0003
@@ -3749,7 +3815,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  10
    Geometry step                       :  10
-   FORCES norm(Ha/Bohr): { maxval:  3.76314E-03, fnrm2:  6.65929E-03, fluct:  7.71111E-04}
+   FORCES norm(Ha/Bohr): { maxval:  3.76314E-03, fnrm2:  6.65929E-03, fluct:  7.43551E-04}
    ndim                                :  6
    etot                                : -1.49000682173100E+01
    detot                               : -8.11627881809329E-05

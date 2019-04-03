@@ -261,11 +261,10 @@ contains
        fmesh%dom%bc = 0 ! Free in every directions
        nbox = box_nbox_from_cutoff(fmesh, atproj%rxyz, atproj%radius + &
             & maxval(gmesh%hgrids) * eps_mach)
-       !geocode = 'F'
        dom=change_domain_BC(gmesh%dom,geocode='F')
-       if (any((nbox(2, :) - nbox(1, :)) > gmesh%ndims(:) .and. gmesh%dom%bc(:) == 1)) then
-          ! Projector does not fit inside the global mesh.
-          !geocode = domain_geocode(gmesh%dom)
+       if (any(gmesh%dom%bc(:) == 1 .and. &
+            & (nbox(2, :) >= gmesh%ndims(:) .or. nbox(1, :) < 0))) then
+          ! Projector intersects a periodic boundary of the global mesh.
           dom=gmesh%dom
           nbox(1, :) = 0
           nbox(2, :) = gmesh%ndims(:) - 1
@@ -279,7 +278,6 @@ contains
           nboxf = box_nbox_from_cutoff(fmesh, atproj%rxyz, atproj%fine_radius + &
                & maxval(gmesh%hgrids) * eps_mach)
        end if
-       !call init_lr(plr, geocode, 0.5_gp * gmesh%hgrids, &
        call init_lr(plr, dom, 0.5_gp * gmesh%hgrids, &
             & nbox(2,1), nbox(2,2), nbox(2,3), &
             & nboxf(1,1), nboxf(1,2), nboxf(1,3), nboxf(2,1), nboxf(2,2), nboxf(2,3), &

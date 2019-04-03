@@ -730,7 +730,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  1
    Geometry step                       :  0
-   FORCES norm(Ha/Bohr): { maxval:  2.97317E-03, fnrm2:  4.20470E-03, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  2.97317E-03, fnrm2:  1.76795E-05, fluct:  1.66386E-05}
    etot                                : -1.13680097155383E+00
    de                                  :  0.00E+00
    flt                                 :  [  1.66E-05,  1.66E-05 ]
@@ -957,7 +957,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  2
    Geometry step                       :  1
-   FORCES norm(Ha/Bohr): { maxval:  4.07443E-03, fnrm2:  5.76211E-03, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  4.07443E-03, fnrm2:  3.32019E-05, fluct:  1.67577E-05}
    etot                                : -1.13678878148095E+00
    de                                  :  1.22E-05
    flt                                 :  [  1.68E-05,  1.68E-05 ]
@@ -1184,7 +1184,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  3
    Geometry step                       :  2
-   FORCES norm(Ha/Bohr): { maxval:  8.00948E-04, fnrm2:  1.13271E-03, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  8.00948E-04, fnrm2:  1.28304E-06, fluct:  1.67013E-05}
    etot                                : -1.13681308298222E+00
    de                                  : -2.43E-05
    flt                                 :  [  1.67E-05,  1.67E-05 ]
@@ -1402,7 +1402,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  4
    Geometry step                       :  3
-   FORCES norm(Ha/Bohr): { maxval:  1.79548E-04, fnrm2:  2.53919E-04, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  1.79548E-04, fnrm2:  6.44748E-08, fluct:  1.67462E-05}
    etot                                : -1.13681397612967E+00
    de                                  : -8.93E-07
    flt                                 :  [  1.67E-05,  1.67E-05 ]
@@ -1609,7 +1609,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  5
    Geometry step                       :  4
-   FORCES norm(Ha/Bohr): { maxval:  3.90215E-05, fnrm2:  5.51848E-05, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  3.90215E-05, fnrm2:  3.04536E-09, fluct:  1.67202E-05}
    etot                                : -1.13681402154789E+00
    de                                  : -4.54E-08
    flt                                 :  [  1.67E-05,  1.67E-05 ]
@@ -1808,7 +1808,7 @@
    Geometry Method                     : BFGS
    Ncount_BigDFT                       :  6
    Geometry step                       :  5
-   FORCES norm(Ha/Bohr): { maxval:  8.67200E-06, fnrm2:  1.22641E-05, fluct:  0.00000E+00}
+   FORCES norm(Ha/Bohr): { maxval:  8.67200E-06, fnrm2:  1.50407E-10, fluct:  1.67286E-05}
    etot                                : -1.13681402371319E+00
    de                                  : -2.17E-09
    flt                                 :  [  1.67E-05,  1.67E-05 ]

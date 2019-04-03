@@ -385,7 +385,7 @@
      nhistx                            :  5
      biomode                           :  No
      betax                             :  6.00000000000000E+00
-     beta_stretchx                     :  0.00000000000000E+00
+     beta_stretchx                     :  5.00000000000000E-01
      maxrise                           :  1.00000000000000E-06
      cutoffRatio                       :  1.00000000000000E-04
      steepthresh                       :  1.00000000000000E+02
@@ -402,7 +402,7 @@
      etot                              : -2.57994829630744E+00
      detot                             : -2.57994829630744E+00
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: {Energy (Hartree): -2.60979358435900322E+00, 
  Force Norm (Hartree/Bohr):  5.18721629593374006E-02}
    Geometry:
@@ -415,7 +415,7 @@
      etot                              : -2.60979358435900E+00
      detot                             : -2.98452880515589E-02
      beta                              :  6.60000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: {Energy (Hartree): -2.63437598296986009E+00, 
  Force Norm (Hartree/Bohr):  5.24342534587267026E-02}
    Geometry:
@@ -428,7 +428,7 @@
      etot                              : -2.63437598296986E+00
      detot                             : -2.45823986108569E-02
      beta                              :  7.26000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: {Energy (Hartree): -2.64372053604027624E+00, 
  Force Norm (Hartree/Bohr):  4.23353781365419859E-02}
    Geometry:
@@ -441,7 +441,7 @@
      etot                              : -2.64372053604028E+00
      detot                             : -9.34455307041615E-03
      beta                              :  7.98600000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: {Energy (Hartree): -2.65346024666136238E+00, 
  Force Norm (Hartree/Bohr):  3.07155067884367812E-02}
    Geometry:
@@ -454,7 +454,7 @@
      etot                              : -2.65346024666136E+00
      detot                             : -9.73971062108614E-03
      beta                              :  6.78810000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 3.55271E-15 ), broadcasting from 
   #master node
  Energy (Hartree): -2.65951435152547644E+00, 
@@ -469,7 +469,7 @@
      etot                              : -2.65951435152548E+00
      detot                             : -6.05410486411406E-03
      beta                              :  7.46691000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 7.10543E-15 ), broadcasting from 
   #master node
  Energy (Hartree): -2.66360041976407924E+00, 
@@ -484,7 +484,7 @@
      etot                              : -2.66360041976408E+00
      detot                             : -4.08606823860280E-03
      beta                              :  8.21360100000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.06581E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.66702236008737037E+00, 
@@ -499,7 +499,7 @@
      etot                              : -2.66702236008737E+00
      detot                             : -3.42194032329113E-03
      beta                              :  9.03496110000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.06581E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.66992547353945930E+00, 
@@ -514,7 +514,7 @@
      etot                              : -2.66992547353946E+00
      detot                             : -2.90311345208893E-03
      beta                              :  7.67971693500000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.42109E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.67176816144260343E+00, 
@@ -529,7 +529,7 @@
      etot                              : -2.67176816144260E+00
      detot                             : -1.84268790314412E-03
      beta                              :  6.52775939475000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.42109E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.67443077630847226E+00, 
@@ -544,7 +544,7 @@
      etot                              : -2.67443077630847E+00
      detot                             : -2.66261486586883E-03
      beta                              :  7.18053533422500E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.42109E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.67774651082326587E+00, 
@@ -559,7 +559,7 @@
      etot                              : -2.67774651082327E+00
      detot                             : -3.31573451479361E-03
      beta                              :  7.89858886764750E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.77636E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.67897943163705099E+00, 
@@ -574,7 +574,7 @@
      etot                              : -2.67897943163705E+00
      detot                             : -1.23292081378512E-03
      beta                              :  6.71380053750038E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 2.13163E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.68027413287754790E+00, 
@@ -589,7 +589,7 @@
      etot                              : -2.68027413287755E+00
      detot                             : -1.29470124049691E-03
      beta                              :  7.38518059125042E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 2.48690E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.68139644138910205E+00, 
@@ -604,7 +604,7 @@
      etot                              : -2.68139644138910E+00
      detot                             : -1.12230851155415E-03
      beta                              :  8.12369865037546E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 2.84217E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.68201829840481087E+00, 
@@ -619,7 +619,7 @@
      etot                              : -2.68201829840481E+00
      detot                             : -6.21857015708827E-04
      beta                              :  8.93606851541301E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 3.19744E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.68272889790826197E+00, 
@@ -634,7 +634,7 @@
      etot                              : -2.68272889790826E+00
      detot                             : -7.10599503451093E-04
      beta                              :  9.82967536695431E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 3.55271E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.68360467280182169E+00, 
@@ -649,7 +649,7 @@
      etot                              : -2.68360467280182E+00
      detot                             : -8.75774893559722E-04
      beta                              :  1.08126429036497E+01
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 3.90799E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.68458711400462091E+00, 
@@ -664,7 +664,7 @@
      etot                              : -2.68458711400462E+00
      detot                             : -9.82441202799222E-04
      beta                              :  1.18939071940147E+01
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 4.26326E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.68605231241241826E+00, 
@@ -679,7 +679,7 @@
      etot                              : -2.68605231241242E+00
      detot                             : -1.46519840779735E-03
      beta                              :  1.30832979134162E+01
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 4.61853E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.68776107799693786E+00, 
@@ -694,7 +694,7 @@
      etot                              : -2.68776107799694E+00
      detot                             : -1.70876558451960E-03
      beta                              :  1.43916277047578E+01
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 4.61853E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.69171160904610396E+00, 
@@ -709,7 +709,7 @@
      etot                              : -2.69171160904610E+00
      detot                             : -3.95053104916609E-03
      beta                              :  1.22328835490441E+01
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 4.97380E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.69579742854922566E+00, 
@@ -724,7 +724,7 @@
      etot                              : -2.69579742854923E+00
      detot                             : -4.08581950312170E-03
      beta                              :  1.03979510166875E+01
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 4.97380E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.70002950511978712E+00, 
@@ -739,7 +739,7 @@
      etot                              : -2.70002950511979E+00
      detot                             : -4.23207657056146E-03
      beta                              :  8.83825836418439E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 4.97380E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.70197688448061779E+00, 
@@ -754,7 +754,7 @@
      etot                              : -2.70197688448062E+00
      detot                             : -1.94737936083067E-03
      beta                              :  7.51251960955673E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 5.68434E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.70489859382803255E+00, 
@@ -769,7 +769,7 @@
      etot                              : -2.70489859382803E+00
      detot                             : -2.92170934741476E-03
      beta                              :  8.26377157051240E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 5.68434E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.70728375002753774E+00, 
@@ -784,7 +784,7 @@
      etot                              : -2.70728375002754E+00
      detot                             : -2.38515619950519E-03
      beta                              :  9.09014872756364E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 6.03961E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.70867308343506030E+00, 
@@ -799,7 +799,7 @@
      etot                              : -2.70867308343506E+00
      detot                             : -1.38933340752256E-03
      beta                              :  7.72662641842910E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 6.75016E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71039534368240043E+00, 
@@ -814,7 +814,7 @@
      etot                              : -2.71039534368240E+00
      detot                             : -1.72226024734012E-03
      beta                              :  6.56763245566473E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 6.75016E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71175521962682531E+00, 
@@ -829,7 +829,7 @@
      etot                              : -2.71175521962683E+00
      detot                             : -1.35987594442488E-03
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 6.75016E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71258298494194383E+00, 
@@ -844,7 +844,7 @@
      etot                              : -2.71258298494194E+00
      detot                             : -8.27765315118523E-04
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 6.03961E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71356196832729779E+00, 
@@ -859,7 +859,7 @@
      etot                              : -2.71356196832730E+00
      detot                             : -9.78983385353960E-04
      beta                              :  6.60000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 5.32907E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71447354858994583E+00, 
@@ -874,7 +874,7 @@
      etot                              : -2.71447354858995E+00
      detot                             : -9.11580262648037E-04
      beta                              :  7.26000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 5.68434E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71554017379553292E+00, 
@@ -889,7 +889,7 @@
      etot                              : -2.71554017379553E+00
      detot                             : -1.06662520558709E-03
      beta                              :  7.98600000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 6.75016E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71690824668310293E+00, 
@@ -904,7 +904,7 @@
      etot                              : -2.71690824668310E+00
      detot                             : -1.36807288757002E-03
      beta                              :  8.78460000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 6.39488E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71712383700191662E+00, 
@@ -919,7 +919,7 @@
      etot                              : -2.71712383700192E+00
      detot                             : -2.15590318813685E-04
      beta                              :  7.46691000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 5.32907E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71744069490135276E+00, 
@@ -934,7 +934,7 @@
      etot                              : -2.71744069490135E+00
      detot                             : -3.16857899436140E-04
      beta                              :  6.34687350000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 5.32907E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71751443435494577E+00, 
@@ -949,7 +949,7 @@
      etot                              : -2.71751443435495E+00
      detot                             : -7.37394535930136E-05
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 5.32907E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71755993505934601E+00, 
@@ -964,7 +964,7 @@
      etot                              : -2.71755993505935E+00
      detot                             : -4.55007044002365E-05
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 5.32907E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71758830083078839E+00, 
@@ -979,7 +979,7 @@
      etot                              : -2.71758830083079E+00
      detot                             : -2.83657714423846E-05
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 5.32907E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71761032846776152E+00, 
@@ -994,7 +994,7 @@
      etot                              : -2.71761032846776E+00
      detot                             : -2.20276369731209E-05
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 5.32907E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71764482271173247E+00, 
@@ -1009,7 +1009,7 @@
      etot                              : -2.71764482271173E+00
      detot                             : -3.44942439709506E-05
      beta                              :  6.60000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 5.32907E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71769838241512929E+00, 
@@ -1024,7 +1024,7 @@
      etot                              : -2.71769838241513E+00
      detot                             : -5.35597033968216E-05
      beta                              :  7.26000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 6.03961E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71781767851211731E+00, 
@@ -1039,7 +1039,7 @@
      etot                              : -2.71781767851212E+00
      detot                             : -1.19296096988020E-04
      beta                              :  7.98600000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 7.10543E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71807742289320275E+00, 
@@ -1054,7 +1054,7 @@
      etot                              : -2.71807742289320E+00
      detot                             : -2.59744381085447E-04
      beta                              :  8.78460000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 8.17124E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71819498134753523E+00, 
@@ -1069,7 +1069,7 @@
      etot                              : -2.71819498134754E+00
      detot                             : -1.17558454332478E-04
      beta                              :  9.66306000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 9.23706E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71830011150561113E+00, 
@@ -1084,7 +1084,7 @@
      etot                              : -2.71830011150561E+00
      detot                             : -1.05130158075895E-04
      beta                              :  1.06293660000000E+01
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 9.23706E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71842894795482559E+00, 
@@ -1099,7 +1099,7 @@
      etot                              : -2.71842894795483E+00
      detot                             : -1.28836449214464E-04
      beta                              :  1.16923026000000E+01
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 8.88178E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71850439651269404E+00, 
@@ -1114,7 +1114,7 @@
      etot                              : -2.71850439651269E+00
      detot                             : -7.54485578684516E-05
      beta                              :  1.28615328600000E+01
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 9.59233E-14 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71869832233119002E+00, 
@@ -1129,7 +1129,7 @@
      etot                              : -2.71869832233119E+00
      detot                             : -1.93925818495977E-04
      beta                              :  1.09323029310000E+01
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.10134E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71908826657233593E+00, 
@@ -1144,7 +1144,7 @@
      etot                              : -2.71908826657234E+00
      detot                             : -3.89944241145912E-04
      beta                              :  9.29245749135000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.10134E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71937547584513339E+00, 
@@ -1159,7 +1159,7 @@
      etot                              : -2.71937547584513E+00
      detot                             : -2.87209272797462E-04
      beta                              :  1.02217032404850E+01
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.13687E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.71987028454261992E+00, 
@@ -1174,7 +1174,7 @@
      etot                              : -2.71987028454262E+00
      detot                             : -4.94808697486526E-04
      beta                              :  8.68844775441226E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.17240E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72067775547388990E+00, 
@@ -1189,7 +1189,7 @@
      etot                              : -2.72067775547389E+00
      detot                             : -8.07470931269982E-04
      beta                              :  9.55729252985348E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.24345E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72090867568428241E+00, 
@@ -1204,7 +1204,7 @@
      etot                              : -2.72090867568428E+00
      detot                             : -2.30920210392505E-04
      beta                              :  1.05130217828388E+01
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.24345E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72098282722932927E+00, 
@@ -1219,7 +1219,7 @@
      etot                              : -2.72098282722933E+00
      detot                             : -7.41515450468633E-05
      beta                              :  8.93606851541301E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.24345E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72153063549960850E+00, 
@@ -1234,7 +1234,7 @@
      etot                              : -2.72153063549961E+00
      detot                             : -5.47808270279226E-04
      beta                              :  7.59565823810106E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.27898E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72180027221608034E+00, 
@@ -1249,7 +1249,7 @@
      etot                              : -2.72180027221608E+00
      detot                             : -2.69636716471844E-04
      beta                              :  6.45630950238590E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.31450E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72198423568152625E+00, 
@@ -1264,7 +1264,7 @@
      etot                              : -2.72198423568153E+00
      detot                             : -1.83963465445913E-04
      beta                              :  7.10194045262449E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.35003E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72229450482212121E+00, 
@@ -1279,7 +1279,7 @@
      etot                              : -2.72229450482212E+00
      detot                             : -3.10269140594954E-04
      beta                              :  6.03664938473081E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.38556E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72256759280403760E+00, 
@@ -1294,7 +1294,7 @@
      etot                              : -2.72256759280404E+00
      detot                             : -2.73087981916387E-04
      beta                              :  6.64031432320390E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.42109E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72288620893651334E+00, 
@@ -1309,7 +1309,7 @@
      etot                              : -2.72288620893651E+00
      detot                             : -3.18616132475746E-04
      beta                              :  7.30434575552429E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.45661E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72292908343179763E+00, 
@@ -1324,7 +1324,7 @@
      etot                              : -2.72292908343180E+00
      detot                             : -4.28744952842841E-05
      beta                              :  8.03478033107672E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.45661E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72310768121392988E+00, 
@@ -1339,7 +1339,7 @@
      etot                              : -2.72310768121393E+00
      detot                             : -1.78597782132250E-04
      beta                              :  6.82956328141521E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.45661E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72318072858293947E+00, 
@@ -1354,7 +1354,7 @@
      etot                              : -2.72318072858294E+00
      detot                             : -7.30473690095934E-05
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.45661E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72323911847171241E+00, 
@@ -1369,7 +1369,7 @@
      etot                              : -2.72323911847171E+00
      detot                             : -5.83898887729362E-05
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.45661E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72328856156924992E+00, 
@@ -1384,7 +1384,7 @@
      etot                              : -2.72328856156925E+00
      detot                             : -4.94430975375160E-05
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.49214E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72334517975996881E+00, 
@@ -1399,7 +1399,7 @@
      etot                              : -2.72334517975997E+00
      detot                             : -5.66181907188934E-05
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.52767E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72337955006159271E+00, 
@@ -1414,7 +1414,7 @@
      etot                              : -2.72337955006159E+00
      detot                             : -3.43703016238983E-05
      beta                              :  6.60000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.56319E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72338929639653315E+00, 
@@ -1429,7 +1429,7 @@
      etot                              : -2.72338929639653E+00
      detot                             : -9.74633494044141E-06
      beta                              :  7.26000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.56319E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72340090663658341E+00, 
@@ -1444,7 +1444,7 @@
      etot                              : -2.72340090663658E+00
      detot                             : -1.16102400502527E-05
      beta                              :  6.17100000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.56319E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72340336500398905E+00, 
@@ -1459,7 +1459,7 @@
      etot                              : -2.72340336500399E+00
      detot                             : -2.45836740564442E-06
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.56319E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72340457727205054E+00, 
@@ -1474,7 +1474,7 @@
      etot                              : -2.72340457727205E+00
      detot                             : -1.21226806149011E-06
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.56319E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72340529873875070E+00, 
@@ -1489,7 +1489,7 @@
      etot                              : -2.72340529873875E+00
      detot                             : -7.21466700159823E-07
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.56319E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72340550872576115E+00, 
@@ -1504,7 +1504,7 @@
      etot                              : -2.72340550872576E+00
      detot                             : -2.09987010446611E-07
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.56319E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72340568959544793E+00, 
@@ -1519,7 +1519,7 @@
      etot                              : -2.72340568959545E+00
      detot                             : -1.80869686783325E-07
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.56319E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72340587724738104E+00, 
@@ -1534,7 +1534,7 @@
      etot                              : -2.72340587724738E+00
      detot                             : -1.87651933103439E-07
      beta                              :  6.00000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.56319E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72340598033755343E+00, 
@@ -1549,7 +1549,7 @@
      etot                              : -2.72340598033755E+00
      detot                             : -1.03090172398623E-07
      beta                              :  6.60000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.56319E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72340603084169608E+00, 
@@ -1564,7 +1564,7 @@
      etot                              : -2.72340603084170E+00
      detot                             : -5.05041426457353E-08
      beta                              :  7.26000000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.56319E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72340606215608982E+00, 
@@ -1579,7 +1579,7 @@
      etot                              : -2.72340606215609E+00
      detot                             : -3.13143937447080E-08
      beta                              :  7.98600000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.56319E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72340608055864619E+00, 
@@ -1594,7 +1594,7 @@
      etot                              : -2.72340608055865E+00
      detot                             : -1.84025563676471E-08
      beta                              :  8.78460000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
  - LENOSKY_SI_BULK_RUN_MODE: { #WARNING: Input positions not identical! (difference: 1.56319E-13 ), broadcasting from 
   #master node
  Energy (Hartree): -2.72340609046674498E+00, 
@@ -1609,7 +1609,7 @@
      etot                              : -2.72340609046674E+00
      detot                             : -9.90809878587129E-09
      beta                              :  9.66306000000000E+00
-     beta_stretch                      :  0.00000000000000E+00
+     beta_stretch                      :  5.00000000000000E-01
    Iterations when SQNM converged      :  82
    End of minimization using           : SQNM
  Memory Consumption Report:

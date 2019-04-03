@@ -786,7 +786,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  1
    Geometry step                       :  1
-   FORCES norm(Ha/Bohr): { maxval:  4.99387E-03, fnrm2:  7.06240E-03, fluct:  1.68801E-05}
+   FORCES norm(Ha/Bohr): { maxval:  4.99387E-03, fnrm2:  7.06240E-03, fluct:  1.72987E-05}
    ndim                                :  0
    etot                                : -1.13677595967699E+00
    detot                               : -1.13677595967699E+00
@@ -1012,7 +1012,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  2
    Geometry step                       :  2
-   FORCES norm(Ha/Bohr): { maxval:  8.22562E-05, fnrm2:  1.16328E-04, fluct:  1.68033E-05}
+   FORCES norm(Ha/Bohr): { maxval:  8.22562E-05, fnrm2:  1.16328E-04, fluct:  1.71382E-05}
    ndim                                :  1
    etot                                : -1.13681401382921E+00
    detot                               : -3.80541522242428E-05
@@ -1210,7 +1210,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  3
    Geometry step                       :  3
-   FORCES norm(Ha/Bohr): { maxval:  2.13173E-06, fnrm2:  3.01472E-06, fluct:  1.67739E-05}
+   FORCES norm(Ha/Bohr): { maxval:  2.13173E-06, fnrm2:  3.01472E-06, fluct:  1.70418E-05}
    ndim                                :  1
    etot                                : -1.13681402380516E+00
    detot                               : -9.97595361873493E-09
@@ -1400,7 +1400,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  4
    Geometry step                       :  4
-   FORCES norm(Ha/Bohr): { maxval:  1.56891E-06, fnrm2:  2.21877E-06, fluct:  1.67577E-05}
+   FORCES norm(Ha/Bohr): { maxval:  1.56891E-06, fnrm2:  2.21877E-06, fluct:  1.69720E-05}
    ndim                                :  1
    etot                                : -1.13681402381880E+00
    detot                               : -1.36342048762117E-11
@@ -1590,7 +1590,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  5
    Geometry step                       :  5
-   FORCES norm(Ha/Bohr): { maxval:  1.38010E-06, fnrm2:  1.95176E-06, fluct:  1.67482E-05}
+   FORCES norm(Ha/Bohr): { maxval:  1.38010E-06, fnrm2:  1.95176E-06, fluct:  1.69197E-05}
    ndim                                :  1
    etot                                : -1.13681402381913E+00
    detot                               : -3.36841665671272E-13
@@ -1780,7 +1780,7 @@
    Geometry Method                     : GEOPT_SQNM
    Ncount_BigDFT                       :  6
    Geometry step                       :  6
-   FORCES norm(Ha/Bohr): { maxval:  6.54464E-07, fnrm2:  9.25552E-07, fluct:  1.67436E-05}
+   FORCES norm(Ha/Bohr): { maxval:  6.54464E-07, fnrm2:  9.25552E-07, fluct:  1.68808E-05}
    ndim                                :  1
    etot                                : -1.13681402382022E+00
    detot                               : -1.08202335979968E-12
