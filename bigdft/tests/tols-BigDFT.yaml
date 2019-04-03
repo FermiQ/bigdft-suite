@@ -2264,6 +2264,7 @@ multipoles_periodic:
   HOMO-LUMO gap (Ha): 4.1e-11
   HOMO-LUMO gap (eV): 1.2e-9
   Pseudo Fermi level for occupations: 1.3e-10
+  Tr(H): 1.0e-10
   Tr(K): 1.1e-07
   D Tr(K): 2.8e-9
   eF: 6.0e-07
