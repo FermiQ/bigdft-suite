@@ -221,7 +221,7 @@ multipoles_periodic.out.post-out:
 	  --coeff_file=data-periodic/coeffs.txt \
 	  --fragment_file=frag.yaml \
 	  --orbital_file=orbital.yaml \
-	  >> log-periodic.yaml
+	  --log_file log-periodic.yaml
 
 cleanup.out.post-out:
 	$(abs_top_builddir)/src/bigdft-tool \

@@ -73,7 +73,6 @@ bigdft-linear-minimal:
 
 bigdft-linear-multipoles:
   stage: check
-  allow_failure: true # multipoles_periodic is failing
   script:
     - cd tmp/bigdft/tests/DFT/linear
 # LD_LIBRARY_PATH is for libbabel.so
