@@ -2,8 +2,7 @@
 image: ubuntu:latest
 
 before_script:
-  - apt update && apt -y install wget autoconf make pkg-config gfortran libblas3 liblapack3 libopenmpi2 libpython2.7 libyaml-0-2 python-numpy python-numpy-abi9 python-yaml libopenmpi-dev openssh-client libblas-dev liblapack-dev libpython2.7-dev libpcre3-dev python-setuptools python-pytest
-  - pip install nbval
+  - apt update && apt -y install wget autoconf make pkg-config gfortran libblas3 liblapack3 libopenmpi2 libpython2.7 libyaml-0-2 python-numpy python-numpy-abi9 python-yaml libopenmpi-dev openssh-client libblas-dev liblapack-dev libpython2.7-dev libpcre3-dev python-setuptools python-pytest python-pip && pip install nbval
   - export OMPI_MCA_btl_vader_single_copy_mechanism=none 
 
 stages:
