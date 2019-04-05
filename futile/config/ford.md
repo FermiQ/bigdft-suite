@@ -14,7 +14,6 @@ exclude: deallocate-c-inc.f90
 exclude: deallocate-inc.f90
 exclude: deallocate-multiple-inc.f90
 exclude: deallocate-profile-inc.f90
-exclude: deallocate-simgrid-inc.f90
 exclude: dict_add-inc.f90
 exclude: dict_cont_arr-inc.f90
 exclude: dict_cont-inc.f90

@@ -20,7 +20,10 @@
 
   if (associated(info)) then
     val=dict_get(info,INFO_TYPE_KEY,default=' ')
-    if (INFO_ALIGNMENT_KEY .in. info) then
+    if (trim(val) == INFO_SHARED_TYPE) then
+       call smpi_shared_free(c_loc(array))
+       ierror=0
+    elseif (INFO_ALIGNMENT_KEY .in. info) then
        call bindfree(iadd)
        ierror=0
     else

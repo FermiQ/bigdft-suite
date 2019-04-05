@@ -810,7 +810,7 @@ subroutine d1_ptr_free(array)
   double precision, dimension(:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90'
+  include 'deallocate-ptr-inc.f90'
   nullify(array)
 end subroutine d1_ptr_free
 
@@ -833,7 +833,7 @@ subroutine i1_ptr_free(array)
   integer, dimension(:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90'
+  include 'deallocate-ptr-inc.f90'
   nullify(array)
 end subroutine i1_ptr_free
 
@@ -875,7 +875,7 @@ subroutine d2_ptr_free(array)
   double precision, dimension(:,:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90'
+  include 'deallocate-ptr-inc.f90'
   nullify(array)
 end subroutine d2_ptr_free
 
@@ -897,7 +897,7 @@ subroutine i2_ptr_free(array)
   integer, dimension(:,:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90'
+  include 'deallocate-ptr-inc.f90'
   nullify(array)
 end subroutine i2_ptr_free
 
@@ -925,7 +925,7 @@ subroutine d3_ptr_free(array)
   double precision, dimension(:,:,:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90'
+  include 'deallocate-ptr-inc.f90'
   nullify(array)
 end subroutine d3_ptr_free
 
@@ -948,7 +948,7 @@ subroutine i3_ptr_free(array)
   integer, dimension(:,:,:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90'
+  include 'deallocate-ptr-inc.f90'
   nullify(array)
 end subroutine i3_ptr_free
 
@@ -971,7 +971,7 @@ subroutine i4_ptr_free(array)
   integer, dimension(:,:,:,:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90'
+  include 'deallocate-ptr-inc.f90'
   nullify(array)
 end subroutine i4_ptr_free
 
@@ -993,7 +993,7 @@ subroutine li1_ptr_free(array)
   integer(f_long), dimension(:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90' 
+  include 'deallocate-ptr-inc.f90' 
 end subroutine li1_ptr_free
 
 
@@ -1020,7 +1020,7 @@ subroutine d4_ptr_free(array)
   double precision, dimension(:,:,:,:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90'
+  include 'deallocate-ptr-inc.f90'
   nullify(array)
 end subroutine d4_ptr_free
 
@@ -1048,7 +1048,7 @@ subroutine d5_ptr_free(array)
   double precision, dimension(:,:,:,:,:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90'
+  include 'deallocate-ptr-inc.f90'
   nullify(array)
 end subroutine d5_ptr_free
 
@@ -1076,7 +1076,7 @@ subroutine d6_ptr_free(array)
   double precision, dimension(:,:,:,:,:,:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90'
+  include 'deallocate-ptr-inc.f90'
   nullify(array)
 end subroutine d6_ptr_free
 
@@ -1098,7 +1098,7 @@ subroutine l1_ptr_free(array)
   logical, dimension(:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90' 
+  include 'deallocate-ptr-inc.f90' 
 end subroutine l1_ptr_free
 
 subroutine l2_ptr(array,m)
@@ -1132,7 +1132,7 @@ subroutine l2_ptr_free(array)
   logical, dimension(:,:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90' 
+  include 'deallocate-ptr-inc.f90' 
 end subroutine l2_ptr_free
 
 subroutine l3_ptr_free(array)
@@ -1141,7 +1141,7 @@ subroutine l3_ptr_free(array)
   logical, dimension(:,:,:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90' 
+  include 'deallocate-ptr-inc.f90' 
 end subroutine l3_ptr_free
 
 !character arrays
@@ -1177,7 +1177,7 @@ subroutine f_free_str_ptr(length,array)
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
   !include 'deallocate-c-inc.f90'
-  include 'deallocate-inc.f90'
+  include 'deallocate-ptr-inc.f90'
   nullify(array)
 end subroutine f_free_str_ptr
 
@@ -1200,7 +1200,7 @@ subroutine z1_ptr_free(array)
   double complex, dimension(:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90'
+  include 'deallocate-ptr-inc.f90'
   nullify(array)
 end subroutine z1_ptr_free
 
@@ -1223,6 +1223,6 @@ subroutine z2_ptr_free(array)
   double complex, dimension(:,:), pointer, intent(inout) :: array
   include 'deallocate-profile-inc.f90' 
   if (.not. associated(array)) return
-  include 'deallocate-inc.f90'
+  include 'deallocate-ptr-inc.f90'
   nullify(array)
 end subroutine z2_ptr_free

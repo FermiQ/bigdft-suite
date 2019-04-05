@@ -30,7 +30,8 @@ program PS_Check
   real(kind=8), parameter :: acell = 10.d0
   character(len=1) :: geocode !< @copydoc poisson_solver::coulomb_operator::geocode
 !  character(len=MPI_MAX_PROCESSOR_NAME) :: nodename_local
-  real(kind=8), dimension(:), allocatable :: density,rhopot,potential,pot_ion,extra_ref
+  real(kind=8), dimension(:), allocatable :: rhopot,potential,pot_ion,extra_ref
+  real(kind=8), dimension(:), pointer :: density
   type(coulomb_operator) :: pkernel,pkernelseq
   real(kind=8) :: hx,hy,hz,offset
   real(kind=8) :: ehartree
@@ -143,7 +144,7 @@ program PS_Check
 
   !Allocations, considering also spin density
   !Density
-  density=f_malloc(n01*n02*n03*2,id='density')
+  density=f_malloc_ptr(n01*n02*n03*2,id='density',info="{Type: SHARED}")
   !Density then potential
   potential=f_malloc(n01*n02*n03,id='potential')
   !ionic potential
@@ -280,7 +281,8 @@ program PS_Check
 
   !call f_malloc_dump_status()
 
-  call f_free(density,potential,pot_ion,extra_ref)
+  call f_free(potential,pot_ion,extra_ref)
+  call f_free_ptr(density)
 
   call f_timing_stop(mpi_comm=MPI_COMM_WORLD,nproc=nproc,gather_routine=gather_timings)
 
