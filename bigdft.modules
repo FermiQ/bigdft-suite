@@ -14,8 +14,8 @@
               href="ftp://ftp.unidata.ucar.edu/pub/"/>
   <repository type="tarball" name="etsf" href="http://www.etsf.eu/system/files/"/>
 
-  <repository type="tarball" name="simgrid" href="http://gforge.inria.fr/frs/download.php/file/35817/"/>
-  <repository type="git" name="simgrid-dev" href="https://scm.gforge.inria.fr/anonscm/git/"/>
+  <repository type="tarball" name="simgrid" href="https://framagit.org/simgrid/simgrid/uploads/b086147968e111e7b7d7e27e8c4b11c5/"/>
+  <repository type="git" name="simgrid-dev" href="https://framagit.org/"/>
   <repository type="tarball" name="ntpoly" href="https://github.com/william-dawson/NTPoly/archive/"/>
   <repository type="tarball" name="bigpoly" href="https://github.com/william-dawson/BigPoly/archive/"/>
   <repository type="git" name="pyyaml" href="https://github.com/dcaliste/"/>
@@ -231,8 +231,8 @@
   </autotools>
 
   <cmake id="simgrid" skip-autogen="true">
-    <branch repo="simgrid" module="SimGrid-3.13.tar.gz"
-            version="3.13"/>
+    <branch repo="simgrid" module="SimGrid-3.22.tar.gz"
+            version="3.22"/>
   </cmake>
 
   <cmake id="simgrid-dev" skip-autogen="true">
