@@ -6,4 +6,5 @@ sphinx-multibuild
 sphinx_rtd_theme
 ase
 nbsphinx
+nbval
 matplotlib==2.0.2

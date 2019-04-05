@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-EXTRA_DIST = fldiff_yaml.py.in report.py.in README
+EXTRA_DIST = fldiff_yaml.py.in report.py.in README $(pytest_DATA)
 
 SUBDIRS = \
 	flib \
@@ -12,6 +12,10 @@ SUBDIRS = \
 python_PYTHON = yaml_hl.py fldiff.py f_regtest.py UniParse.py
 nodist_python_PYTHON = fldiff_yaml.py report.py
 dist_python_DATA = yaml_hl.cfg yaml_hl_remarks.cfg
+
+#Used by jupyter notebooks
+pytest_DATA = test_input_variables_definition.yaml test-input.yaml
+pytestdir = .
 
 #remove some files in order to create it with the right path (possible to use nodist option)
 dist-hook:
@@ -74,7 +78,11 @@ CLEANFILES = report.py fldiff_yaml.py
 
 all: head_message foot_message
 
-check: report
+check: report pytest
 
 report: report.py
 	@if test $(MAKELEVEL) = 0 ; then python ./report.py ; fi
+
+pytest: $(pytest_DATA)
+	py.test --nbval --disable-warnings $(srcdir)/InputVariablesTest.ipynb
+

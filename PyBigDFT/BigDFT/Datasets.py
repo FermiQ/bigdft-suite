@@ -89,7 +89,7 @@ class Dataset(Runner):
           ValueError: if the provided id is identical to another previously appended run.
 
         Todo:
-           include id in the runs spcification
+           include id in the runs specification
 
         """
         from copy import deepcopy

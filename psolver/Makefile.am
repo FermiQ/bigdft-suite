@@ -10,6 +10,8 @@ ACLOCAL_AMFLAGS = -I config/m4
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = psolver.pc
 
+nodist_bin_SCRIPTS = psolvervars.sh psolver_environment.sh
+
 SUBDIRS = src
 
 if HAVE_PYYAML

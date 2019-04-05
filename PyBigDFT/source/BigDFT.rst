@@ -8,6 +8,7 @@ Submodules
 
    BigDFT.BZ
    BigDFT.Calculators
+   BigDFT.Database
    BigDFT.DoS
    BigDFT.Fragments
    BigDFT.Krylov

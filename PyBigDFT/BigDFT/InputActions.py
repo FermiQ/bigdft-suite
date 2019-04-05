@@ -1,7 +1,7 @@
 """Actions to define on the Input parameters.
 
 This module defines some of the most common actions that a BigDFT user might like to
-perform on the input file. Such module therefore set some of the keys of the input
+perform on the input file. Such module therefore sets some of the keys of the input
 dictionary to the values needed to perform the operations.
 Users might also inspire to the actions performed in order to customize the runs in a different way.
 All the functions of this module have as first argument ``inp``, the dictionary of the input parameters.
@@ -407,7 +407,7 @@ def change_data_directory(inp,name=''):
 
 def calculate_tddft_coupling_matrix(inp,tda=False,rpa=True,fxc=True):
     """
-    Perform a casida TDDFT coupling matrix extraction.
+    Perform a Casida TDDFT coupling matrix extraction.
 
     Args:
        tda (bool): when ``True``, Tamm-Dancoff approximation is used for the extraction of the coupling matrix

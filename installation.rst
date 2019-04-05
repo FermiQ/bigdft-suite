@@ -26,15 +26,15 @@ Upstream packages
 -----------------
 
 -  ``libyaml``: this library is used to parse the
-   `yaml <http://yaml.org/>` Markup language, that is used in the
+   `yaml markup language <http://yaml.org/>`_, that is used in the
    BigDFT input files;
--  `PyYaml <https://pyyaml.org/>`: this is a Python module which makes
-   possible to convert Yaml into python objects. This part is mainly
+-  ``PyYaml``: this is a `Python module <https://pyyaml.org/>`_ which makes
+   possible to convert yaml into python objects. This part is mainly
    used for postprocessing purposes as BigDFT logfile also comes in yaml
    format;
 -  ``libXC``:
-   `this <http://www.tddft.org/programs/octopus/wiki/index.php/Libxc>`
-   library handles most of the XC functionals that can be invoked from
+   this `library <http://www.tddft.org/programs/octopus/wiki/index.php/Libxc>`_
+   handles most of the XC functionals that can be invoked from
    BigDFT runs;
 -  ``GaIn``: this library handles analytic integrals of common operators
    between Gaussian Functions. It does not perform low-level operations
@@ -45,28 +45,28 @@ Native packages
 
 -  :ref:`futile <futile:futile_index>`:  a library
    handling most common FORTRAN low-level operations, like memory
-   managment, profiling routines, I/O operations. It also supports yaml
+   management, profiling routines, I/O operations. It also supports yaml
    output and parsing for fortran programs. It also provides wrappers
    routines to MPI and linear algebra operations. This library is
    intensively used in BigDFT packages;
 -  ``CheSS``: A module for performing Fermi Operator Expansions via
    Chebyshev Polynomials, released as a separate project on
-   `Launchpad <https://launchpad.net/chess>`__
+   `Launchpad <https://launchpad.net/chess>`_
 -  ``psolver``: a flexible real-space Poisson Solver based on
    Interpolating Scaling Functions. It constitutes a fundamental
    building block of BigDFT code, and it can also be used separately and
    linked to other codes. It also internally uses the ``futile`` library
    for the I/O.
 -  ``libABINIT``: this is a subsection of files coming from
-   `ABINIT <http://www.abinit.org>`__ software package, to which
+   `ABINIT <http://www.abinit.org>`_ software package, to which
    BigDFT has been coupled since the early days. It handles different
    parts like symmetries, ewald corrections, PAW routines, density and
    potential mixing routines and some MD minimizers. Also some XC
    functionals, initially natively implemented in the ``ABINIT`` code,
    are also coded in this library. Also this library uses the ``futile``
    code, through the (experimental) PAW section.
--  `BigDFT <http://www.bigdft.org>`__: the core routines of this
-   package
+-  `BigDFT <http://www.bigdft.org>`_: the core routines of this
+   package;
 -  ``spred``: a library for structure prediction tools, that is compiled
    on top of BigDFT routines.
 
@@ -78,7 +78,7 @@ sections and reduces side-effects. In addition, each package can now be
 compiled with different installation instructions.
 
 We have used a building suite tool based on the
-`Jhbuild <https://wiki.gnome.org/action/show/Projects/Jhbuild?action=show&redirect=Jhbuild>`,
+`Jhbuild <https://wiki.gnome.org/action/show/Projects/Jhbuild?action=show&redirect=Jhbuild>`_,
 which is regularly used by developers of ``gnome`` project. We have
 re-adapted/added some of the functionality of the ``jhbuild`` package to
 meet the needs of our package. Let us now present how the installation
@@ -136,7 +136,7 @@ The principle of this installer is to execute, in a build directory
 different of the source one, instead of the configure script, the
 following command:
 
-``<path_to_sources>/Installer.py build -c ``
+``<path_to_sources>/Installer.py build -c``
 
 Let us consider the example of the ``pilipili`` machine (internal L\_Sim
 lab machine). Clearly, environment modules still have to be loaded:
@@ -163,7 +163,7 @@ The following message dialog will appear:
 | `` Configuration options:\``
 | ``   Source: Environment variable 'BIGDFT_CONFIGURE_FLAGS'\``
 | ``   Value: '"FCFLAGS=-O2 -openmp" "--with-ext-linalg=-L/opt/intel/composer_xe_2013.1.117/mkl/lib/intel64 -lmkl_rt -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -liomp5 -lm" "--enable-opencl" "CC=mpicc" "CXX=mpicxx" "FC=mpifc" "F77=mpif77" "FCLIBS= " '\``
-| ``Do you want to continue (Y/n)? ``
+| ``Do you want to continue (Y/n)?``
 
 The Installer script has detected the different compilation options. It
 has filled the environment variable ``BIGDFT_CONFIGURE_FLAGS`` with the
@@ -316,7 +316,7 @@ A dialogue similar to this one should appear:
 | ``  Jhbuild baseline: ../jhbuild.py -f buildrc``
 | ``  Configuration options:``
 | ``    Source: Configuration file '/home/stephan/Documents/BigDFT/stablebranch/Build-gnu_debug/buildrc'``
-| ``Do you want to continue (Y/n)? ``
+| ``Do you want to continue (Y/n)?``
 
 Confirm and wait until the compilation in complete. In order to link now
 another software with CheSS, run the command

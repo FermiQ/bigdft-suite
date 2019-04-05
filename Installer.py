@@ -119,6 +119,17 @@ TARGETS={
     }
 
 class BigDFTInstaller():
+    """Class for the installation of the ``bigdft-suite``.
+
+    Attributes:
+        action (str): Action to be performed.
+        package (str): Package to install.
+        rcfile (str): Configuration file.
+        conditions (list(str)): List of conditions.
+        verbose (bool): If ``True``, more verbose.
+        quiet (bool): If ``True``, no messages.
+        yes (bool): If ``True``, ask a question.
+    """
     m4_re=['^AX_','CHECK_PYTHON','PKG_CHECK_MODULES'] #regular expressions to identify proprietary macros
     def __init__(self,action,package,rcfile,conditions,verbose,quiet,yes):
         import os
@@ -129,12 +140,12 @@ class BigDFTInstaller():
         #look where we are
         self.srcdir = os.path.abspath(os.path.dirname(__file__))
         if self.srcdir == '': self.srcdir='.'
-	#look the builddir
+	    #look the builddir
         self.builddir=os.getcwd()
         #look if we are building from a branch
         bigdftdir=os.path.join(self.srcdir,'bigdft')
         self.branch=os.path.isfile(os.path.join(bigdftdir,'branchfile'))
-        self.verbose=verbose or action=='check'  #verbose option
+        self.verbose=(verbose or action=='check')  #verbose option
         if not self.verbose and not quiet: self.verbose=self.branch
         #To be done BEFORE any exit instruction in __init__ (get_rcfile)
         self.time0 = None
@@ -186,7 +197,7 @@ class BigDFTInstaller():
             return 0
 
     def get_rcfile(self,rcfile):
-        "Determine the rcfile"
+        """Determine the rcfile"""
         import os
         #see if the environment variables BIGDFT_CFG is present
         self.rcfile = ''
@@ -609,84 +620,86 @@ all: build
         except:
             print 'Goodbye...'
         self.makefile_dump() #temporary
-#import the uniparse module
-import UniParse
 
-#Redefine ArgumentParser to have the help message if no arguments
-class Installer_Parser(UniParse.UniParser):
-    def error(self, message):
-        import sys
-        sys.stderr.write('error: %s\n' % message)
-        self.print_help()
-        self.exit()
+if __name__ == '__main__':
+    #import the uniparse module
+    import UniParse
 
-parser=Installer_Parser(description='BigDFT suite Installer',
-                            epilog='''
-If you want more help type "%(prog)s help"
-------------------------------------------------
-For more information, visit www.bigdft.org''')
+    #Redefine ArgumentParser to have the help message if no arguments
+    class Installer_Parser(UniParse.UniParser):
+        def error(self, message):
+            import sys
+            sys.stderr.write('error: %s\n' % message)
+            self.print_help()
+            self.exit()
 
-parser.option('action',nargs='?',default='help',
-                    help='Action to be performed by the Installer.'
-                    ' (default: %(default)s)',choices=['help']+[a for a in ACTIONS])
-parser.option('package',nargs='?',default='spred',
-                    help='Package to be built by the installer. (default: %(default)s)',
-                    choices=CHECKMODULES)
-parser.option('-f','--file',
-                   help='Use an alternative configuration file instead of the default configuration '
-                    + 'given by the environment variable %s' % BIGDFT_CFG)
+    parser=Installer_Parser(description='BigDFT suite Installer',
+                                epilog='''
+    If you want more help type "%(prog)s help"
+    ------------------------------------------------
+    For more information, visit www.bigdft.org''')
 
-parser.add_group(mutually_exclusive=True)
-parser.group_option("-v", "--verbose", action="store_true",help=
-                    'Verbose output, default from a development branch')
-parser.group_option("-q", "--quiet", action="store_true",help=
-                    'Verbosity disabled output, default from a development branch')
+    parser.option('action',nargs='?',default='help',
+                        help='Action to be performed by the Installer.'
+                        ' (default: %(default)s)',choices=['help']+[a for a in ACTIONS])
+    parser.option('package',nargs='?',default='spred',
+                        help='Package to be built by the installer. (default: %(default)s)',
+                        choices=CHECKMODULES)
+    parser.option('-f','--file',
+                       help='Use an alternative configuration file instead of the default configuration '
+                        + 'given by the environment variable %s' % BIGDFT_CFG)
 
-parser.option('-d','--debug',action='store_true',
-              help='Verbose output, default from a development branch')
-parser.option('-a','--add-condition',
-              help='Add a condition for the compilation of the suite.')
-parser.option('-y','--yes',action='store_true',
-              help='Answer yes to dialog questions')
-parser.option('-c','--configure-line',remainder=True,
-              help='Specify the configure line to be passed (set BIGDFT_CONFIGURE_FLAGS variable)')
+    parser.add_group(mutually_exclusive=True)
+    parser.group_option("-v", "--verbose", action="store_true",help=
+                        'Verbose output, default from a development branch')
+    parser.group_option("-q", "--quiet", action="store_true",help=
+                        'Verbosity disabled output, default from a development branch')
 
-args = parser.args()
+    parser.option('-d','--debug',action='store_true',
+                  help='Verbose output, default from a development branch')
+    parser.option('-a','--add-condition',
+                  help='Add a condition for the compilation of the suite.')
+    parser.option('-y','--yes',action='store_true',
+                  help='Answer yes to dialog questions')
+    parser.option('-c','--configure-line',remainder=True,
+                  help='Specify the configure line to be passed (set BIGDFT_CONFIGURE_FLAGS variable)')
 
-conds=None if args.add_condition is None else args.add_condition.split(',')
+    args = parser.args()
 
-if args.configure_line is not None:
-  cfg=''
-  for i in args.configure_line:
-      if i is not None: cfg+='"'+i+'" '
-  #scratch the BIGDFT_CFG environment variable
-  import os
-  os.environ[BIGDFT_CFG]=cfg
+    conds=None if args.add_condition is None else args.add_condition.split(',')
 
-if args.action=='help':
-    print "Quick overview of the BigDFT suite Installer program"
-    print 50*'-'
-    print "USAGE: Installer.py <action> <package>"
-    print 50*'-'+'Available actions'
-    actions=ACTIONS.keys()
-    actions.sort()
-    for a in actions:
-        print a,':'
-        print '     ',ACTIONS[a]
-    print 50*'-'
-    print 'Available packages:',CHECKMODULES
-    print 50*'-'
-    print 10*"QIFI-"+' (Quick Instructions For the Impatient)'
-    print 'Ideally, there are two different policies:'
-    print 'Developer: From a development branch, start by "autogen", then "build"'
-    print '     User: From a tarball, start by "build"'
-    print 'Perform the "dry_run" command to have a graphical overview of the building procedure'
-elif args.action=='update':
-    yes=args.yes
-    for action in ['clean','autogen','build']:
-        BigDFTInstaller(action,args.package,args.file,\
-                        conds,args.verbose,args.quiet,yes)
-        yes=True
-else:
-    BigDFTInstaller(args.action,args.package,args.file,\
-                    conds,args.verbose,args.quiet,args.yes)
+    if args.configure_line is not None:
+      cfg=''
+      for i in args.configure_line:
+          if i is not None: cfg+='"'+i+'" '
+      #scratch the BIGDFT_CFG environment variable
+      import os
+      os.environ[BIGDFT_CFG]=cfg
+
+    if args.action=='help':
+        print "Quick overview of the BigDFT suite Installer program"
+        print 50*'-'
+        print "USAGE: Installer.py <action> <package>"
+        print 50*'-'+'Available actions'
+        actions=ACTIONS.keys()
+        actions.sort()
+        for a in actions:
+            print a,':'
+            print '     ',ACTIONS[a]
+        print 50*'-'
+        print 'Available packages:',CHECKMODULES
+        print 50*'-'
+        print 10*"QIFI-"+' (Quick Instructions For the Impatient)'
+        print 'Ideally, there are two different policies:'
+        print 'Developer: From a development branch, start by "autogen", then "build"'
+        print '     User: From a tarball, start by "build"'
+        print 'Perform the "dry_run" command to have a graphical overview of the building procedure'
+    elif args.action=='update':
+        yes=args.yes
+        for action in ['clean','autogen','build']:
+            BigDFTInstaller(action,args.package,args.file,\
+                            conds,args.verbose,args.quiet,yes)
+            yes=True
+    else:
+        BigDFTInstaller(args.action,args.package,args.file,\
+                        conds,args.verbose,args.quiet,args.yes)

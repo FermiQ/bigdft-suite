@@ -58,7 +58,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'BigDFT-suite'
-copyright = u'2018, BigDFT developers'
+copyright = u'2018-%s, BigDFT developers'
 author = u'BigDFT developers'
 
 # The version info for the project you're documenting, acts as replacement for

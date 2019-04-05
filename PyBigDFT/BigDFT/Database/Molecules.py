@@ -1,4 +1,5 @@
 class Molecule(dict):
+    """Class to load a molecule from the BigDFT database"""
     def __init__(self,name):
         import os
         from BigDFT.Fragments import System

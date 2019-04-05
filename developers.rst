@@ -43,11 +43,6 @@ For some inspiration on coding style and strategies, read this_.
 .. _this: http://bigdft.org/Wiki/index.php?title=Coding_Rules
 
 
-Document the API of the high-level routines
--------------------------------------------
-
-.. todo:: write something here
-
 Create a test for the functionality
 -----------------------------------
 
@@ -59,14 +54,50 @@ it for a suitable implementation.
 
 .. _here: http://bigdft.org/Wiki/index.php?title=Inserting_a_new_test_in_the_distribution
 
+
+Build and improve the BigDFT-suite's documentation
+--------------------------------------------------
+
+From version 1.8.3, sphinx is used to build the documentation.
+
+The file ``requirements.txt`` gives the list of python packages used to build the documentation.
+which can be installed with
+
+``pip install -r requirements.txt``
+
+Then, perform in the source directory
+
+``make html``
+
+
+Sphinx uses the `restructed format <http://www.sphinx-doc.org/en/master/usage/restructuredtext>`_ and can also extract
+from `python docstrings <https://devguide.python.org/documenting>`_ the documentation for the python modules.
+
+
+The full documentation can be installed in `website <https://readthedocs.org/projects/bigdft-suite>`_.
+
+
 Make a notebook which demonstrates the functionality in PyBigDFT
 ----------------------------------------------------------------
 
-For each new high level functionality, you should create a jupyter notebook which demonstrates the new capability.  The idea is to ensure continuity and to help acquaint users with the new feature.  Some examples of notebooks can be found on github_.
+For each new high level functionality, you should create a jupyter notebook which demonstrates the new capability.
+The idea is to ensure continuity and to help acquainted users with the new feature.
+Some examples of notebooks can be found on github_.
 
 .. _github: https://github.com/luigigenovese/BigDFT-nb
+
 
 Insert the notebook as a tutorial in the PyBigDFT documentation
 ---------------------------------------------------------------
 
-Once an appropriate notebook has been written, this should be added to the tutorial directory (``BIGDFT_ROOT/PyBigDFT/source/tutorials``), so that the documentation will be automatically generated and available as a tutorial at :ref:`pybigdft:pybigdft_tutorials`.
+Once an appropriate notebook has been written, this should be added to the tutorial directory (``BIGDFT_ROOT/PyBigDFT/source/tutorials``),
+so that the documentation will be automatically generated and available as a tutorial at :ref:`pybigdft:pybigdft_tutorials`.
+Check that this notebook is valid by making ``make check`` (and the package pytest_ with the plugin nbval_).
+
+.. _pytest: https://docs.pytest.org/en/latest/
+.. _nbval: https://nbval.readthedocs.io/en/latest/
+
+Document the API of the high-level routines
+-------------------------------------------
+
+.. todo:: write something here
