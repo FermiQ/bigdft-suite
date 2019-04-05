@@ -26,7 +26,7 @@ import __builtin__
 pkgdatadir = None
 datadir = None
 import jhbuild
-srcdir = os.path.abspath(os.path.join(os.path.dirname(jhbuild.__file__), '..'))
+srcdir = os.path.abspath(os.path.join(os.path.dirname(jhbuild.__file__), '../..'))
 
 __builtin__.__dict__['PKGDATADIR'] = pkgdatadir
 __builtin__.__dict__['DATADIR'] = datadir

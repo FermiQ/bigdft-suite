@@ -1,5 +1,5 @@
-jhbuild/
-jhbuild.py
+bundler/jhbuild/
+bundler/jhbuild.py
 bigdft.modules
 gnome.modules
 rcfiles/

@@ -35,14 +35,14 @@
 
   <include href="gnome.modules"/>
 
-  <autotools id="libxc" check-target="false" autogen-sh="autoreconf" skip-autogen="true">
+  <autotools id="libxc" check-target="false" autogen-sh="autoreconf">
     <!--<branch repo="libxc" checkoutdir="libxc-2.0.x"/>-->
     <branch repo="local" module="libxc-2.2.2.tar.gz" version="2.2.2" checkoutdir="libxc">
             <!-- <patch file="libxc-2.0.x.patch" />-->
     </branch>
   </autotools>
 
-  <autotools id="v_sim-dev" autogen-sh="autogen.sh+configure" skip-autogen="true">
+  <autotools id="v_sim-dev" autogen-sh="autogen.sh+configure">
     <!-- <branch repo="local-optional" module="v_sim-dev.tar.bz2" -->
     <branch repo="v_sim-dev" module="v_sim"
             version="3.99" checkoutdir="v_sim-dev">
@@ -67,7 +67,7 @@
     <branch repo="bigpoly" module="bigpoly-0.2.0.tar.gz" version="0.2.0" checkoutdir="bigpoly"/>
   </cmake>
 
-  <autotools id="libyaml" autogen-sh="autoreconf" skip-autogen="true">
+  <autotools id="libyaml" autogen-sh="autoreconf">
     <!--<branch repo="libyaml" module="yaml-0.1.4.tar.gz" version="0.1.4"/>-->
     <branch repo="local" module="yaml-0.1.6.tar.gz" version="0.1.6" checkoutdir="yaml" >
       <patch file="yaml-doxygen.patch" />
@@ -111,7 +111,7 @@
     </dependencies>
   </autotools>
 
-  <autotools id="GaIn" skip-autogen="true">
+  <autotools id="GaIn">
     <branch repo="local" module="GaIn-1.0.tar.gz"
             version="1.0"/>
   </autotools>
@@ -195,7 +195,7 @@
     </dependencies>
   </autotools>
 
-  <autotools id="pseudo" autogen-sh="autoreconf" skip-autogen="true">
+  <autotools id="pseudo" autogen-sh="autoreconf">
     <!--<branch repo="bigdft" module="pseudo" version="1.7.5"/>-->
     <branch repo="local" module="pseudo-1.7.5.tar.gz" version="1.7.5" checkoutdir="pseudo"/>
     <dependencies>
@@ -203,18 +203,18 @@
     </dependencies>
   </autotools>
 
-  <makesys id="wannier90" skip-autogen="true">
+  <makesys id="wannier90">
     <branch repo="wannier" module="wannier90-2.0.0.tar.gz" version="2.0.0">
       <patch file="wannier90-2.0.0.patch" />
     </branch>
   </makesys>
 
-  <autotools id="netcdf" autogenargs="--disable-netcdf-4" skip-autogen="true">
+  <autotools id="netcdf" autogenargs="--disable-netcdf-4">
     <branch repo="unidata" module="netcdf/netcdf-4.3.3.tar.gz"
             version="4.3.3"/>
   </autotools>
 
-  <autotools id="netcdff" skip-autogen="true">
+  <autotools id="netcdff">
     <branch repo="unidata" module="netcdf/netcdf-fortran-4.4.1.tar.gz"
             version="4.4.1"/>
     <dependencies>
@@ -222,7 +222,7 @@
     </dependencies>
   </autotools>
 
-  <autotools id="etsf_io" skip-autogen="true">
+  <autotools id="etsf_io">
     <branch repo="etsf" module="etsf_io-1.0.4.tar.gz"
             version="1.0.4"/>
     <dependencies>
@@ -230,12 +230,12 @@
     </dependencies>
   </autotools>
 
-  <cmake id="simgrid" skip-autogen="true">
+  <cmake id="simgrid">
     <branch repo="simgrid" module="SimGrid-3.22.tar.gz"
             version="3.22"/>
   </cmake>
 
-  <cmake id="simgrid-dev" skip-autogen="true">
+  <cmake id="simgrid-dev">
     <branch repo="simgrid-dev"  module="simgrid/simgrid"
             checkoutdir="simgrid-dev"/>
   </cmake>
@@ -251,7 +251,7 @@
     </dependencies>
   </distutils>
 
-  <makesys id="parmetis" skip-autogen="true">
+  <makesys id="parmetis">
     <branch repo="metis" module="parmetis-4.0.2.tar.gz"
             version="4.0.2"/>
 <!--    <dependencies>

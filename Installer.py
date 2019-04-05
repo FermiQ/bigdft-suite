@@ -162,7 +162,7 @@ class BigDFTInstaller():
         self.get_rcfile(rcfile)
 
         #jhbuild script
-        self.jhb=os.path.join(self.srcdir,'jhbuild.py ')
+        self.jhb=os.path.join(self.srcdir,'bundler/jhbuild.py ')
         if self.rcfile != '': self.jhb += '-f '+self.rcfile
 
         #conditions to be added
