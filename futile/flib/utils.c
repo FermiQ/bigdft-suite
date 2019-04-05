@@ -168,10 +168,8 @@ void FC_FUNC(bindfree, BINDFREE)(long long int * fromadd)
 {
   void *from = (void*)*fromadd;
   /*printf("\n test long address = %p %lli\n", (void*)from,*fromadd);*/
-//  smpi_shared_free(from);
   free(from);
 }
-
 
 void FC_FUNC(callsystem, CALLSYSTEM)(const char *cmd, int *lgcmd, int *status)
 {
