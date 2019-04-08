@@ -34,6 +34,15 @@ build:
       - bigdft
       - tmp/bigdft
 
+build-ntpoly:
+  stage: build
+  script:
+    - apt -y install cmake
+    - export JHBUILD_RUN_AS_ROOT="please do it"
+    - mkdir tmp
+    - cd tmp/
+    - ../bundler/jhbuild.py -f ../rcfiles/jhbuildrc build ntpoly
+
 futile:
   stage: check
   script:
@@ -87,6 +96,7 @@ bigdft-linear-extended:
     - cd tmp/bigdft/tests/DFT/linear
 # LD_LIBRARY_PATH is for libbabel.so
     - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root --oversubscribe" LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${CI_PROJECT_DIR}/tmp/install/lib CHECK_MODE=custom make check checkonly_that="directmin cdft rotatesmall verysparse"
+
 
 #sphinx:
 #  stage: build
