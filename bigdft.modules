@@ -60,10 +60,10 @@
     </dependencies>
   </autotools>
 
-  <cmake id="ntpoly">
+  <cmake id="ntpoly" use-ninja="no">
     <branch repo="ntpoly" module="v2.0.tar.gz" version="2.0" checkoutdir="ntpoly"/>
   </cmake>
-  <cmake id="bigpoly">
+  <cmake id="bigpoly" use-ninja="no">
     <branch repo="bigpoly" module="bigpoly-0.2.0.tar.gz" version="0.2.0" checkoutdir="bigpoly"/>
   </cmake>
 
@@ -79,7 +79,7 @@
     <branch repo="local-optional" module="openbabel-2.4.1.tar.gz" version="2.4.1" checkoutdir="openbabel"/>
   </cmake>
 
-  <cmake id="lapack">
+  <cmake id="lapack" use-ninja="no">
     <branch repo="netlib" module="lapack-3.7.0.tgz" version="3.7.0" checkoutdir="lapack"/>
   </cmake>
 
