@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = https://gitlab.com/L_Sim/bundler
+	branch = bundler
+	commit = e5cd107ea995457fbffd7700c65f54eac3500d7b
+	parent = d4ed1fcb514336fd20266dc45eb8a1788c24e740
+	method = merge
+	cmdver = 0.4.0
