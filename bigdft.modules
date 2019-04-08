@@ -230,12 +230,12 @@
     </dependencies>
   </autotools>
 
-  <cmake id="simgrid">
+  <cmake id="simgrid" use-ninja="no">
     <branch repo="simgrid" module="SimGrid-3.22.tar.gz"
             version="3.22"/>
   </cmake>
 
-  <cmake id="simgrid-dev">
+  <cmake id="simgrid-dev" use-ninja="no">
     <branch repo="simgrid-dev"  module="simgrid/simgrid"
             checkoutdir="simgrid-dev"/>
   </cmake>
