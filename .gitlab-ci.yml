@@ -37,7 +37,7 @@ build:
 build-ntpoly:
   stage: build
   script:
-    - apt install cmake
+    - apt -y install cmake
     - export JHBUILD_RUN_AS_ROOT="please do it"
     - mkdir tmp
     - cd tmp/
