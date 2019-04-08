@@ -62,6 +62,7 @@
 
   <cmake id="ntpoly" use-ninja="no">
     <branch repo="ntpoly" module="v2.0.tar.gz" version="2.0" checkoutdir="ntpoly"/>
+    <cmakeargs value="-DCMAKE_TOOLCHAIN_FILE=Targets/Linux.cmake"/>
   </cmake>
   <cmake id="bigpoly" use-ninja="no">
     <branch repo="bigpoly" module="bigpoly-0.2.0.tar.gz" version="0.2.0" checkoutdir="bigpoly"/>
