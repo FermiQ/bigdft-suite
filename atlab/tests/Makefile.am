@@ -35,7 +35,7 @@ AM_FCFLAGS = -I. -I$(top_builddir)/src @LIB_FUTILE_CFLAGS@ @LIBETSFIO_INCLUDE@
 numerics_check.o: $(top_builddir)/src/libatlab-1.a
 
 regtest: numerics_check $(babel_prg)
-	python @FUTILE_PYTHONDIR@/f_regtest.py --fldiff=@FUTILE_PYTHONDIR@/fldiff_yaml.py --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir)
+	$(PYTHON) @FUTILE_PYTHONDIR@/f_regtest.py --fldiff=@FUTILE_PYTHONDIR@/fldiff_yaml.py --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir)
 
 define F_REGTEST_INSTRUCTIONS
 - numerics_check:

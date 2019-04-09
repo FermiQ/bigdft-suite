@@ -1,4 +1,9 @@
-image: luigigenovese/v_sim-dev
+image: ubuntu:latest
+
+before_script:
+  - apt update && apt -y install wget autoconf make pkg-config gfortran libblas3 liblapack3 libopenmpi2 libpython2.7 libyaml-0-2 python-numpy python-numpy-abi9 python-yaml
+  - wget l_sim.gitlab.io/futile/libfutile_1.8-1_amd64.deb
+  - dpkg -i libfutile_1.8-1_amd64.deb
 
 stages:
   - build
@@ -7,10 +12,6 @@ stages:
 
 serial:
   stage: build
-  before_script:
-    - apt update && apt -y install python-yaml python-numpy libopenmpi1.10
-    - wget l_sim.gitlab.io/futile/libfutile_1.8-1_amd64.deb
-    - dpkg -i libfutile_1.8-1_amd64.deb
   script: 
     - autoreconf -fi
     - mkdir tmp
@@ -36,15 +37,12 @@ serial:
 
 debian:
   stage: package
-  before_script:
-    - apt update && apt -y install debhelper fakeroot python-yaml python-numpy libopenmpi1.10
-    - wget l_sim.gitlab.io/futile/libfutile_1.8-1_amd64.deb
-    - dpkg -i libfutile_1.8-1_amd64.deb
   script:
     - tar -xf tmp/atlab-*.tar.bz2
     - cp tmp/atlab-*.tar.bz2 $(echo $(ls tmp/atlab-*.tar.bz2) | sed "s;tmp/atlab-\(.*\).tar.bz2;atlab_\1.orig.tar.bz2;")
     - cp -rp debian/ atlab-*
     - cd atlab-*
+    - apt update && apt -y install debhelper fakeroot
     - dpkg-buildpackage -rfakeroot
   artifacts:
     paths:
