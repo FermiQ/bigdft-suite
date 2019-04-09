@@ -6,7 +6,7 @@
 [subrepo]
 	remote = ../BigDFT-repositories/psolver
 	branch = devel
-	commit = c64e20cc21ce5907b71645262d53e21f9e2e63aa
+	commit = e9a4e57d2321b77b9f4a5aca6cc60722ba47024f
 	method = merge
 	cmdver = 0.4.0
-	parent = e1053beaad7b5c64bcf2930109bf3049850aa9bc
+	parent = c1c704263ed9b4017681cfae87bfbf170c45062c
