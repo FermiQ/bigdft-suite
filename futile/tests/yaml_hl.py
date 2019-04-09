@@ -29,15 +29,24 @@ class Style:
     def __setstate__(self, state):
         self.__init__(**state)
 
-yaml.add_path_resolver(u'tag:yaml.org,2002:python/object:__main__.Style',
-        [None], dict)
-yaml.add_path_resolver(u'tag:yaml.org,2002:pairs',
-        [None, u'replaces'], list)
+if hasattr(yaml, "DangerLoader"):
+  yaml.add_path_resolver(u'tag:yaml.org,2002:python/object:__main__.Style',
+          [None], dict, Loader = yaml.DangerLoader)
+  yaml.add_path_resolver(u'tag:yaml.org,2002:pairs',
+          [None, u'replaces'], list, Loader = yaml.DangerLoader)
+else:
+  yaml.add_path_resolver(u'tag:yaml.org,2002:python/object:__main__.Style',
+          [None], dict)
+  yaml.add_path_resolver(u'tag:yaml.org,2002:pairs',
+          [None, u'replaces'], list)
 
 class YAMLHighlight:
 
     def __init__(self, options):
-        config = yaml.load(file(options.config, 'rb').read())
+        if hasattr(yaml, "DangerLoader"):
+            config = yaml.load(file(options.config, 'rb').read(), Loader = yaml.DangerLoader)
+        else:
+            config = yaml.load(file(options.config, 'rb').read())
         self.style = config[options.style]
         if options.input:
             self.input = file(options.input, 'rb')

@@ -51,23 +51,23 @@ fft_cache.dat: fft_cache
 	$(run_serial) ./fft_cache 50  >> fft_cache.out 2>&1
 	$(run_serial) ./fft_cache 75  >> fft_cache.out 2>&1
 	$(run_serial) ./fft_cache 100 >> fft_cache.out 2>&1
-	python $(srcdir)/fft_cache.py
+	$(PYTHON) $(srcdir)/fft_cache.py
 
 fft_check.report: fft_check.out
-	python $(top_srcdir)/tests/fldiff.py --mode=pseudo --discrepancy=1.e-8 \
+	$(PYTHON) $(top_srcdir)/tests/fldiff.py --mode=pseudo --discrepancy=1.e-8 \
 		fft_check.out $(srcdir)/fft_check.out.ref | tee fft_check.report
 
 fft_cache.report: fft_cache.dat
-	python $(top_srcdir)/tests/fldiff.py --mode=pseudo \
+	$(PYTHON) $(top_srcdir)/tests/fldiff.py --mode=pseudo \
 		fft_cache.out $(srcdir)/fft_cache.out.ref | tee fft_cache.report
 
 check: fft_check.report fft_cache.report report
 
 report:
-	@if test $(MAKELEVEL) = 0 ; then python $(top_builddir)/tests/report.py ; fi
+	@if test $(MAKELEVEL) = 0 ; then $(PYTHON) $(top_builddir)/tests/report.py ; fi
 
 regtest: fft_results
-	python $(top_srcdir)/tests/f_regtest.py --fldiff=$(top_builddir)/tests/fldiff_yaml.py --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir)
+	$(PYTHON) $(top_srcdir)/tests/f_regtest.py --fldiff=$(top_builddir)/tests/fldiff_yaml.py --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir)
 
 define F_REGTEST_INSTRUCTIONS
 - fft_results:

@@ -2,7 +2,7 @@ Source: futile
 Section: libs
 Priority: optional
 Maintainer: Damien Caliste <damien.caliste@cea.fr>
-Build-Depends: debhelper (>=9), python, python-yaml, liblapack3, libblas3, gfortran, libyaml-dev, libopenmpi-dev
+Build-Depends: debhelper (>=9), autoconf, make, libpython2.7-dev, python-yaml, python-numpy, liblapack-dev, libblas-dev, gfortran, libyaml-dev, libopenmpi-dev
 Standards-Version: 4.3.0
 
 Package: libfutile

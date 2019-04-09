@@ -70,7 +70,7 @@ yaml_test.out.yaml: yaml_test
 	./yaml_test > yaml_test.out.yaml
 
 yaml_test.report.yaml: tols.yaml yaml_test.ref.yaml yaml_test.out.yaml
-	python $(top_builddir)/tests/fldiff_yaml.py --label yaml_test -t $(srcdir)/tols.yaml 	\
+	$(PYTHON) $(top_builddir)/tests/fldiff_yaml.py --label yaml_test -t $(srcdir)/tols.yaml 	\
 		-r $(srcdir)/yaml_test.ref.yaml -d yaml_test.out.yaml --output $@
 
 yaml_argparse.out.yaml: yaml_argparse
@@ -79,11 +79,11 @@ yaml_argparse.out.yaml: yaml_argparse
 	./yaml_argparse -n 100 -d [89,90,90] >> yaml_argparse.out.yaml
 
 yaml_argparse.report.yaml: tols.yaml yaml_argparse.ref.yaml yaml_argparse.out.yaml
-	python $(top_builddir)/tests/fldiff_yaml.py --label yaml_argparse -t $(srcdir)/tols.yaml 	\
+	$(PYTHON) $(top_builddir)/tests/fldiff_yaml.py --label yaml_argparse -t $(srcdir)/tols.yaml 	\
 		-r $(srcdir)/yaml_argparse.ref.yaml -d yaml_argparse.out.yaml --output $@
 
 hooks.report.yaml: tols.yaml hooks.ref.yaml
-	python $(top_builddir)/tests/fldiff_yaml.py --label hooks -t $(srcdir)/tols.yaml 	\
+	$(PYTHON) $(top_builddir)/tests/fldiff_yaml.py --label hooks -t $(srcdir)/tols.yaml 	\
 		-r $(srcdir)/hooks.ref.yaml -d hooks.out.yaml --output $@
 
 libfmalloc-1.so:
@@ -92,10 +92,10 @@ libfmalloc-1.so:
 check: yaml_test.report.yaml regtest report
 
 report:
-	@if test $(MAKELEVEL) = 0 ; then python $(top_builddir)/tests/report.py ; fi
+	@if test $(MAKELEVEL) = 0 ; then $(PYTHON) $(top_builddir)/tests/report.py ; fi
 
 regtest: yaml_argparse test_plugin hooks libpong.so f_allocations libfmalloc-1.so
-	python $(top_srcdir)/tests/f_regtest.py --fldiff=$(top_builddir)/tests/fldiff_yaml.py \
+	$(PYTHON) $(top_srcdir)/tests/f_regtest.py --fldiff=$(top_builddir)/tests/fldiff_yaml.py \
 	       --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir) \
 	       --exclusive=$(CHECK_ONLY)
 
