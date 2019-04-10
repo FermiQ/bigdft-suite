@@ -1,4 +1,12 @@
-image: luigigenovese/v_sim-dev
+image: ubuntu:latest
+
+before_script:
+  - apt update && apt -y install wget autoconf make pkg-config gfortran libblas3 liblapack3 libopenmpi2 libpython2.7 libyaml-0-2 python-numpy python-numpy-abi9 python-yaml libopenmpi-dev openssh-client libblas-dev liblapack-dev
+  - wget l_sim.gitlab.io/futile/libfutile_1.8-1_amd64.deb
+  - dpkg -i libfutile_1.8-1_amd64.deb
+  - wget l_sim.gitlab.io/atlab/libatlab_1.0-1_amd64.deb
+  - dpkg -i libatlab_1.0-1_amd64.deb
+  - export OMPI_MCA_btl_vader_single_copy_mechanism=none 
 
 stages:
   - build
@@ -7,12 +15,6 @@ stages:
 
 parallel:
   stage: build
-  before_script:
-    - apt update && apt -y install python-yaml libopenmpi-dev openmpi-bin python-numpy libopenmpi1.10
-    - wget l_sim.gitlab.io/futile/libfutile_1.8-1_amd64.deb
-    - dpkg -i libfutile_1.8-1_amd64.deb
-    - wget l_sim.gitlab.io/atlab/libatlab_1.0-1_amd64.deb
-    - dpkg -i libatlab_1.0-1_amd64.deb
   script:
     - autoreconf -fi
     - mkdir tmp
@@ -23,12 +25,6 @@ parallel:
 
 serial:
   stage: build
-  before_script:
-    - apt update && apt -y install python-yaml python-numpy libopenmpi1.10
-    - wget l_sim.gitlab.io/futile/libfutile_1.8-1_amd64.deb
-    - dpkg -i libfutile_1.8-1_amd64.deb
-    - wget l_sim.gitlab.io/atlab/libatlab_1.0-1_amd64.deb
-    - dpkg -i libatlab_1.0-1_amd64.deb
   script:
     - autoreconf -fi
     - mkdir tmp
@@ -44,12 +40,6 @@ serial:
 
 dynamic:
   stage: build
-  before_script:
-    - apt update && apt -y install python-yaml libopenmpi-dev openmpi-bin python-numpy libopenmpi1.10
-    - wget l_sim.gitlab.io/futile/libfutile_1.8-1_amd64.deb
-    - dpkg -i libfutile_1.8-1_amd64.deb
-    - wget l_sim.gitlab.io/atlab/libatlab_1.0-1_amd64.deb
-    - dpkg -i libatlab_1.0-1_amd64.deb
   script:
     - autoreconf -fi
     - mkdir tmp
@@ -69,13 +59,8 @@ dynamic:
 #      - "build/html"
 doxygen:
   stage: build
-  before_script:
-    - apt update && apt -y install python-yaml python-numpy libopenmpi1.10 doxygen
-    - wget l_sim.gitlab.io/futile/libfutile_1.8-1_amd64.deb
-    - dpkg -i libfutile_1.8-1_amd64.deb
-    - wget l_sim.gitlab.io/atlab/libatlab_1.0-1_amd64.deb
-    - dpkg -i libatlab_1.0-1_amd64.deb
   script:
+    - apt install -y doxygen
     - autoreconf -fi
     - mkdir tmp
     - cd tmp/
@@ -88,17 +73,12 @@ doxygen:
 
 debian:
   stage: package
-  before_script:
-    - apt update && apt -y install debhelper fakeroot python-yaml python-numpy libopenmpi1.10 libopenmpi-dev
-    - wget l_sim.gitlab.io/futile/libfutile_1.8-1_amd64.deb
-    - dpkg -i libfutile_1.8-1_amd64.deb
-    - wget l_sim.gitlab.io/atlab/libatlab_1.0-1_amd64.deb
-    - dpkg -i libatlab_1.0-1_amd64.deb
   script:
     - tar -xf tmp/psolver*.tar.bz2
     - cp tmp/psolver*.tar.bz2 $(echo $(ls tmp/psolver-*.tar.bz2) | sed "s;tmp/psolver-\(.*\).tar.bz2;psolver_\1.orig.tar.bz2;")
     - cp -rp debian/ psolver-*
     - cd psolver-*
+    - apt -y install debhelper fakeroot
     - dpkg-buildpackage -rfakeroot
   artifacts:
     paths:

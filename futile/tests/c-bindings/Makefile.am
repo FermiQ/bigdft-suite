@@ -32,10 +32,10 @@ pyscript.out.yaml: pyscript
 	PYTHONPATH=$PYTHONPATH:$(abs_top_builddir)/src ./pyscript > pyscript.out.yaml
 
 pyscript.report.yaml: tols.yaml pyscript.ref.yaml pyscript.out.yaml
-	python $(top_builddir)/tests/fldiff_yaml.py --label pyscript -t $(srcdir)/tols.yaml	\
+	$(PYTHON) $(top_builddir)/tests/fldiff_yaml.py --label pyscript -t $(srcdir)/tols.yaml	\
 		-r $(srcdir)/pyscript.ref.yaml -d pyscript.out.yaml --output $@
 
 check: $(pyscriptreport) report
 
 report:
-	@if test $(MAKELEVEL) = 0 ; then python $(top_builddir)/tests/report.py ; fi
+	@if test $(MAKELEVEL) = 0 ; then $(PYTHON) $(top_builddir)/tests/report.py ; fi

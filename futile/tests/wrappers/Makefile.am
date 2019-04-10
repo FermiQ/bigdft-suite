@@ -14,7 +14,7 @@ check_PROGRAMS = $(CHECK_PROGS)
 check: regtest report #op2p_check.report.yaml $(check_PROGRAMS)
 
 report:
-	@if test $(MAKELEVEL) = 0 ; then python $(top_builddir)/tests/report.py ; fi
+	@if test $(MAKELEVEL) = 0 ; then $(PYTHON) $(top_builddir)/tests/report.py ; fi
 
 CLEANFILES = *.out.yaml *.report.yaml *.@MODULE_EXT@ report_remarks report
 
@@ -47,11 +47,11 @@ op2p_check.out.yaml: op2p_check
 	$(run_parallel) ./op2p_check -o [201,201] -n 2000 >> $@
 
 op2p_check.report.yaml: op2p_check.out.yaml
-	python $(top_builddir)/tests/fldiff_yaml.py -t $(srcdir)/tols.yaml \
+	$(PYTHON) $(top_builddir)/tests/fldiff_yaml.py -t $(srcdir)/tols.yaml \
 			   -l op2p_check -r $(srcdir)/op2p_check.ref.yaml -d $< -o $@
 
 regtest: $(CHECK_PROGS)
-	python $(top_srcdir)/tests/f_regtest.py --fldiff=$(top_builddir)/tests/fldiff_yaml.py --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir)
+	$(PYTHON) $(top_srcdir)/tests/f_regtest.py --fldiff=$(top_builddir)/tests/fldiff_yaml.py --tols=$(srcdir)/tols.yaml --srcdir=$(srcdir)
 
 define F_REGTEST_INSTRUCTIONS
 if USE_MPI
