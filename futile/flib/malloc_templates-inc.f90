@@ -849,7 +849,7 @@ subroutine i1_ptr_free_multi(arrayA,arrayB,arrayC,arrayD,arrayE,arrayF,arrayG,ar
   integer, dimension(:), pointer, optional, intent(inout) :: arrayG
   integer, dimension(:), pointer, optional, intent(inout) :: arrayH
 
-  include 'deallocate-multiple-inc-ptr.f90'
+  include 'deallocate-multiple-ptr-inc.f90'
 
 end subroutine i1_ptr_free_multi
 

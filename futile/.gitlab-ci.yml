@@ -1,7 +1,9 @@
 image: ubuntu:latest
 
 before_script:
-  - apt update && apt -y install autoconf make libpython2.7-dev python-yaml python-numpy liblapack-dev libblas-dev gfortran libyaml-dev libopenmpi-dev openssh-client
+  - apt update && apt -y install autoconf make libpython2.7-dev python-yaml python-numpy liblapack-dev libblas-dev gfortran libyaml-dev libopenmpi-dev openssh-client python-pytest python-pip
+  - pip install nbval
+  - export OMPI_MCA_btl_vader_single_copy_mechanism=none
 
 stages:
   - build
@@ -43,6 +45,20 @@ dynamic:
     - make -j$(nproc)
     - OMP_NUM_THREADS=2 run_parallel="mpirun -np 3 --allow-run-as-root --oversubscribe" make check
 
+coverage:
+  stage: build
+  script:
+    - apt -y install lcov
+    - autoreconf -fi
+    - ./configure FCFLAGS="-g -O0 --coverage -fopenmp"
+    - make -j$(nproc)
+    - OMP_NUM_THREADS=2 make check
+    - lcov -d dicts -d src -d flib -d wrappers -c -o report.info
+    - genhtml -o report report.info
+  artifacts:
+    paths:
+      - "report"
+
 sphinx:
   stage: build
   before_script:
@@ -69,10 +85,13 @@ debian:
 
 pages:
   stage: deploy
+  before_script:
+    - echo -n
   script:
     - mv build/html/ ${CI_PROJECT_DIR}/public/
     - mv tmp/futile*.tar.bz2 ${CI_PROJECT_DIR}/public/
     - mv libfutile*.deb ${CI_PROJECT_DIR}/public/
+    - mv report/ ${CI_PROJECT_DIR}/public/
   artifacts:
     paths:
       - public

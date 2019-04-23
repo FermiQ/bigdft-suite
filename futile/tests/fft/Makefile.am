@@ -9,15 +9,15 @@ EXTRA_DIST = fft_check.out.ref fft_cache.out.ref fft_cache.py
 
 check_PROGRAMS = fft_check fft_cache fft_results
 
-fft_check_SOURCES = fft_check.f90 $(top_srcdir)/wrappers/fft/fft3d.f90 $(mpi_source)
+fft_check_SOURCES = fft_check.f90 $(mpi_source)
 fft_check_LDFLAGS =
-fft_check_LDADD = @LINALG_LIBS@
+fft_check_LDADD = $(top_builddir)/wrappers/libwrappers.a @LINALG_LIBS@
 
-fft_cache_SOURCES = fft_cache.f90 $(top_srcdir)/wrappers/fft/fft3d.f90 $(mpi_source)
+fft_cache_SOURCES = fft_cache.f90 $(mpi_source)
 fft_cache_LDFLAGS =
-fft_cache_LDADD = @LINALG_LIBS@
+fft_cache_LDADD = $(top_builddir)/wrappers/libwrappers.a @LINALG_LIBS@
 
-fft_results_SOURCES = fft_results.f90 $(top_srcdir)/wrappers/fft/fft3d.f90 $(mpi_source)
+fft_results_SOURCES = fft_results.f90 $(mpi_source)
 fft_results_LDFLAGS =
 fft_results_LDADD = $(flib_libraries) @LINALG_LIBS@
 
@@ -36,9 +36,6 @@ endif
 flib_libraries = $(top_builddir)/src/libfutile-1.a
 LIBS += @LIBS_EXT_DEPS@
 endif
-
-fft_cache.o: fft3d.o
-fft_check.o: fft3d.o
 
 fft_check.out: fft_check
 	$(run_serial) ./fft_check > fft_check.out
