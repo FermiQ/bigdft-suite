@@ -25,6 +25,20 @@ serial:
     paths:
       - "tmp/atlab*.tar.bz2"
 
+coverage:
+  stage: build
+  script:
+    - apt -y install lcov
+    - autoreconf -fi
+    - ./configure FCFLAGS="-g -O0 --coverage -fopenmp -I/usr/include"
+    - make -j$(nproc)
+    - OMP_NUM_THREADS=2 make check
+    - lcov -d src -c -o report.info
+    - genhtml -o report report.info
+  artifacts:
+    paths:
+      - "report"
+
 #sphinx:
 #  stage: build
 #  before_script:
@@ -50,11 +64,14 @@ debian:
 
 pages:
   stage: deploy
+  before_script:
+    - echo -n
   script:
 #    - mv build/html/ ${CI_PROJECT_DIR}/public/
     - mkdir ${CI_PROJECT_DIR}/public
     - mv tmp/atlab*.tar.bz2 ${CI_PROJECT_DIR}/public/
     - mv libatlab*.deb ${CI_PROJECT_DIR}/public/
+    - mv report/ ${CI_PROJECT_DIR}/public/
   artifacts:
     paths:
       - public
