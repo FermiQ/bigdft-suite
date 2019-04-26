@@ -19,6 +19,8 @@ PRE_POST = [EVAL, SETUP, INITIALIZATION]
 
 #Builtin paths to define the search paths
 BUILTIN={
+    'n_orb':{PATH:[ ['Total Number of Orbitals']],                                             
+	       PRINT: "Total Number of Orbitals", GLOBAL: True}, 
     'astruct': {PATH: [ ['Atomic structure']]},
     'data_directory': {PATH: [ ['Data Writing directory']]},
     'dipole': {PATH: [ ['Electric Dipole Moment (AU)', 'P vector']],

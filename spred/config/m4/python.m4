@@ -43,8 +43,17 @@ AC_DEFUN([AM_CHECK_PYTHON_HEADERS],
 [AC_REQUIRE([AM_PATH_PYTHON])
 AC_MSG_CHECKING(for headers required to compile python extensions)
 dnl deduce PYTHON_INCLUDES
-py_prefix=`$PYTHON -c "import sys; print sys.prefix"`
-py_exec_prefix=`$PYTHON -c "import sys; print sys.exec_prefix"`
+AC_ARG_WITH(python-prefix, AS_HELP_STRING([--with-python-prefix],
+              [Force Python prefix (disable by default).]),
+              [ax_python_prefix=$withval],
+              [ax_python_prefix="no"])
+if test x"$ax_python_prefix" = x"no" ; then
+  py_prefix=`$PYTHON -c "import sys; print sys.prefix"`
+  py_exec_prefix=`$PYTHON -c "import sys; print sys.exec_prefix"`
+else
+  py_prefix=$ax_python_prefix
+  py_exec_prefix=$ax_python_prefix
+fi
 if test -x "$PYTHON-config"; then
 PYTHON_INCLUDES=`$PYTHON-config --includes 2>/dev/null`
 else
@@ -91,9 +100,12 @@ AC_DEFUN([AX_PYTHON_DEV],
         AC_DEFINE([HAVE_PYTHON], [], [if set, we can call Python.h])
       fi
     
+      AC_ARG_WITH(numpy-incs, AS_HELP_STRING([--with-numpy-incs], [Include flag for numpy development files ($PYTHON_INCLUDES).]),
+              [ax_python_numpy=$withval],
+              [ax_python_numpy=""])
       AC_LANG_PUSH(C)
       CPPFLAGS_SVG=$CPPFLAGS
-      CPPFLAGS=$CPPFLAGS" $PYTHON_INCLUDES"
+      CPPFLAGS=$CPPFLAGS" $PYTHON_INCLUDES $ax_python_numpy"
       AC_CHECK_HEADERS([numpy/ndarrayobject.h], [ax_have_numpy=yes], [ax_have_numpy=no],
         [#ifdef HAVE_PYTHON
     #include <Python.h>
@@ -102,6 +114,9 @@ AC_DEFUN([AX_PYTHON_DEV],
       CPPFLAGS=$CPPFLAGS_SVG
       AC_LANG_POP(C)
       if test x"$ax_have_numpy" = x"yes" ; then
+        if test x"$ax_python_numpy" != x"$PYTHON_INCLUDES" ; then
+          PYTHON_INCLUDES="$PYTHON_INCLUDES $ax_python_numpy"
+        fi
         AC_DEFINE([HAVE_PYTHON_NUMPY], [], [if set, we can call numpy/ndarrayobject.h])
       fi
     fi

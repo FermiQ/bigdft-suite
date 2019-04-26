@@ -18,7 +18,8 @@ AC_DEFUN([AX_YAML],
      ax_yaml_path="/usr"
   fi
   
-  LDFLAGS_SVG="$LDFLAGS"
+  CPPFLAGS_SVG="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS -I$ax_yaml_path/include"
   AC_LANG_PUSH(C)
   AC_CHECK_HEADER([yaml.h],
                   [ax_have_yaml="yes"],
@@ -34,6 +35,9 @@ AC_DEFUN([AX_YAML],
   else
      AC_MSG_ERROR([libyaml is not available, install YAML and provide path --with-yaml-path.])
   fi
+  CPPFLAGS="$CPPFLAGS_SVG"
+
+  LDFLAGS_SVG="$LDFLAGS"
   LDFLAGS="$LDFLAGS -L$ax_yaml_path/lib"
   AC_CHECK_LIB([yaml], [yaml_parser_parse],
                [ax_have_yaml=yes], [ax_have_yaml=no])

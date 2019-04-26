@@ -38,6 +38,18 @@ if test $ax_have_FUTILE != "yes" ; then
   AC_MSG_ERROR([Futile library not found, cannot proceed.])
 fi
 fi
+
+dnl Some installation directories.
+AC_MSG_CHECKING([for installation python dir for FUTILE])
+FUTILE_PYTHONDIR="/usr/local/lib/python2.7/dist-packages"
+if test -n "$PKG_CONFIG"; then
+    PKG_CHECK_EXISTS([futile],
+                     [FUTILE_PYTHONDIR=`$PKG_CONFIG --variable=pythondir futile 2>/dev/null`],
+                     [FUTILE_PYTHONDIR="none"])
+fi
+AC_MSG_RESULT([$FUTILE_PYTHONDIR])
+AC_SUBST(FUTILE_PYTHONDIR)
+
 AX_PACKAGE([LIBDICTS],[1.8],[-ldicts],[],[],
  	     [program main
      use dictionaries
