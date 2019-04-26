@@ -26,7 +26,6 @@ pythonfutilepath=os.path.join(futilepath,'src','python')
 dictsdir=os.path.join(futilepath,'dicts')
 sys.path.insert(0,pythonfutilepath)
 #sys.path.insert(0,dictsdir)
-sys.path.insert(0,os.path.join(futilepath,'doc','sphinx-fortran-master'))
 
 #where are we, for RTD compilation
 print('Current working directory: ',os.path.abspath('.'))
@@ -74,7 +73,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'futile'
-copyright = u'2018, CEA Grenoble'
+copyright = u'2018-2019, CEA Grenoble'
 author = u'Luigi Genovese'
 
 # The version info for the project you're documenting, acts as replacement for

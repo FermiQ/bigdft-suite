@@ -62,9 +62,14 @@ coverage:
 sphinx:
   stage: build
   before_script:
-    - apt update && apt -y install make python-sphinx python-sphinx-bootstrap-theme python-numpy python-matplotlib
+    - export DEBIAN_FRONTEND=noninteractive
+    - apt update && apt -y install make python-sphinx python-sphinx-bootstrap-theme python-numpy python-matplotlib python-future git
+    - git clone https://gitlab.com/l_sim/sphinx-fortran
+    - cd sphinx-fortran
+    - git checkout lsim
+    - cd -
   script:
-    - make -f Makefile-sphinx html
+    - PYTHONPATH=$PWD/sphinx-fortran make -f Makefile-sphinx html
   artifacts:
     paths:
       - "build/html"
