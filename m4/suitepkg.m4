@@ -92,7 +92,7 @@ AC_DEFUN([AX_PACKAGE],
     fi
     LIBS="$ax_$1_libs $LIBS_SVG"
     AC_LINK_IFELSE(
-      AC_LANG_PROGRAM([$10], [[AC_LANG_SOURCE($7)]]),
+      AC_LANG_PROGRAM([$10], [[$7]]),
       [ax_have_$1=yes],
       [ax_have_$1=no])
     if test $ax_have_$1 != "yes" ; then
@@ -100,7 +100,7 @@ AC_DEFUN([AX_PACKAGE],
       ax_$1_libs="$ax_$1_libs $4"
       LIBS="$ax_$1_libs $LIBS_SVG"
       AC_LINK_IFELSE(
-        AC_LANG_PROGRAM([$10], [[AC_LANG_SOURCE($7)]]),
+        AC_LANG_PROGRAM([$10], [[$7]]),
         [ax_have_$1=yes],
         [ax_have_$1=no])
     fi
