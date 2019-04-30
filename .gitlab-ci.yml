@@ -43,6 +43,16 @@ build-ntpoly:
     - cd tmp/
     - ../bundler/jhbuild.py -f ../rcfiles/jhbuildrc build ntpoly
 
+OpenCL:
+  stage: build
+  script:
+    - apt -y install opencl-headers ocl-icd-opencl-dev gobject-introspection python-gi libgirepository1.0-dev
+    - export JHBUILD_RUN_AS_ROOT="would you mind?"
+    - ./Installer.py -y autogen
+    - mkdir tmp
+    - cd tmp/
+    - ../Installer.py -y -f ../rcfiles/ubuntu_OCL.rc build
+
 futile:
   stage: check
   script:
