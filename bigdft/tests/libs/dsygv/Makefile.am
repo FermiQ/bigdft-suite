@@ -27,7 +27,7 @@ test_LDADD = $(bigdft_library) @LINALG_LIBS@
 check: test-dsygv.report
 
 test-dsygv.report: $(srcdir)/test-dsygv.out.ref test-dsygv.out
-	python $(pythondir)/fldiff.py $^ | tee $@
+	python @FUTILE_PYTHONDIR@/fldiff.py $^ | tee $@
 
 test-dsygv.out: test
 	cp $(srcdir)/input1.dat $(PWD)/input.dat

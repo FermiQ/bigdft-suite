@@ -7,7 +7,7 @@
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
 !!    For the list of contributors, see ~/AUTHORS
-include 'allocate-inc-base.f90'
+include 'allocate-base-inc.f90'
 if (m%srcdata_add > int(0,kind=8)) &
      call c_memcopy(array,m%srcdata_add,f_sizeof(array))
-include 'allocate-inc-end.f90'
+include 'allocate-end-inc.f90'

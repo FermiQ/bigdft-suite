@@ -21,7 +21,7 @@
   <repository type="git" name="pyyaml" href="https://github.com/dcaliste/"/>
   <repository type="git" name="esl" href="https://gitlab.e-cam2020.eu/esl/"/>
 
-  <repository type="git" name="v_sim-dev" href="https://gitlab.com/l_sim/"/>
+  <repository type="git" name="L_Sim" href="https://gitlab.com/l_sim/"/>
 
   <repository type="tarball" name="metis"
               href="http://glaros.dtc.umn.edu/gkhome/fetch/sw/parmetis/"/>
@@ -44,7 +44,7 @@
 
   <autotools id="v_sim-dev" autogen-sh="autogen.sh+configure">
     <!-- <branch repo="local-optional" module="v_sim-dev.tar.bz2" -->
-    <branch repo="v_sim-dev" module="v_sim"
+    <branch repo="L_Sim" module="v_sim"
             version="3.99" checkoutdir="v_sim-dev">
       <patch file="v_sim-dev.patch" />
     </branch>
@@ -67,6 +67,10 @@
   <cmake id="bigpoly" use-ninja="no">
     <branch repo="bigpoly" module="bigpoly-0.6.0.tar.gz" version="0.6.0" checkoutdir="bigpoly"/>
   </cmake>
+
+  <distutils id="sphinx-fortran">
+    <branch repo="L_Sim" module="sphinx-fortran" revision="lsim" />
+  </distutils>
 
   <autotools id="libyaml" autogen-sh="autoreconf">
     <!--<branch repo="libyaml" module="yaml-0.1.4.tar.gz" version="0.1.4"/>-->
@@ -132,6 +136,9 @@
       </if>
       <if condition-set="simulation">
         <dep package="simgrid-dev"/>
+      </if>
+      <if condition-set="devdoc">
+        <dep package="sphinx-fortran"/>
       </if>
     </dependencies>
   </autotools>

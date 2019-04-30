@@ -1,6 +1,16 @@
+SPHINX_RST = conf.py \
+	_static \
+	f_prec.rst \
+	index.rst \
+	inputfile.rst \
+	pyfutile.rst \
+	yaml_parse.rst \
+	yaml_str.rst
+
 EXTRA_DIST = \
 	Futile_Logo.png \
-	extra.css
+	extra.css \
+	$(SPHINX_RST)
 
 CLEANFILES = *.aux *.toc *.log *.xml
 
@@ -18,9 +28,16 @@ install-data-hook: $(insdevdocs)
 
 uninstall-local: $(uninsdevdocs)
 
-install-devdoc: Doxygen/html
+install-devdoc: sphinx
 	test -z "$(docdir)" || /bin/mkdir -p "$(docdir)"
-	cp -rp Doxygen/html '$(docdir)'
+	cp -rp sphinx '$(docdir)'
+
+devdoc: sphinx-doc
+
+sphinx-doc: sphinx
+
+sphinx: $(SPHINX_RST)
+	sphinx-build $(srcdir) "sphinx"
 
 uninstall-devdoc:
 	rm -rf '$(docdir)/html'
@@ -50,4 +67,4 @@ FORD.stamp: $(top_builddir)/config/ford.md
 clean-local:
 	rm -rf FORD Doxygen lcov* *.aux *.log  *.toc Doxygen *.stamp doxygen.warnings
 
-PHONY = install-devdoc
+PHONY = install-devdoc devdoc

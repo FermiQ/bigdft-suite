@@ -7,7 +7,7 @@ check_PROGRAMS = diis_check
 check: $(check_PROGRAMS)
 
 report:
-		@if test $(MAKELEVEL) = 0 ; then python $(pythondir)/report.py ; fi
+		@if test $(MAKELEVEL) = 0 ; then python @FUTILE_PYTHONDIR@/report.py ; fi
 
 EXTRA_PROGRAMS = kpts_check
 

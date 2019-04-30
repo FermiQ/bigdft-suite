@@ -26,7 +26,7 @@ CLEANFILES = psp.out.yaml psp.report.yaml
 
 check: psp.report.yaml
 psp.report.yaml: psp.out.yaml
-	python $(pythondir)/fldiff_yaml.py \
+	python @FUTILE_PYTHONDIR@/fldiff_yaml.py \
 		-r $(abs_srcdir)/psp.ref.yaml -d $^ -o $@ -t $(abs_top_srcdir)/tests/tols-BigDFT.yaml --label=psp
 
 psp.out.yaml: check_psp

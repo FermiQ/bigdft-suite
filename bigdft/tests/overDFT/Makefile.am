@@ -164,7 +164,7 @@ liblammps-connect.so: $(abs_top_srcdir)/tests/overDFT/LAMMPSplugin/lammps-connec
 	  BigDFT2Wannier.b2w*) prec="2.1e-6" ;; \
           *)                prec="1.1e-10" ;; \
         esac ; \
-	python $(pythondir)/fldiff.py $$mode --discrepancy=$$prec $*".out" $< | tee $@
+	python @FUTILE_PYTHONDIR@/fldiff.py $$mode --discrepancy=$$prec $*".out" $< | tee $@
 
 %.report.yaml: %.ref.yaml
 	name2=`basename $< .xabs.ref.yaml` ; \
@@ -174,7 +174,7 @@ liblammps-connect.so: $(abs_top_srcdir)/tests/overDFT/LAMMPSplugin/lammps-connec
 	name=`basename $< .xabs.ref.yaml`  ; fi;\
 	tols=`basename $< .out.ref.yaml` ;\
 	if test -n "$$name" ; then log=log-$$name.yaml ; else log=log.yaml ; fi ; \
-	python $(pythondir)/fldiff_yaml.py \
+	python @FUTILE_PYTHONDIR@/fldiff_yaml.py \
 		-r $< -d $$log -t $(abs_top_srcdir)/tests/tols-BigDFT.yaml --label=$$tols -o $@ 
 
 include $(srcdir)/../check.mk

@@ -102,11 +102,11 @@ DYN_INCLUDES =  deallocate-inc.f90 allocate-inc.f90 \
 	deallocate-c-inc.f90 allocate-c-inc.f90 \
 	deallocate-profile-inc.f90 allocate-profile-inc.f90 \
 	malloc_templates-inc.f90 \
-	deallocate-multiple-inc.f90 deallocate-multiple-inc-ptr.f90 \
+	deallocate-multiple-inc.f90 deallocate-multiple-ptr-inc.f90 \
 	f_memcpy-inc.f90 f_memcpy-base-inc.f90 f_maxdiff-base-inc.f90 \
 	allocate-ptr-inc.f90 deallocate-ptr-inc.f90 f_map-inc.f90 \
 	allocate-simgrid-inc.f90 allocate-aligned-inc.f90\
-	allocate-inc-base.f90 allocate-inc-end.f90 allocation-validation-inc.f90
+	allocate-base-inc.f90 allocate-end-inc.f90 allocation-validation-inc.f90
 
 F_MALLOC_INCLUDES = f_malloc-inc.f90 f_malloc-extra-inc.f90 \
 	f_malloc-base-inc.f90 f_malloc-null-inc.f90 \

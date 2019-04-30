@@ -6,7 +6,7 @@
 [subrepo]
 	remote = ../BigDFT-repositories/atlab
 	branch = devel
-	commit = 30d8b7a1347bc27588c205b0f6236072137cd9da
+	commit = a978655bc70acba3dea34b13bb8f6f9896b32b3e
 	method = merge
 	cmdver = 0.4.0
-	parent = 3d4ab0e1301c5fff64f1f0a1b0feb0bc37d9d6bb
+	parent = 1a66a8a7fe6dde88170344af214d624bc6758068
