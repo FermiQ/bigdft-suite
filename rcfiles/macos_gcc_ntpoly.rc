@@ -1,61 +1,76 @@
-#This is the configuration file for the BigDFT installer
-#This is a python script which is executed by the build suite
+'''This is the configuration file for the BigDFT installer
+for use on Mac OS X with the NTPoly package. We prefer to use GCC instead of
+clang, so please check that the CC and CXX variables are set correctly below.
+'''
 
-#Add the condition testing to run tests and includes PyYaml
 conditions.add("testing")
 
-#List the module the this rcfile will build
-modules = ['spred',]
+# List the module the this rcfile will build
+modules = ['spred', ]
+
 
 def fflags():
-  return """ "FCFLAGS=-O2 -fopenmp -mtune=native" """
+    '''
+    Defines the flags that will be sent to the fortran compiler.
+    '''
+    return "-O2 -fopenmp -mtune=native"
 
-#example of the potentialities of the python syntax in this file
+
 def env_configuration():
-    return  (""" "FC=mpifort" "CC=gcc-8" "CXX=g++-8" """ + fflags() +
-             """ "--with-ext-linalg=-framework Accelerate" """)
+    '''
+    Species the configure line for various autotools packages.
+    '''
+    env = {}
+    env["FC"] = "mpifort"
+    env["CC"] = "gcc-8"
+    env["CXX"] = "g++-8"
+    env["FCFLAGS"] = fflags()
+    env["--with-ext-linalg"] = "-framework Accelerate"
 
-def cmake_configuration():
-  def getcwd():
-    import os
-    return os.getcwd()
-  return ( """-DFORTRAN_ONLY=YES -DF_TOOLCHAINFLAGS=""" + fflags() +
-           """-DCMAKE_Fortran_COMPILER=mpifort """ +
-           """-DCMAKE_PREFIX_PATH="""+getcwd()+"""/install""")
+    return " ".join(['"' + x + '=' + y + '"' for x, y in env.items()])
 
-#the following command sets the environment variable to give these settings
-#to all the modules
-import os
-os.environ['BIGDFT_CONFIGURE_FLAGS']=env_configuration()
-#here follow the configuration instructions for the modules built
-#we specify the configurations for the modules to customize the options if needed
+
+def ntpoly_configuration():
+    '''
+    For NTPoly and BigPoly, we need to specify the cmake options.
+    '''
+    from os import getcwd, path
+
+    cmake_flags = {}
+    cmake_flags["CMAKE_Fortran_FLAGS_RELEASE"] = fflags()
+    cmake_flags["FORTRAN_ONLY"] = "YES"
+    cmake_flags["CMAKE_Fortran_COMPILER"] = "mpifort"
+    cmake_flags["CMAKE_PREFIX_PATH"] = path.join(getcwd(), "install")
+
+    return " ".join(['-D' + x + '="' + y + '"' for x, y in cmake_flags.items()])
+
 
 # For NTPoly
 module_cmakeargs.update({
-'ntpoly': cmake_configuration(),
-'bigpoly': cmake_configuration()
+    'ntpoly': ntpoly_configuration(),
+    'bigpoly': ntpoly_configuration()
 })
 
 module_autogenargs.update({
 
-'libyaml': env_configuration(),
+    'libyaml': env_configuration(),
 
-'futile': env_configuration(),
+    'futile': env_configuration(),
 
-'psolver': env_configuration(),
+    'psolver': env_configuration(),
 
-'chess': env_configuration(),
+    'chess': env_configuration(),
 
-'libxc': env_configuration(),
+    'libxc': env_configuration(),
 
-'libABINIT': env_configuration(),
+    'libABINIT': env_configuration(),
 
-'GaIn': env_configuration(),
+    'GaIn': env_configuration(),
 
-'bigdft': env_configuration(),
+    'bigdft': env_configuration(),
 
-'spred': env_configuration(),
+    'spred': env_configuration(),
 
-'atlab': env_configuration(),
+    'atlab': env_configuration(),
 
 })
