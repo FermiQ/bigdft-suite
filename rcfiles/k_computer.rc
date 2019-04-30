@@ -1,65 +1,88 @@
-#This is the configuration file for the BigDFT installer
-#This is a python script which is executed by the build suite 
- 
-makeargs='-j1'
-def getcwd():
-  import os
-  return os.getcwd()
+'''This is the configuration file for the BigDFT installer
+for use on the K computer when cross compiling.
+'''
+
+conditions.add("testing")
+
+# This is necessary because the parallel build for some reason fails on K.
+makeargs = '-j1'
+
 
 def fflags():
-  return """'FCFLAGS=-SSL2BLAMP -SCALAPACK -O3 -Kfast,openmp' """
+    '''
+    Defines the flags that will be sent to the fortran compiler.
+    '''
+    return "-SSL2BLAMP -SCALAPACK -O3 -Kfast,openmp"
 
-#Add the condition testing to run tests and includes PyYaml
-conditions.add("testing")
-#List the module the this rcfile will build
-modules = ['spred',]
-#example of the potentialities of the python syntax in this file
+# List the module the this rcfile will build
+modules = ['spred', ]
+
+
 def env_configuration():
-    return fflags() + \
-           """ 'CC=fccpx' 'CXX=FCCpx' 'FC=mpifrtpx' \
-           'CFLAGS=-g -O3 -I""" + getcwd() + """/install/include' \
-           '--with-ext-linalg=-lfjscalapack -fjlapackex' \
-           'LIBS=-SSL2BLAMP -SCALAPACK -O3 -Kfast,openmp' \
-           '--build=x86_64-redhat-linux' '--host=sparc-fujitsu-linux' \
-           """
-def cmake_configuration():
-  def getcwd():
-    import os
-    return os.getcwd()
-  return ( """-DFORTRAN_ONLY=YES \
-              -DF_TOOLCHAINFLAGS=' """ + fflags() + """ '\
-              -DTOOLCHAIN_LIBS='-lfjscalapack -fjlapackex -SSL2BLAMP -SCALAPACK -O3 -Kfast,openmp'\
-              -DCMAKE_C_COMPILER=mpifccpx \
-              -DCMAKE_CXX_COMPILER=mpiFCCpx \
-              -DCMAKE_Fortran_COMPILER=mpifrtpx \
-              -DCMAKE_Fortran_MODDIR_FLAG="-M" \
-              -DCMAKE_Fortran_FLAGS="-Kfast,-Kparallel,openmp,optmsg=2 -Cpp" \
-              -DCMAKE_PREFIX_PATH="""+getcwd()+"""/install""")
+    '''
+    Species the configure line for various packages.
+    '''
+    from os import getcwd, path
+    env = {}
+    env["FC"] = "mpifrtpx"
+    env["CC"] = "fccpx"
+    env["CXX"] = "FCCpx"
+    env["FCFLAGS"] = fflags()
+    env["CFLAGS"] = "-g -O3 -I" + path.join(getcwd(), "install", "include")
+    env["--with-ext-linalg"] = "-lfjscalapack -fjlapackex"
+    env["LIBS"] = "-SSL2BLAMP -SCALAPACK -O3 -Kfast,openmp"
+    env["--build"] = "x86_64-redhat-linux"
+    env["--host"] = "sparc-fujitsu-linux"
 
+    return " ".join(['"' + x + '=' + y + '"' for x, y in env.items()])
+
+
+def ntpoly_configuration():
+    '''
+    For NTPoly and BigPoly, we need to specify the cmake options.
+    '''
+    from os import getcwd, path
+
+    cmake_flags = {}
+    cmake_flags["FORTRAN_ONLY"] = "YES"
+    cmake_flags["CMAKE_Fortran_COMPILER"] = "mpifrtpx"
+    cmake_flags["CMAKE_C_COMPILER"] = "mpifccpx"
+    cmake_flags["CMAKE_CXX_COMPILER"] = "mpiFCCpx"
+    cmake_flags["CMAKE_Fortran_MODDIR_FLAG"] = "-M"
+    cmake_flags["CMAKE_Fortran_FLAGS_RELEASE"] = fflags()
+    cmake_flags["TOOLCHAIN_LIBS"] = "-lfjscalapack -fjlapackex -SSL2BLAMP"
+    cmake_flags["TOOLCHAIN_LIBS"] += " -SCALAPACK -O3 -Kfast,openmp"
+    cmake_flags["CMAKE_PREFIX_PATH"] = path.join(getcwd(), "install")
+
+    return " ".join(['-D' + x + '="' + y + '"' for x, y in cmake_flags.items()])
+
+
+# For NTPoly
 module_cmakeargs.update({
-'ntpoly': cmake_configuration(),
-'bigpoly': cmake_configuration()
+    'ntpoly': ntpoly_configuration(),
+    'bigpoly': ntpoly_configuration()
 })
-#'--disable-binaries' 
-#here follow the configuration instructions for the modules built
-module_autogenargs.update({
-   
-'libyaml': env_configuration(),
-   
-'futile': env_configuration(),
 
-'chess': env_configuration(),
-   
-'psolver': env_configuration(),
-   
-'libxc': env_configuration(),
-   
-'libABINIT': env_configuration(),
-   
-'GaIn': env_configuration(),
-   
-'bigdft': env_configuration(),
-   
-'spred': env_configuration(),
-   
+module_autogenargs.update({
+
+    'libyaml': env_configuration(),
+
+    'futile': env_configuration(),
+
+    'psolver': env_configuration(),
+
+    'chess': env_configuration(),
+
+    'libxc': env_configuration(),
+
+    'libABINIT': env_configuration(),
+
+    'GaIn': env_configuration(),
+
+    'bigdft': env_configuration(),
+
+    'spred': env_configuration(),
+
+    'atlab': env_configuration(),
+
 })

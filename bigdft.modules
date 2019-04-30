@@ -61,11 +61,11 @@
   </autotools>
 
   <cmake id="ntpoly" use-ninja="no">
-    <branch repo="ntpoly" module="v2.0.tar.gz" version="2.0" checkoutdir="ntpoly"/>
-    <cmakeargs value="-DCMAKE_TOOLCHAIN_FILE=Targets/Linux.cmake"/>
+    <branch repo="ntpoly" module="ntpoly-v2.3.tar.gz" version="2.3" checkoutdir="ntpoly"/>
+    <cmakeargs value="-DFORTRAN_ONLY=Yes"/>
   </cmake>
   <cmake id="bigpoly" use-ninja="no">
-    <branch repo="bigpoly" module="bigpoly-0.2.0.tar.gz" version="0.2.0" checkoutdir="bigpoly"/>
+    <branch repo="bigpoly" module="bigpoly-0.6.0.tar.gz" version="0.6.0" checkoutdir="bigpoly"/>
   </cmake>
 
   <autotools id="libyaml" autogen-sh="autoreconf">
