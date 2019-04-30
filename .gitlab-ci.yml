@@ -11,7 +11,7 @@ stages:
   - check
   - deploy
 
-build:
+Basic:
   stage: build
   script:
     - export JHBUILD_RUN_AS_ROOT="please do it"
@@ -34,7 +34,7 @@ build:
       - bigdft
       - tmp/bigdft
 
-build-ntpoly:
+NTPoly:
   stage: build
   script:
     - apt -y install cmake
