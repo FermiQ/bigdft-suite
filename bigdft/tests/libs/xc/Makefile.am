@@ -31,5 +31,5 @@ xc.out.yaml: test_xc
 	-$(run_parallel) ./test_xc > $@
 
 xc.report.yaml: xc.out.yaml
-	python $(pythondir)/fldiff_yaml.py -r $(srcdir)/xc.ref.yaml -d $^ -o $@ \
+	python @FUTILE_PYTHONDIR@/fldiff_yaml.py -r $(srcdir)/xc.ref.yaml -d $^ -o $@ \
 			-t $(abs_top_srcdir)/tests/tols-BigDFT.yaml --label=xc

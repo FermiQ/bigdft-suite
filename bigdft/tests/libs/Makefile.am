@@ -43,10 +43,10 @@ check:
 	@if test $(MAKELEVEL) = 0 ; then $(MAKE) report ; fi
 
 report: 
-	python $(pythondir)/report.py
+	python @FUTILE_PYTHONDIR@/report.py
 
 regtest: PS_Check
-	python $(pythondir)/f_regtest.py --fldiff=$(pythondir)/fldiff_yaml.py \
+	python @FUTILE_PYTHONDIR@/f_regtest.py --fldiff=@FUTILE_PYTHONDIR@/fldiff_yaml.py \
 	       --tols=$(abs_srcdir)/tols.yaml --srcdir=$(srcdir) \
 	       --exclusive=${CHECK_ONLY}
 

@@ -26,7 +26,7 @@ driver_LDADD = $(bigdft_library) @LIB_FUTILE_LIBS@ @LINALG_LIBS@
 CLEANFILES = test-overlapgeneral.out.yaml test-overlapgeneral.report.yaml test-overlapgeneral.report
 
 test-overlapgeneral.report.yaml: $(srcdir)/test-overlapgeneral.ref.yaml test-overlapgeneral.out.yaml
-	python $(pythondir)/fldiff_yaml.py \
+	python @FUTILE_PYTHONDIR@/fldiff_yaml.py \
 		-r $< -d test-overlapgeneral.out.yaml -t $(abs_top_srcdir)/tests/tols-BigDFT.yaml --label=test-overlapgeneral -o $@ 
 ##	python $(pythondir)/fldiff_yaml.py $^ | tee $@
 
