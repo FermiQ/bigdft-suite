@@ -24,7 +24,7 @@ def fetch_inventory(uri):
     return intersphinx.fetch_inventory(MockApp(), '', uri)
 
 
-def project_builder(project,builddir=None):
+def project_builder(project,builddir=None,docdir='source',sourcepath='.'):
     """
     Build the project indicated by the input.
     A temporary directory is created next to the source directory
@@ -32,8 +32,8 @@ def project_builder(project,builddir=None):
     """
     from sphinx_multibuild import SphinxMultiBuilder
     from os import path as p
-    projpath=p.abspath(project)
-    source=p.join(projpath,'source')
+    projpath=p.abspath(p.join(sourcepath, project))
+    source=p.join(projpath,docdir)
     tmp=p.join(projpath,'tmp')
     build=p.join(projpath,'build') if builddir is None else customized_builddir(project,builddir)
     print('Creating builder for package: ',project)

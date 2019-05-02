@@ -18,10 +18,11 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('.'))
-sourcepath=os.path.abspath(os.path.realpath(__file__))
-pythonfutilepath=os.path.join(sourcepath,'futile','src','python')
-sys.path.insert(0, os.path.abspath(pythonfutilepath))
+sourcepath=os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, sourcepath)
+print sys.path
+pythonfutilepath=os.path.join(sourcepath,'..','futile','src','python')
+sys.path.insert(0, pythonfutilepath)
 
 # -- General configuration ------------------------------------------------
 
@@ -41,7 +42,7 @@ extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
-    'sphinxcontrib.programoutput',
+    #'sphinxcontrib.programoutput',
     'sphinxfortran.fortran_domain']
 
 # Add any paths that contain templates here, relative to this directory.
@@ -95,8 +96,8 @@ todo_include_todos = True
 # a list of builtin themes.
 #
 html_theme = 'sphinx_rtd_theme'
-html_logo = 'sphinxdocstatic/logo_header.png'
-html_favicon = 'sphinxdocstatic/logo_header.png'
+html_logo = 'logo_header.png'
+html_favicon = 'logo_header.png'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -107,7 +108,7 @@ html_favicon = 'sphinxdocstatic/logo_header.png'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['sphinxdocstatic']
+html_static_path = ['static']
 
 
 # -- Options for HTMLHelp output ------------------------------------------
@@ -198,8 +199,8 @@ if on_rtd:
 else:
     #try to run the build for the various subprojects
     import sphinxprebuild as spb
-    spb.project_builder('futile',builddir).build()
-    spb.project_builder('PyBigDFT',builddir).build()
+    spb.project_builder('futile',builddir,'doc','..').build()
+    spb.project_builder('PyBigDFT',builddir,sourcepath='..').build()
     intersphinx_mapping['futile']=spb.project_tuple('futile')
     intersphinx_mapping['pybigdft']=spb.project_tuple('PyBigDFT')
 

@@ -39,28 +39,28 @@ extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
-    'sphinxcontrib.jinja',
+    #'sphinxcontrib.jinja',
     'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
     'sphinx.ext.napoleon',
-    'sphinx.ext.autosummary',
-    'nbsphinx']
+    'sphinx.ext.autosummary']#,
+  #'nbsphinx']
 
-import guzzle_sphinx_theme
+# import guzzle_sphinx_theme
 
-html_theme_path = guzzle_sphinx_theme.html_theme_path()
-html_theme = 'guzzle_sphinx_theme'
+# html_theme_path = guzzle_sphinx_theme.html_theme_path()
+# html_theme = 'guzzle_sphinx_theme'
 
 # Register the theme as an extension to generate a sitemap.xml
-extensions.append("guzzle_sphinx_theme")
+# extensions.append("guzzle_sphinx_theme")
 
 # Guzzle theme options (see theme.conf for more information)
-html_theme_options = {
-    # Set the name of the project to appear in the sidebar
-    "project_nav_name": "PyBigDFT",
-}
+#html_theme_options = {
+#    # Set the name of the project to appear in the sidebar
+#    "project_nav_name": "PyBigDFT",
+#}
 
 
 # Add any paths that contain templates here, relative to this directory.
@@ -215,7 +215,7 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 from BigDFT import InputActions as A
 
 # information about the input actions that can be used and their documentation
-jinja_contexts = {'input_actions': { 'actions': { a: getattr(A,a).__doc__  for a in dir(A) if '__' not in a and a !='dict_set'}}}
+# jinja_contexts = {'input_actions': { 'actions': { a: getattr(A,a).__doc__  for a in dir(A) if '__' not in a and a !='dict_set'}}}
 
 # tools to be done in the readthedocs environment
 #import os

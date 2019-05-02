@@ -19,6 +19,7 @@
   <repository type="tarball" name="ntpoly" href="https://github.com/william-dawson/NTPoly/archive/"/>
   <repository type="tarball" name="bigpoly" href="https://github.com/william-dawson/BigPoly/archive/"/>
   <repository type="git" name="pyyaml" href="https://github.com/dcaliste/"/>
+  <repository type="git" name="sphinx" href="https://github.com/rowanG077/"/>
   <repository type="git" name="esl" href="https://gitlab.e-cam2020.eu/esl/"/>
 
   <repository type="git" name="L_Sim" href="https://gitlab.com/l_sim/"/>
@@ -70,6 +71,13 @@
 
   <distutils id="sphinx-fortran">
     <branch repo="L_Sim" module="sphinx-fortran" revision="lsim" />
+  </distutils>
+
+  <distutils id="sphinx-multibuild">
+    <branch repo="sphinx" module="sphinx-multibuild" revision="1.2.0" />
+    <dependencies>
+      <dep package="sphinx-fortran"/>
+    </dependencies>
   </distutils>
 
   <autotools id="libyaml" autogen-sh="autoreconf">
