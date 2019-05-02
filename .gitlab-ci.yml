@@ -118,12 +118,13 @@ bigdft-linear-extended:
 #    paths:
 #      - "build/html"
 
-#pages:
-#  stage: deploy
-#  script:
-#    - mv tmp/doc/Doxygen/html ${CI_PROJECT_DIR}/public/
-#    - mv tmp/psolver*.tar.bz2 ${CI_PROJECT_DIR}/public/
-#    - mv libpsolver*.deb ${CI_PROJECT_DIR}/public/
-#  artifacts:
-#    paths:
-#      - public
+pages:
+  stage: deploy
+  only:
+    - master@gitlab.org/L_Sim
+  script:
+    - mkdir ${CI_PROJECT_DIR}/public/
+    - mv tmp/bigdft-suite* ${CI_PROJECT_DIR}/public/
+  artifacts:
+    paths:
+      - public
