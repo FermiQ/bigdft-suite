@@ -121,7 +121,7 @@ bigdft-linear-extended:
 pages:
   stage: deploy
   only:
-    - master@gitlab.org/L_Sim
+    - master@gitlab.com/L_Sim
   script:
     - mkdir ${CI_PROJECT_DIR}/public/
     - mv tmp/bigdft-suite* ${CI_PROJECT_DIR}/public/
