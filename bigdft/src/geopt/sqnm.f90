@@ -465,7 +465,7 @@ subroutine sqnm(runObj,outsIO,nproc,iproc,verbosity,ncount_bigdft,fail)
 
 !      if (fnrm.le.fnrmtol) goto 1000
       call convcheck(fmax,fluct*runObj%inputs%frac_fluct,runObj%inputs%forcemax,icheck)
-      if(icheck>5)then
+      if(icheck>1)then
          goto 1000
       endif
      if(imode==2)rxyz(:,:,idx(nhist))=rxyz(:,:,idx(nhist))+&

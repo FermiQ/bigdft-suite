@@ -73,7 +73,7 @@ subroutine bfgsdriver(runObj,outs,nproc,iproc,ncount_bigdft)
 
         !if(iproc==0) write(*,*) 'ICHECK ',icheck
         if (iproc == 0) call yaml_map('ICHECK',icheck)
-        if(icheck>5) parmin%converged=.true.
+        if(icheck>1) parmin%converged=.true.
         !call calmaxforcecomponentanchors(atoms,np,f(1,1),fnrm,fspmax)
         !call checkconvergence(parmin,fspmax)
         !if(ncount_bigdft>in%ncount_cluster_x-1)
