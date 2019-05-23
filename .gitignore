@@ -178,3 +178,5 @@ chess/missing
 .ipynb_checkpoints*/
 PyBigDFT.egg-info
 sphinxdocbuild
+BUILD/
+*.h.in~
