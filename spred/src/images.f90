@@ -485,11 +485,11 @@ contains
     type(run_image), dimension(:), intent(inout) :: imgs
     real(gp), intent(in) :: tolerance !< tolerance for fix atoms.
 
-    real(gp), dimension(:,:), allocatable :: d_R
+    real(gp), dimension(:,:), allocatable :: d_R, delta
     integer :: i, istart, istop, j, nat
     
     nat = imgs(1)%run%atoms%astruct%nat
-    ALLOCATE( d_R(3, nat) )
+    ALLOCATE( d_R(3, nat) , delta(3, nat) )
 
     istart = 1
     ! We set the coordinates for all empty images.
@@ -508,14 +508,20 @@ contains
     END DO
 
     d_R = ( imgs(size(imgs))%run%atoms%astruct%rxyz - imgs(1)%run%atoms%astruct%rxyz )
-    do i = 1, size(imgs)
-       imgs(i)%fix_atoms=f_malloc_ptr([3,nat],id='fix_atoms')
-       !ALLOCATE( imgs(i)%fix_atoms(3, nat) )      
-       imgs(i)%fix_atoms = 1
-       WHERE ( ABS( d_R ) <=  tolerance ) imgs(i)%fix_atoms = 0
-    end do
 
-    DEALLOCATE( d_R )
+    DO i = 1, size(imgs)
+       imgs(i)%fix_atoms=f_malloc_ptr([3,nat],id='fix_atoms')
+       imgs(i)%fix_atoms = 1
+       !tolerance compared to total displacement of the atoms instead of each
+       !coordinate displacement
+       delta = 0
+       do j = 1, nat
+          delta(:,j) = sqrt(d_R(1,j)**2 + d_R(2,j)**2 + d_R(3,j)**2)
+       end do
+       WHERE ( ABS( delta ) <= tolerance ) imgs(i)%fix_atoms = 0
+    END DO
+
+    DEALLOCATE( d_R , delta )
   end subroutine images_init_path
 
 
@@ -582,7 +588,8 @@ contains
     real(gp), dimension(2:3), intent(in) :: k
     logical, intent(in) :: full, climbing
 
-    real(gp), dimension(:), allocatable :: elastic_gradient
+    real(gp), parameter :: Pi = 3.14159265359
+    real(gp), dimension(:), allocatable :: elastic_gradient, cos_phi, switching, spring_ortho
 
     !! total gradient on each replica ( climbing_img image is used if needed )
     !! only the component of the PES gradient ortogonal to the path is taken into
@@ -600,13 +607,23 @@ contains
        ELSE
           !! elastic gradient only along the path ( variable elastic constant is used )  
           elastic_gradient = &
-               ( k(2) * norm( cubic_pbc( pos0 - posm1, Lx, Ly, Lz ) ) - &
-                 k(3) * norm( cubic_pbc( posp1 - pos0, Lx, Ly, Lz ) ) ) * tgt
+                dot_product( ( k(2) * cubic_pbc( pos0 - posm1, Lx, Ly, Lz ) - &
+                               k(3) * cubic_pbc( posp1 - pos0, Lx, Ly, Lz ) ) , tgt) * tgt
        END IF
 
-       grad = - PES_forces + elastic_gradient + dot_product( PES_forces, tgt ) * tgt
+       ! Terme de NEB selon l'article Jonsson et al., 1998.
 
-       deallocate(elastic_gradient)
+       allocate(cos_phi(ndim),switching(ndim),spring_ortho(ndim))
+       
+       cos_phi = dot_product((posp1 - pos0), (pos0 - posm1)) / (norm(posp1 - pos0) * norm(pos0 - posm1))
+       switching = 0.5 * (1 + cos(Pi * cos_phi))
+       spring_ortho = ( ( k(2) * cubic_pbc(pos0 - posm1, Lx, Ly, Lz)   &
+                        - k(3) * cubic_pbc(posp1 - pos0, Lx, Ly, Lz) ) &
+                        - elastic_gradient )
+
+       grad = - PES_forces + elastic_gradient + dot_product( PES_forces, tgt ) * tgt + switching * spring_ortho
+
+       deallocate(elastic_gradient,cos_phi,switching,spring_ortho)
     end if
   END SUBROUTINE compute_local_gradient
 
@@ -1180,7 +1197,7 @@ subroutine image_calculate(img, iteration, id)
   use module_images
   use yaml_strings
   use bigdft_run, only: bigdft_state,bigdft_write_atomic_file,bigdft_set_input_policy,&
-       INPUT_POLICY_SCRATCH,INPUT_POLICY_MEMORY
+       INPUT_POLICY_SCRATCH,INPUT_POLICY_DISK
   implicit none
   type(run_image), intent(inout) :: img
   integer :: iteration
@@ -1194,9 +1211,11 @@ subroutine image_calculate(img, iteration, id)
   ! in details, because the worker may run several images, so it should
   ! restart from scratch since positions may be very different.
   !img%run%inputs%inputpsiid = 0
-  call bigdft_set_input_policy(INPUT_POLICY_SCRATCH,img%run)
-  if (iteration > 0 .and. abs(img%id - id) < 2) &
-       call bigdft_set_input_policy(INPUT_POLICY_MEMORY,img%run) !img%run%inputs%inputpsiid = 1
+  if (iteration == 0) then
+      call bigdft_set_input_policy(INPUT_POLICY_SCRATCH,img%run)
+  else if (iteration > 0 .and. abs(img%id - id) < 2) then
+      call bigdft_set_input_policy(INPUT_POLICY_DISK,img%run)
+  end if
 
   unit_log = 0
   img%id = id

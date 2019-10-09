@@ -2138,7 +2138,8 @@ contains
           end do
        end if
 
-       if (runObj%inputs%inputPsiId == 'INPUT_PSI_LCAO' .and. associated(runObj%rst%KSwfn%psi)) then
+       if ((runObj%inputs%inputPsiId == 'INPUT_PSI_LCAO' .or. runObj%inputs%inputPsiId == 'INPUT_PSI_DISK_WVL') .and. &
+          associated(runObj%rst%KSwfn%psi)) then
           call f_free_ptr(runObj%rst%KSwfn%psi)
           call f_free_ptr(runObj%rst%KSwfn%orbs%eval)
           call deallocate_locreg_descriptors(runObj%rst%KSwfn%Lzd%Glr)
